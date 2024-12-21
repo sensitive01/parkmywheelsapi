@@ -36,6 +36,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       
     },
+  
+      subsctiptiontype:{
+type: String,
+      },
+  
     bookingTime: {
       type: String,
       
