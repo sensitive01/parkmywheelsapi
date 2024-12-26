@@ -16,6 +16,7 @@ exports.createBooking = async (req, res) => {
       bookingDate,
       bookingTime,
       tenditivecheckout,
+      subsctiptiontype,
       status,
       sts,
     } = req.body;
@@ -36,6 +37,7 @@ exports.createBooking = async (req, res) => {
       bookingDate,
       bookingTime,
       tenditivecheckout,
+      subsctiptiontype,
       status,
       sts,
     });
@@ -190,7 +192,7 @@ exports.getBookingsByuserid = async (req, res) => {
     const bookings = await Booking.find({ userid: id });
 
     if (!bookings || bookings.length === 0) {
-      return res.status(400).json({ error: "No bookings found for this user" });
+      return res.status(200).json({ message: "No bookings found for this user" });
     }
 
     // Return the list of bookings
