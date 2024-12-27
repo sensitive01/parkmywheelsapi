@@ -107,54 +107,54 @@ const updateParkingChargesCar = async (req, res) => {
 };
 
 
-// const updateParkingChargesBike = async (req, res) => {
-//   const { vendorid, charges } = req.body;
+const updateParkingChargesBike = async (req, res) => {
+  const { vendorid, charges } = req.body;
 
-//   if (!vendorid || !charges) {
-//     return res.status(400).send('Vendor ID and charges are required.');
-//   }
+  if (!vendorid || !charges) {
+    return res.status(400).send('Vendor ID and charges are required.');
+  }
 
-//   try {
+  try {
    
-//     const incomingBikeCharges = charges.filter((charge) => charge.category === "Bike");
-//     const incomingBikeChargeIds = incomingBikeCharges.map((charge) => charge._id);
+    const incomingBikeCharges = charges.filter((charge) => charge.category === "Bike");
+    const incomingBikeChargeIds = incomingBikeCharges.map((charge) => charge._id);
 
    
-//     await Parking.updateOne(
-//       { vendorid },
-//       {
-//         $pull: {
-//           charges: {
-//             category: "Bike",
-//             _id: { $nin: incomingBikeChargeIds },
-//           },
-//         },
-//       }
-//     );
+    await Parking.updateOne(
+      { vendorid },
+      {
+        $pull: {
+          charges: {
+            category: "Bike",
+            _id: { $nin: incomingBikeChargeIds },
+          },
+        },
+      }
+    );
 
     
-//     for (let charge of incomingBikeCharges) {
-//       await Parking.updateOne(
-//         {
-//           vendorid,
-//           "charges._id": charge._id,
-//         },
-//         {
-//           $set: {
-//             "charges.$.type": charge.type,
-//             "charges.$.amount": charge.amount,
-//             "charges.$.category": charge.category,
-//           },
-//         },
-//         { upsert: true } 
-//       );
-//     }
+    for (let charge of incomingBikeCharges) {
+      await Parking.updateOne(
+        {
+          vendorid,
+          "charges._id": charge._id,
+        },
+        {
+          $set: {
+            "charges.$.type": charge.type,
+            "charges.$.amount": charge.amount,
+            "charges.$.category": charge.category,
+          },
+        },
+        { upsert: true } 
+      );
+    }
 
-//     res.status(200).send('Bike charges updated successfully.');
-//   } catch (error) {
-//     console.error("Error while updating charges:", error.message);
-//     res.status(500).send('Server error');
-//   }
-// };
+    res.status(200).send('Bike charges updated successfully.');
+  } catch (error) {
+    console.error("Error while updating charges:", error.message);
+    res.status(500).send('Server error');
+  }
+};
 
-module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar };
+module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar,updateParkingChargesBike };
