@@ -56,5 +56,43 @@ const getChargesbyId = async (req, res) => {
   }
 };
 
+const updateParkingCharges = async (req, res) => {
+  const { vendorid, charges } = req.body;
 
-module.exports={ parkingCharges, getChargesbyId }
+  if (!vendorid || !charges) {
+    return res.status(400).send('Vendor ID and charges are required.');
+  }
+
+  try {
+    // Loop through the charges to update only "Car" charges
+    for (let charge of charges) {
+      if (charge.category === "Car") {
+        const updatedCharge = await Parking.findOneAndUpdate(
+          { 
+            vendorid: vendorid, 
+            'charges._id': charge._id 
+          },
+          {
+            $set: {
+              'charges.$.type': charge.type, // Update type
+              'charges.$.amount': charge.amount, // Update amount
+              'charges.$.category': charge.category // Update category
+            }
+          },
+          { new: true }
+        );
+
+        if (!updatedCharge) {
+          return res.status(404).send(`Charge with _id ${charge._id} not found or does not belong to the specified vendor.`);
+        }
+      }
+    }
+
+    res.status(200).send('Car charges updated successfully.');
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
+  };
+};
+
+module.exports = { parkingCharges, getChargesbyId, updateParkingCharges };
