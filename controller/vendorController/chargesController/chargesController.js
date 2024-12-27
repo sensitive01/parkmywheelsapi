@@ -108,7 +108,7 @@ const getChargesbyId = async (req, res) => {
 
 
 
-const updateParkingChargesCar = async (req, res) => {
+const updateParkingCharges = async (req, res) => {
   const { vendorid, charges } = req.body;
 
   if (!vendorid || !charges) {
@@ -116,40 +116,52 @@ const updateParkingChargesCar = async (req, res) => {
   }
 
   try {
+    // Extract the incoming "Car" charges
     const incomingCarCharges = charges.filter((charge) => charge.category === "Car");
     const incomingCarChargeIds = incomingCarCharges.map((charge) => charge._id);
 
     // Step 1: Remove all existing "Car" charges that are not in the incoming list
-    // Step 1: Remove all existing "Car" charges that are not in the incoming list
-await Parking.updateOne(
-  { vendorid },
-  {
-    $pull: {
-      charges: {
-        category: "Car",
-        _id: { $nin: incomingCarChargeIds }, // This will work with UUIDs
-      },
-    },
-  }
-);
+    await Parking.updateOne(
+      { vendorid },
+      {
+        $pull: {
+          charges: {
+            category: "Car",
+            _id: { $nin: incomingCarChargeIds },
+          },
+        },
+      }
+    );
 
-// Step 2: Add or update incoming "Car" charges
-for (let charge of incomingCarCharges) {
-  await Parking.updateOne(
-    {
-      vendorid,
-      "charges._id": charge._id, // This will work with UUIDs
-    },
-    {
-      $set: {
-        "charges.$.type": charge.type,
-        "charges.$.amount": charge.amount,
-        "charges.$.category": charge.category,
-      },
-    },
-    { upsert: true }
-  );
-}
+    // Step 2: Add or update incoming "Car" charges
+    for (let charge of incomingCarCharges) {
+      // Debugging: Check if the charge exists before updating
+      const existingCharge = await Parking.findOne({
+        vendorid,
+        "charges._id": charge._id,
+      });
+
+      if (!existingCharge) {
+        console.log(`Charge with ID ${charge._id} not found for vendor ${vendorid}`);
+      } else {
+        console.log(`Updating charge with ID ${charge._id} for vendor ${vendorid}`);
+      }
+
+      await Parking.updateOne(
+        {
+          vendorid,
+          "charges._id": charge._id,
+        },
+        {
+          $set: {
+            "charges.$.type": charge.type,
+            "charges.$.amount": charge.amount,
+            "charges.$.category": charge.category,
+          },
+        },
+        { upsert: true } // Insert if not found
+      );
+    }
 
     res.status(200).send('Car charges updated successfully.');
   } catch (error) {
@@ -157,8 +169,6 @@ for (let charge of incomingCarCharges) {
     res.status(500).send('Server error');
   }
 };
-
-
 const updateParkingChargesBike = async (req, res) => {
   const { vendorid, charges } = req.body;
 
