@@ -56,7 +56,7 @@ const getChargesbyId = async (req, res) => {
   }
 };
 
-const updateParkingCharges = async (req, res) => {
+const updateParkingChargesCar = async (req, res) => {
   const { vendorid, charges } = req.body;
 
   if (!vendorid || !charges) {
@@ -64,24 +64,24 @@ const updateParkingCharges = async (req, res) => {
   }
 
   try {
-    // Extract the incoming "Car" charges
+   
     const incomingCarCharges = charges.filter((charge) => charge.category === "Car");
     const incomingCarChargeIds = incomingCarCharges.map((charge) => charge._id);
 
-    // Step 1: Remove all existing "Car" charges that are not in the incoming list
+    
     await Parking.updateOne(
       { vendorid },
       {
         $pull: {
           charges: {
             category: "Car",
-            _id: { $nin: incomingCarChargeIds }, // Remove "Car" charges not in the incoming IDs
+            _id: { $nin: incomingCarChargeIds }, 
           },
         },
       }
     );
 
-    // Step 2: Add or update incoming "Car" charges
+   
     for (let charge of incomingCarCharges) {
       await Parking.updateOne(
         {
@@ -95,7 +95,7 @@ const updateParkingCharges = async (req, res) => {
             "charges.$.category": charge.category,
           },
         },
-        { upsert: true } // Insert if not found
+        { upsert: true }
       );
     }
 
@@ -107,4 +107,54 @@ const updateParkingCharges = async (req, res) => {
 };
 
 
-module.exports = { parkingCharges, getChargesbyId, updateParkingCharges };
+// const updateParkingChargesBike = async (req, res) => {
+//   const { vendorid, charges } = req.body;
+
+//   if (!vendorid || !charges) {
+//     return res.status(400).send('Vendor ID and charges are required.');
+//   }
+
+//   try {
+   
+//     const incomingBikeCharges = charges.filter((charge) => charge.category === "Bike");
+//     const incomingBikeChargeIds = incomingBikeCharges.map((charge) => charge._id);
+
+   
+//     await Parking.updateOne(
+//       { vendorid },
+//       {
+//         $pull: {
+//           charges: {
+//             category: "Bike",
+//             _id: { $nin: incomingBikeChargeIds },
+//           },
+//         },
+//       }
+//     );
+
+    
+//     for (let charge of incomingBikeCharges) {
+//       await Parking.updateOne(
+//         {
+//           vendorid,
+//           "charges._id": charge._id,
+//         },
+//         {
+//           $set: {
+//             "charges.$.type": charge.type,
+//             "charges.$.amount": charge.amount,
+//             "charges.$.category": charge.category,
+//           },
+//         },
+//         { upsert: true } 
+//       );
+//     }
+
+//     res.status(200).send('Bike charges updated successfully.');
+//   } catch (error) {
+//     console.error("Error while updating charges:", error.message);
+//     res.status(500).send('Server error');
+//   }
+// };
+
+module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar };
