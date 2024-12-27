@@ -135,32 +135,47 @@ const updateParkingChargesCar = async (req, res) => {
 
     // Step 2: Add or update incoming "Car" charges
     for (let charge of incomingCarCharges) {
-      // Debugging: Check if the charge exists before updating
       const existingCharge = await Parking.findOne({
         vendorid,
         "charges._id": charge._id,
       });
 
       if (!existingCharge) {
-        console.log(`Charge with ID ${charge._id} not found for vendor ${vendorid}`);
+        console.log(`Charge with ID ${charge._id} not found for vendor ${vendorid}. Creating new charge.`);
+        
+        // If the charge does not exist, push a new charge into the charges array
+        await Parking.updateOne(
+          { vendorid },
+          {
+            $push: {
+              charges: {
+                _id: charge._id, // Use the provided _id
+                type: charge.type,
+                amount: charge.amount,
+                category: charge.category,
+              },
+            },
+          },
+          { upsert: true } // Ensure the vendor document is created if it doesn't exist
+        );
       } else {
         console.log(`Updating charge with ID ${charge._id} for vendor ${vendorid}`);
-      }
-
-      await Parking.updateOne(
-        {
-          vendorid,
-          "charges._id": charge._id,
-        },
-        {
-          $set: {
-            "charges.$.type": charge.type,
-            "charges.$.amount": charge.amount,
-            "charges.$.category": charge.category,
+        
+        // If the charge exists, update it
+        await Parking.updateOne(
+          {
+            vendorid,
+            "charges._id": charge._id,
           },
-        },
-        { upsert: true } // Insert if not found
-      );
+          {
+            $set: {
+              "charges.$.type": charge.type,
+              "charges.$.amount": charge.amount,
+              "charges.$.category": charge.category,
+            },
+          }
+        );
+      }
     }
 
     res.status(200).send('Car charges updated successfully.');
