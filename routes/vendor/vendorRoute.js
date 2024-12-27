@@ -37,7 +37,8 @@ vendorRoute.put("/update/:id", bookingController.updateBooking);
 
 vendorRoute.post("/addparkingcharges", chargesController.parkingCharges);
 vendorRoute.get("/getchargesdata/:id", chargesController.getChargesbyId);
-vendorRoute.put("/updateparkingcharges", chargesController.updateParkingCharges);
+vendorRoute.put("/updateparkingchargescar", chargesController.updateParkingChargesCar);
+// vendorRoute.put("/updateparkingchargesbike",chargesController.updateParkingChargesBike )
 
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
