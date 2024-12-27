@@ -64,35 +64,47 @@ const updateParkingCharges = async (req, res) => {
   }
 
   try {
-    // Loop through the charges to update only "Car" charges
-    for (let charge of charges) {
-      if (charge.category === "Car") {
-        const updatedCharge = await Parking.findOneAndUpdate(
-          { 
-            vendorid: vendorid, 
-            'charges._id': charge._id 
-          },
-          {
-            $set: {
-              'charges.$.type': charge.type, // Update type
-              'charges.$.amount': charge.amount, // Update amount
-              'charges.$.category': charge.category // Update category
-            }
-          },
-          { new: true }
-        );
+    // Extract the incoming "Car" charges
+    const incomingCarCharges = charges.filter((charge) => charge.category === "Car");
+    const incomingCarChargeIds = incomingCarCharges.map((charge) => charge._id);
 
-        if (!updatedCharge) {
-          return res.status(404).send(`Charge with _id ${charge._id} not found or does not belong to the specified vendor.`);
-        }
+    // Step 1: Remove all existing "Car" charges that are not in the incoming list
+    await Parking.updateOne(
+      { vendorid },
+      {
+        $pull: {
+          charges: {
+            category: "Car",
+            _id: { $nin: incomingCarChargeIds }, // Remove "Car" charges not in the incoming IDs
+          },
+        },
       }
+    );
+
+    // Step 2: Add or update incoming "Car" charges
+    for (let charge of incomingCarCharges) {
+      await Parking.updateOne(
+        {
+          vendorid,
+          "charges._id": charge._id,
+        },
+        {
+          $set: {
+            "charges.$.type": charge.type,
+            "charges.$.amount": charge.amount,
+            "charges.$.category": charge.category,
+          },
+        },
+        { upsert: true } // Insert if not found
+      );
     }
 
     res.status(200).send('Car charges updated successfully.');
   } catch (error) {
-    console.error(error);
+    console.error("Error while updating charges:", error.message);
     res.status(500).send('Server error');
-  };
+  }
 };
+
 
 module.exports = { parkingCharges, getChargesbyId, updateParkingCharges };
