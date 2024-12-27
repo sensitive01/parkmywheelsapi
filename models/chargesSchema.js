@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const parkingCharges = new mongoose.Schema({
   type: { type: String,  }, 
-_id: { type: String,  },
+
   amount: { type: String,  }, 
 
   category: { type: String,  }, 
