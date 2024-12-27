@@ -51,4 +51,32 @@ const getAmenitiesData = async (req, res) => {
     }
   };
 
-module.exports = { addAmenitiesData, getAmenitiesData };
+
+  // Update amenities data by vendorId
+const updateAmenitiesData = async (req, res) => {
+  const { id } = req.params;  
+  const { amenities } = req.body; 
+  try {
+  
+    const existingVendor = await Amenities.findOne({ vendorId: id });
+
+    if (!existingVendor) {
+      return res.status(404).json({ message: `No data found for vendorId: ${id}` });
+    }
+
+    existingVendor.amenities = amenities || existingVendor.amenities;
+
+    await existingVendor.save();
+
+    res.status(200).json({
+      message: "Amenities data updated successfully",
+      updatedAmenitiesData: existingVendor,
+    });
+  } catch (error) {
+    console.error("Error updating data:", error);
+    res.status(500).json({ message: "Error updating data", error: error.message });
+  }
+};
+
+module.exports = { addAmenitiesData, getAmenitiesData, updateAmenitiesData };
+
