@@ -120,35 +120,36 @@ const updateParkingChargesCar = async (req, res) => {
     const incomingCarChargeIds = incomingCarCharges.map((charge) => charge._id);
 
     // Step 1: Remove all existing "Car" charges that are not in the incoming list
-    await Parking.updateOne(
-      { vendorid },
-      {
-        $pull: {
-          charges: {
-            category: "Car",
-            _id: { $nin: incomingCarChargeIds },
-          },
-        },
-      }
-    );
+    // Step 1: Remove all existing "Car" charges that are not in the incoming list
+await Parking.updateOne(
+  { vendorid },
+  {
+    $pull: {
+      charges: {
+        category: "Car",
+        _id: { $nin: incomingCarChargeIds }, // This will work with UUIDs
+      },
+    },
+  }
+);
 
-    // Step 2: Add or update incoming "Car" charges
-    for (let charge of incomingCarCharges) {
-      await Parking.updateOne(
-        {
-          vendorid,
-          "charges._id": charge._id,
-        },
-        {
-          $set: {
-            "charges.$.type": charge.type,
-            "charges.$.amount": charge.amount,
-            "charges.$.category": charge.category,
-          },
-        },
-        { upsert: true }
-      );
-    }
+// Step 2: Add or update incoming "Car" charges
+for (let charge of incomingCarCharges) {
+  await Parking.updateOne(
+    {
+      vendorid,
+      "charges._id": charge._id, // This will work with UUIDs
+    },
+    {
+      $set: {
+        "charges.$.type": charge.type,
+        "charges.$.amount": charge.amount,
+        "charges.$.category": charge.category,
+      },
+    },
+    { upsert: true }
+  );
+}
 
     res.status(200).send('Car charges updated successfully.');
   } catch (error) {
