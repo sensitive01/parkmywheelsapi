@@ -108,7 +108,7 @@ const getChargesbyId = async (req, res) => {
 
 
 
-const updateParkingCharges = async (req, res) => {
+const updateParkingChargesCar = async (req, res) => {
   const { vendorid, charges } = req.body;
 
   if (!vendorid || !charges) {
