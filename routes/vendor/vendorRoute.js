@@ -50,6 +50,7 @@ vendorRoute.get("/getbanner", bannerController.getBanners)
 //Route for amenities
 vendorRoute.post("/amenities", amenitiesController.addAmenitiesData)
 vendorRoute.get("/getamenitiesdata/:id", amenitiesController.getAmenitiesData)
+vendorRoute.put("/updateamenitiesdata/:id",amenitiesController.updateAmenitiesData )
 
 
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
