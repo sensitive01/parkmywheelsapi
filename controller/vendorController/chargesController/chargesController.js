@@ -127,55 +127,6 @@ const updateParkingChargesCar = async (req, res) => {
 
 
 
-// const updateParkingChargesCar = async (req, res) => {
-//   const { vendorid, charges } = req.body;
-
-//   if (!vendorid || !charges) {
-//     return res.status(400).send('Vendor ID and charges are required.');
-//   }
-
-//   try {
-//     const incomingCarCharges = charges.filter((charge) => charge.category === "Car");
-//     const incomingCarChargeIds = incomingCarCharges.map((charge) => charge._id);
-
-//     // Step 1: Remove all existing "Car" charges that are not in the incoming list
-//     await Parking.updateOne(
-//       { vendorid },
-//       {
-//         $pull: {
-//           charges: {
-//             category: "Car",
-//             _id: { $nin: incomingCarChargeIds },
-//           },
-//         },
-//       }
-//     );
-
-//     // Step 2: Add or update incoming "Car" charges
-//     for (let charge of incomingCarCharges) {
-//       await Parking.updateOne(
-//         {
-//           vendorid,
-//           "charges._id": charge._id,
-//         },
-//         {
-//           $set: {
-//             "charges.$.type": charge.type,
-//             "charges.$.amount": charge.amount,
-//             "charges.$.category": charge.category,
-//           },
-//         },
-//         { upsert: true }
-//       );
-//     }
-
-//     res.status(200).send('Car charges updated successfully.');
-//   } catch (error) {
-//     console.error("Error while updating charges:", error.message);
-//     res.status(500).send('Server error');
-//   }
-// };
-
 
 const updateParkingChargesBike = async (req, res) => {
   const { vendorid, charges } = req.body;
