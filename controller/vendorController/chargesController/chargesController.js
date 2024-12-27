@@ -194,5 +194,72 @@ const updateParkingChargesBike = async (req, res) => {
   }
 };
 
+const updateParkingChargesOthers = async (req, res) => {
+  const { vendorid, charges } = req.body;
 
-module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar,updateParkingChargesBike };
+  if (!vendorid || !charges) {
+    return res.status(400).send('Vendor ID and charges are required.');
+  }
+
+  try {
+
+    const incomingOthersCharges = charges.filter((charge) => charge.category === "Others");
+
+    const incomingOthersChargeIds = incomingOthersCharges.map((charge) => charge.type);
+
+ 
+    await Parking.updateOne(
+      { vendorid },
+      {
+        $pull: {
+          charges: {
+            category: "Others",
+            type: { $nin: incomingOthersChargeIds }, 
+          },
+        },
+      }
+    );
+
+   
+    for (let charge of incomingOthersCharges) {
+      if (charge._id) {
+        
+        await Parking.updateOne(
+          {
+            vendorid,
+            "charges._id": charge._id,
+          },
+          {
+            $set: {
+              "charges.$.type": charge.type,
+              "charges.$.amount": charge.amount,
+              "charges.$.category": charge.category,
+            },
+          }
+        );
+      } else {
+       
+        await Parking.updateOne(
+          { vendorid },
+          {
+            $push: {
+              charges: {
+                type: charge.type,
+                amount: charge.amount,
+                category: charge.category,
+              },
+            },
+          },
+          { upsert: true }
+        );
+      }
+    }
+
+    res.status(200).send('Others charges updated successfully.');
+  } catch (error) {
+    console.error("Error while updating charges:", error.message);
+    res.status(500).send('Server error');
+  }
+};
+
+module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar,updateParkingChargesBike ,updateParkingChargesOthers,};
