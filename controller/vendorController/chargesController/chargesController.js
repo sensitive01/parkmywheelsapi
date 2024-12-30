@@ -143,4 +143,49 @@ const updateParkingChargesOthers = async (req, res) => {
   }
 };
 
-module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar,updateParkingChargesBike ,updateParkingChargesOthers,};
+
+const updateParkingChargesCategory = async (req, res) => {
+  const { vendorid, charges } = req.body;
+
+  if (!vendorid || !charges || !Array.isArray(charges)) {
+    return res.status(400).send('Vendor ID and a valid charges array are required.');
+  }
+
+  try {
+    // Determine the category being updated from the incoming charges
+    const categoryToUpdate = charges[0]?.category;
+
+    if (!categoryToUpdate) {
+      return res.status(400).send('Category is required in the charges data.');
+    }
+
+    // Fetch the existing vendor document
+    const existingVendor = await Parking.findOne({ vendorid });
+
+    if (!existingVendor) {
+      return res.status(404).json({ message: `Vendor with ID ${vendorid} not found.` });
+    }
+
+    // Filter out the charges that are not part of the category being updated
+    const filteredCharges = existingVendor.charges.filter(
+      (charge) => charge.category !== categoryToUpdate
+    );
+
+    // Merge the updated category charges with the existing charges
+    const updatedCharges = [...filteredCharges, ...charges];
+
+    // Update the vendor document with the merged charges
+    existingVendor.charges = updatedCharges;
+    await existingVendor.save();
+
+    res.status(200).json({
+      message: `${categoryToUpdate} charges updated successfully.`,
+      vendor: existingVendor,
+    });
+  } catch (error) {
+    console.error("Error while updating charges:", error.message);
+    res.status(500).send('Server error');
+  }
+};
+
+module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCar,updateParkingChargesBike ,updateParkingChargesOthers, updateParkingChargesCategory};
