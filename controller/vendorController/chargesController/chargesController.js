@@ -89,133 +89,54 @@ const updateParkingChargesCar = async (req, res) => {
 const updateParkingChargesBike = async (req, res) => {
   const { vendorid, charges } = req.body;
 
-  if (!vendorid || !charges) {
-    return res.status(400).send('Vendor ID and charges are required.');
+  if (!vendorid || !charges || !Array.isArray(charges)) {
+    return res.status(400).send('Vendor ID and a valid charges array are required.');
   }
 
   try {
+    // Filter charges for "Bike" category
+    const bikeCharges = charges.filter((charge) => charge.category === "Bike");
 
-    const incomingBikeCharges = charges.filter((charge) => charge.category === "Bike");
-
-    const incomingBikeChargeIds = incomingBikeCharges.map((charge) => charge.type);
-
- 
-    await Parking.updateOne(
+    // Update the vendor's charges, overwriting the entire "charges" array for Bike
+    const updatedVendor = await Parking.findOneAndUpdate(
       { vendorid },
-      {
-        $pull: {
-          charges: {
-            category: "Bike",
-            type: { $nin: incomingBikeChargeIds }, 
-          },
-        },
-      }
+      { $set: { charges: bikeCharges } },
+      { new: true, upsert: true } // `new: true` returns the updated document; `upsert: true` creates a new document if it doesn't exist
     );
 
-   
-    for (let charge of incomingBikeCharges) {
-      if (charge._id) {
-        
-        await Parking.updateOne(
-          {
-            vendorid,
-            "charges._id": charge._id,
-          },
-          {
-            $set: {
-              "charges.$.type": charge.type,
-              "charges.$.amount": charge.amount,
-              "charges.$.category": charge.category,
-            },
-          }
-        );
-      } else {
-       
-        await Parking.updateOne(
-          { vendorid },
-          {
-            $push: {
-              charges: {
-                type: charge.type,
-                amount: charge.amount,
-                category: charge.category,
-              },
-            },
-          },
-          { upsert: true }
-        );
-      }
-    }
-
-    res.status(200).send('Bike charges updated successfully.');
+    res.status(200).json({
+      message: "Bike charges updated successfully.",
+      vendor: updatedVendor,
+    });
   } catch (error) {
     console.error("Error while updating charges:", error.message);
     res.status(500).send('Server error');
   }
 };
 
+
 const updateParkingChargesOthers = async (req, res) => {
   const { vendorid, charges } = req.body;
 
-  if (!vendorid || !charges) {
-    return res.status(400).send('Vendor ID and charges are required.');
+  if (!vendorid || !charges || !Array.isArray(charges)) {
+    return res.status(400).send('Vendor ID and a valid charges array are required.');
   }
 
   try {
+    // Filter charges for "Others" category
+    const othersCharges = charges.filter((charge) => charge.category === "Others");
 
-    const incomingOthersCharges = charges.filter((charge) => charge.category === "Others");
-
-    const incomingOthersChargeIds = incomingOthersCharges.map((charge) => charge.type);
-
- 
-    await Parking.updateOne(
+    // Update the vendor's charges, overwriting the entire "charges" array for Others
+    const updatedVendor = await Parking.findOneAndUpdate(
       { vendorid },
-      {
-        $pull: {
-          charges: {
-            category: "Others",
-            type: { $nin: incomingOthersChargeIds }, 
-          },
-        },
-      }
+      { $set: { charges: othersCharges } },
+      { new: true, upsert: true } // `new: true` returns the updated document; `upsert: true` creates a new document if it doesn't exist
     );
 
-   
-    for (let charge of incomingOthersCharges) {
-      if (charge._id) {
-        
-        await Parking.updateOne(
-          {
-            vendorid,
-            "charges._id": charge._id,
-          },
-          {
-            $set: {
-              "charges.$.type": charge.type,
-              "charges.$.amount": charge.amount,
-              "charges.$.category": charge.category,
-            },
-          }
-        );
-      } else {
-       
-        await Parking.updateOne(
-          { vendorid },
-          {
-            $push: {
-              charges: {
-                type: charge.type,
-                amount: charge.amount,
-                category: charge.category,
-              },
-            },
-          },
-          { upsert: true }
-        );
-      }
-    }
-
-    res.status(200).send('Others charges updated successfully.');
+    res.status(200).json({
+      message: "Others charges updated successfully.",
+      vendor: updatedVendor,
+    });
   } catch (error) {
     console.error("Error while updating charges:", error.message);
     res.status(500).send('Server error');
