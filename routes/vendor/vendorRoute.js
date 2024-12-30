@@ -37,9 +37,6 @@ vendorRoute.put("/update/:id", bookingController.updateBooking);
 
 vendorRoute.post("/addparkingcharges", chargesController.parkingCharges);
 vendorRoute.get("/getchargesdata/:id", chargesController.getChargesbyId);
-vendorRoute.put("/updateparkingchargescar", chargesController.updateParkingChargesCar);
-vendorRoute.put("/updateparkingchargesbike",chargesController.updateParkingChargesBike )
-vendorRoute.put("/updateparkingchargesothers",chargesController.updateParkingChargesOthers )
 vendorRoute.put("/updateparkingchargescategory",chargesController.updateParkingChargesCategory )
 
 
