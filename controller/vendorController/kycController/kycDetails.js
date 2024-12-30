@@ -4,6 +4,8 @@ const KycDetails = require('../../../models/kycSchema');
 // Create KYC Details
 const createKycData = async (req, res) => {
   try {
+    console.log("BODY", req.body); // Debugging: Log files being sent in the request
+
     const {
       vendorId,
       idProof,
@@ -12,32 +14,35 @@ const createKycData = async (req, res) => {
       addressProofNumber,
       status,
     } = req.body;
+    console.log("FILES:", req.files); // Debugging: Log files
 
-    if (!req.files || !req.files.idProofImage || !req.files.addressProofImage) {
+    if (!req.files) {
       return res.status(400).json({ message: 'Images are required' });
     }
 
     // Upload images to Cloudinary and get the URLs
-    const idProofImage = await uploadImage(req.files.idProofImage[0].buffer, 'kyc/idProofs');
-    const addressProofImage = await uploadImage(req.files.addressProofImage[0].buffer, 'kyc/addressProofs');
+    const idProofImage = await uploadImage(req.files.idProofImage[0].buffer, "kyc/idProofs");
+    const addressProofImage = await uploadImage(req.files.addressProofImage[0].buffer, "kyc/addressProofs");
 
     const kycDetails = new KycDetails({
       vendorId,
       idProof,
       idProofNumber,
-      idProofImage,
+      idProofImage: idProofImage,
       addressProof,
       addressProofNumber,
-      addressProofImage,
+      addressProofImage: addressProofImage,
       status,
     });
 
     await kycDetails.save();
     res.status(201).json({ message: 'KYC details created successfully', data: kycDetails });
   } catch (error) {
+    console.log("Multer error", error); // Log the error for debugging
     res.status(500).json({ message: 'Error creating KYC details', error: error.message });
   }
 };
+
 
 // Get a Single KYC Data by ID
 const getKycData = async (req, res) => {
@@ -45,7 +50,7 @@ const getKycData = async (req, res) => {
     const { id } = req.params;
     const kycDetails = await KycDetails.findById(id);
 
-    if (!kycDetails) {
+    if (!kycDetails || !req.files.idProofImage || !req.files.addressProofImage) {
       return res.status(404).json({ message: 'KYC details not found' });
     }
 

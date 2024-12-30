@@ -76,7 +76,10 @@ vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
 
 //Route for KYC
-vendorRoute.post("/createkyc", kycController.createKycData)
+vendorRoute.post("/createkyc",  upload.fields([
+  { name: "idProofImage", maxCount: 1 }, // Handle idProofImage field
+  { name: "addressProofImage", maxCount: 1 } // Handle addressProofImage field
+]),kycController.createKycData)
 vendorRoute.get("/getkyc/:id", kycController.getKycData)
 vendorRoute.put("/updatekyc/:id",kycController.updateKycData )
 vendorRoute.put("/getallkyc/:id", kycController.getallKycData)
