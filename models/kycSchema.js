@@ -1,4 +1,4 @@
-// models/KycDetails.js
+
 const mongoose = require('mongoose');
 
 const kycDetailsSchema = new mongoose.Schema({
@@ -28,6 +28,10 @@ const kycDetailsSchema = new mongoose.Schema({
   },
   addressProofImage: {
     type: String, // URL or file path of the image
+    required: true,
+  },
+  status: {
+    type: String,
     required: true,
   },
 }, { timestamps: true });
