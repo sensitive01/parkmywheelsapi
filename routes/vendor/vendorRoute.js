@@ -11,6 +11,7 @@ const privacyController = require("../../controller/vendorController/privacyCont
 const chargesController = require("../../controller/vendorController/chargesController/chargesController")
 const bannerController = require("../../controller/vendorController/bannerController/bannerController");
 const amenitiesController = require("../../controller/vendorController/amenitiesController/amenitiesController");
+const kycController = require("../../controller/vendorController/kycController/kycDetails");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -75,6 +76,10 @@ vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
 
 //Route for KYC
+vendorRoute.post("/createkyc", kycController.createKycData)
+vendorRoute.get("/getkyc/:id", kycController.getKycData)
+vendorRoute.put("/updatekyc/:id",kycController.updateKycData )
+vendorRoute.put("/getallkyc/:id", kycController.getallKycData)
 
 
 
