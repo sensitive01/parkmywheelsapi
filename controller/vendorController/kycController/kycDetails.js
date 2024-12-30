@@ -36,7 +36,7 @@ const createKycData = async (req, res) => {
     });
 
     await kycDetails.save();
-    res.status(201).json({ message: 'KYC details created successfully', data: kycDetails });
+    res.status(200).json({ message: 'KYC details created successfully', data: kycDetails });
   } catch (error) {
     console.log("Multer error", error); // Log the error for debugging
     res.status(500).json({ message: 'Error creating KYC details', error: error.message });
@@ -44,26 +44,25 @@ const createKycData = async (req, res) => {
 };
 
 
-// Get a Single KYC Data by ID
+
 const getKycData = async (req, res) => {
   try {
-    const { id } = req.params;
-    const kycDetails = await KycDetails.findById(id);
+    const { id } = req.params; 
 
-    if (!kycDetails || !req.files.idProofImage || !req.files.addressProofImage) {
+    const kycDetails = await KycDetails.findOne({ vendorId: id });
+
+    if (!kycDetails) {
       return res.status(404).json({ message: 'KYC details not found' });
     }
-
     res.status(200).json({ data: kycDetails });
   } catch (error) {
+
     res.status(500).json({ message: 'Error fetching KYC details', error: error.message });
   }
 };
-
-// Update KYC Data by ID
 const updateKycData = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { vendorId } = req.params;
     const {
       idProof,
       idProofNumber,
@@ -72,44 +71,47 @@ const updateKycData = async (req, res) => {
       status,
     } = req.body;
 
-    const kycDetails = await KycDetails.findById(id);
-    if (!kycDetails) {
-      return res.status(404).json({ message: 'KYC details not found' });
-    }
+    console.log("Request Body:", req.body);
+    console.log("Request Files:", req.files);
 
-    // Update fields
-    if (idProof) kycDetails.idProof = idProof;
-    if (idProofNumber) kycDetails.idProofNumber = idProofNumber;
-    if (addressProof) kycDetails.addressProof = addressProof;
-    if (addressProofNumber) kycDetails.addressProofNumber = addressProofNumber;
-    if (status) kycDetails.status = status;
+    const updateData = { idProof, idProofNumber, addressProof, addressProofNumber, status };
 
-    // Update images if provided
+    // Handle optional file uploads
     if (req.files && req.files.idProofImage) {
-      const idProofImage = await uploadImage(req.files.idProofImage[0].buffer, 'kyc/idProofs');
-      kycDetails.idProofImage = idProofImage;
+      updateData.idProofImage = await uploadImage(req.files.idProofImage[0].buffer, "kyc/idProofs");
     }
 
     if (req.files && req.files.addressProofImage) {
-      const addressProofImage = await uploadImage(req.files.addressProofImage[0].buffer, 'kyc/addressProofs');
-      kycDetails.addressProofImage = addressProofImage;
+      updateData.addressProofImage = await uploadImage(req.files.addressProofImage[0].buffer, "kyc/addressProofs");
     }
 
-    await kycDetails.save();
-    res.status(200).json({ message: 'KYC details updated successfully', data: kycDetails });
+    const updatedKycDetails = await KycDetails.findOneAndUpdate(
+      { vendorId },
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!updatedKycDetails) {
+      return res.status(404).json({ message: 'KYC details not found' });
+    }
+
+    res.status(200).json({ message: 'KYC details updated successfully', data: updatedKycDetails });
   } catch (error) {
+    console.error("Error updating KYC details:", error.message);
     res.status(500).json({ message: 'Error updating KYC details', error: error.message });
   }
 };
 
-// Get All KYC Data for a Vendor ID
+
+
+
 const getallKycData = async (req, res) => {
   try {
-    const { id: vendorId } = req.params;
-    const kycDetails = await KycDetails.find({ vendorId });
+    // Fetch all KYC details without filtering by vendorId
+    const kycDetails = await KycDetails.find();
 
     if (!kycDetails || kycDetails.length === 0) {
-      return res.status(404).json({ message: 'No KYC details found for this vendor' });
+      return res.status(404).json({ message: 'No KYC details found' });
     }
 
     res.status(200).json({ data: kycDetails });
@@ -118,7 +120,6 @@ const getallKycData = async (req, res) => {
   }
 };
 
-// Export the controller functions
 module.exports = {
   createKycData,
   getKycData,

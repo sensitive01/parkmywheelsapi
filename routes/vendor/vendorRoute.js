@@ -81,8 +81,16 @@ vendorRoute.post("/createkyc",  upload.fields([
   { name: "addressProofImage", maxCount: 1 } // Handle addressProofImage field
 ]),kycController.createKycData)
 vendorRoute.get("/getkyc/:id", kycController.getKycData)
-vendorRoute.put("/updatekyc/:id",kycController.updateKycData )
-vendorRoute.put("/getallkyc/:id", kycController.getallKycData)
+// vendorRoute.put("/updatekyc/:vendorId",kycController.updateKycData )
+vendorRoute.put(
+  "/updatekyc/:vendorId",
+  upload.fields([
+    { name: "idProofImage", maxCount: 1 },
+    { name: "addressProofImage", maxCount: 1 },
+  ]),
+  kycController.updateKycData
+);
+vendorRoute.get("/getallkyc", kycController.getallKycData)
 
 
 
