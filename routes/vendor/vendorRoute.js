@@ -76,4 +76,8 @@ vendorRoute.post("/login", vendorController.vendorLogin);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
 
+//Route for KYC
+
+
+
 module.exports = vendorRoute;
