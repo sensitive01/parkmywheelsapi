@@ -6,6 +6,7 @@ const parkingCharges = new mongoose.Schema({
   amount: { type: String,  }, 
 
   category: { type: String,  }, 
+  chargeid: {type: String,},
   
 });
 
