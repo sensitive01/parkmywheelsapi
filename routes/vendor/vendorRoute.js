@@ -79,6 +79,7 @@ vendorRoute.put(
   "/updatevendor/:vendorId",
    upload.single("image"), 
    vendorController.updateVendorData);
+vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorController.updateParkingEntriesVendorData);
 
 
 //Route for KYC

@@ -5,36 +5,32 @@ const generateOTP = require("../../utils/generateOTP");
 
 const vendorForgotPassword = async (req, res) => {
   try {
-    const { mobile } = req.body; // Extract 'mobile' from the request body
+    const { mobile } = req.body; 
 
-    // Validate if mobile is provided
+
     if (!mobile) {
       return res.status(400).json({ message: "Mobile number is required" });
     }
 
-    // Search for the vendor whose contacts array contains the mobile number
     const existVendor = await vendorModel.findOne({
-      "contacts.mobile": mobile, // Match the mobile field in the contacts array
+      "contacts.mobile": mobile, 
     });
 
-    // If vendor is not found
     if (!existVendor) {
       return res.status(404).json({
         message: "Vendor not found with the provided mobile number",
       });
     }
 
-    // Generate OTP
+
     const otp = generateOTP();
     console.log("Generated OTP:", otp);
 
-    // Save OTP to local state or a temporary store (e.g., Redis)
     req.app.locals.otp = otp;
 
-    // Return success response
     return res.status(200).json({
       message: "OTP sent successfully",
-      otp: otp, // For testing; in production, send via SMS/email
+      otp: otp,
     });
   } catch (err) {
     console.error("Error in forgot password:", err);
@@ -121,7 +117,6 @@ const vendorSignup = async (req, res) => {
       parkingEntries
     } = req.body;
 
-    // Ensure contacts is an array, even if it comes as a string
     let parsedContacts;
     try {
       parsedContacts = typeof contacts === 'string' ? JSON.parse(contacts) : contacts;
@@ -156,7 +151,7 @@ const vendorSignup = async (req, res) => {
 
     const newVendor = new vendorModel({
       vendorName,
-      contacts: parsedContacts, // Use the parsed contacts
+      contacts: parsedContacts,
       latitude,
       longitude,
       landMark: landmark,
@@ -166,13 +161,10 @@ const vendorSignup = async (req, res) => {
       image: uploadedImageUrl || "",
     });
 
-    // Save the vendor first to get the _id
     await newVendor.save();
 
-    // After saving, set the vendorId to be the _id
     newVendor.vendorId = newVendor._id.toString();
 
-    // Save the vendor document again with the updated vendorId
     await newVendor.save();
 
     return res.status(201).json({
@@ -205,7 +197,6 @@ const vendorLogin = async (req, res) => {
         .json({ message: "Mobile number and password are required" });
     }
 
-    // Find the vendor using contacts.mobile instead of contacts
     const vendor = await vendorModel.findOne({ 'contacts.mobile': mobile });
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
@@ -220,7 +211,7 @@ const vendorLogin = async (req, res) => {
       message: "Login successful",
       vendorId: vendor._id,
       vendorName: vendor.vendorName,
-      contacts: vendor.contacts,  // Access the contacts array
+      contacts: vendor.contacts,
       latitude: vendor.latitude,
       longitude: vendor.longitude,
       address: vendor.address,
@@ -259,26 +250,22 @@ const fetchSlotVendorData = async (req, res) => {
   try {
     console.log("Welcome to fetch vendor data");
 
-    const { id } = req.params; // Get the vendor ID from the route parameter
-    console.log("Vendor ID:", id); // Log the ID to verify it's correct
+    const { id } = req.params; 
+    console.log("Vendor ID:", id); 
 
-    const vendorData = await vendorModel.findOne({ _id: id }, { parkingEntries: 1 }); // Only fetch parkingEntries
+    const vendorData = await vendorModel.findOne({ _id: id }, { parkingEntries: 1 });
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    // Extract and calculate counts for each parking type
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
-      const type = entry.type.toLowerCase(); // Normalize type to lowercase
-      acc[type] = parseInt(entry.count) || 0; // Add count, ensure it's a number
+      const type = entry.type.toLowerCase();
+      acc[type] = parseInt(entry.count) || 0; 
       return acc;
     }, {});
 
-    // Calculate total count
     const totalCount = Object.values(parkingEntries).reduce((acc, count) => acc + count, 0);
-
-    // Respond with the requested data structure
     return res.status(200).json({
       totalCount: totalCount,
       bike: parkingEntries.bike || 0,
@@ -312,70 +299,6 @@ const fetchAllVendorData = async (req,res) => {
   }
 };
 
-// const updateVendorData = async (req, res) => {
-//   try {
-//     const { vendorId } = req.params;
-//     const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries } = req.body;
-
-//     if (!vendorId) {
-//       return res.status(400).json({ message: "Vendor ID is required" });
-//     }
-
-//     const existingVendor = await vendorModel.findById(vendorId);
-//     if (!existingVendor) {
-//       return res.status(404).json({ message: "Vendor not found" });
-//     }
-
-//     const updateData = {
-//       vendorName: vendorName || existingVendor.vendorName,
-//       latitude: latitude || existingVendor.latitude,
-//       longitude: longitude || existingVendor.longitude,
-//       address: address || existingVendor.address,
-//       landMark: landmark || existingVendor.landMark,
-//       contacts: Array.isArray(contacts) ? contacts : existingVendor.contacts,
-//       parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
-//     };
-
-//     let uploadedImageUrl;
-//     if (req.file) {
-//       uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
-//       updateData.image = uploadedImageUrl; 
-//     }
-
-//     console.log("Updating vendor with ID:", vendorId);
-//     console.log("Update data:", JSON.stringify(updateData, null, 2));
-
-
-//     const updatedVendor = await vendorModel.findByIdAndUpdate(
-//       vendorId,
-//       { $set: updateData },
-//       { 
-//         new: true,
-//         runValidators: true
-//       }
-//     );
-
-//     if (!updatedVendor) {
-//       return res.status(404).json({ message: "Failed to update vendor" });
-//     }
-
-//     const latestVendor = await vendorModel.findById(vendorId);
-
-//     return res.status(200).json({
-//       message: "Vendor data updated successfully",
-//       vendorDetails: latestVendor
-//     });
-
-//   } catch (err) {
-//     console.error("Error in updating vendor data:", err);
-//     return res.status(500).json({ 
-//       message: "Internal server error", 
-//       error: err.message 
-//     });
-//   }
-// };
-
-
 
 const updateVendorData = async (req, res) => {
   try {
@@ -403,7 +326,6 @@ const updateVendorData = async (req, res) => {
 
     let uploadedImageUrl;
     if (req.file) {
-      // Check if a file is provided and upload to Cloudinary
       uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
       updateData.image = uploadedImageUrl;
     } else {
@@ -432,6 +354,40 @@ const updateVendorData = async (req, res) => {
 };
 
 
+const updateParkingEntriesVendorData = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { parkingEntries } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    if (!Array.isArray(parkingEntries)) {
+      return res.status(400).json({ message: "Invalid parkingEntries format. It must be an array." });
+    }
+
+    const updatedVendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { $set: { parkingEntries } },
+      { new: true, projection: { parkingEntries: 1, _id: 0 } } 
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Failed to update vendor" });
+    }
+
+    return res.status(200).json(updatedVendor);
+
+  } catch (err) {
+    console.error("Error in updating parking entries:", err);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
+
+
+
+
 
 module.exports = {
   vendorSignup,
@@ -443,4 +399,5 @@ module.exports = {
   fetchAllVendorData,
   updateVendorData,
   fetchSlotVendorData,
+  updateParkingEntriesVendorData,
 };
