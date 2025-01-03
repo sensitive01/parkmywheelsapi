@@ -54,6 +54,42 @@ const getChargesbyId = async (req, res) => {
   }
 };
 
+
+const getChargesByCategoryAndType = async (req, res) => {
+  const { vendorid, category, type } = req.params;
+
+  try {
+    const vendor = await Parking.findOne({ vendorid });
+
+    if (!vendor) {
+      return res.status(404).json({ message: `Vendor with ID ${vendorid} not found` });
+    }
+
+    // Filter charges based on category and type
+    const filteredCharges = vendor.charges.filter(
+      (charge) => charge.category === category && charge.type === type
+    );
+
+    if (filteredCharges.length === 0) {
+      return res
+        .status(404)
+        .json({ message: `No charges found for category ${category} and type ${type}` });
+    }
+
+    res.status(200).json({
+      message: "Parking Charges data fetched successfully",
+      charges: filteredCharges,
+    });
+  } catch (error) {
+    console.error("Error retrieving charges:", error.message);
+    res.status(500).json({ message: "Error retrieving Parking Charges details", error: error.message });
+  }
+};
+
+
+
+
+
 const updateParkingChargesCategory = async (req, res) => {
   const { vendorid, charges } = req.body;
 
@@ -93,4 +129,4 @@ const updateParkingChargesCategory = async (req, res) => {
   }
 };
 
-module.exports = { parkingCharges, getChargesbyId, updateParkingChargesCategory};
+module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType, updateParkingChargesCategory};
