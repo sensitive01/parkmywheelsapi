@@ -1,42 +1,5 @@
 const Parking = require('../../../models/chargesSchema');
 
-
-// const parkingCharges = async (req, res) => {
-//   const { vendorid, charges } = req.body;
-
-//   try {
-
-//     if (!vendorid || !charges || !Array.isArray(charges)) {
-//       return res.status(400).json({ message: "Invalid input data" });
-//     }
-    
-//     const existingVendor = await Parking.findOne({ vendorid });
-
-//     if (existingVendor) {
-
-//       existingVendor.charges.push(...charges);
-
-
-//       await existingVendor.save();
-//       return res.status(201).json({
-//         message: "New charges added successfully",
-//         vendor: existingVendor,
-//       });
-//     }
-
-//     const newVendor = new Parking({ vendorid, charges });
-//     await newVendor.save();
-
-//     res.status(201).json({
-//       message: "Vendor created successfully",
-//       vendor: newVendor,
-//     });
-//   } catch (error) {
-//     console.error("Error managing parking charges:", error);
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
 const parkingCharges = async (req, res) => {
   const { vendorid, charges } = req.body;
 
@@ -141,44 +104,44 @@ const getChargesByCategoryAndType = async (req, res) => {
 
 
 
-const updateParkingChargesCategory = async (req, res) => {
-  const { vendorid, charges } = req.body;
+// const updateParkingChargesCategory = async (req, res) => {
+//   const { vendorid, charges } = req.body;
 
-  if (!vendorid || !charges || !Array.isArray(charges)) {
-    return res.status(400).send('Vendor ID and a valid charges array are required.');
-  }
+//   if (!vendorid || !charges || !Array.isArray(charges)) {
+//     return res.status(400).send('Vendor ID and a valid charges array are required.');
+//   }
 
-  try {
+//   try {
 
-    const categoryToUpdate = charges[0]?.category;
+//     const categoryToUpdate = charges[0]?.category;
 
-    if (!categoryToUpdate) {
-      return res.status(400).send('Category is required in the charges data.');
-    }
+//     if (!categoryToUpdate) {
+//       return res.status(400).send('Category is required in the charges data.');
+//     }
 
-    const existingVendor = await Parking.findOne({ vendorid });
+//     const existingVendor = await Parking.findOne({ vendorid });
 
-    if (!existingVendor) {
-      return res.status(404).json({ message: `Vendor with ID ${vendorid} not found.` });
-    }
+//     if (!existingVendor) {
+//       return res.status(404).json({ message: `Vendor with ID ${vendorid} not found.` });
+//     }
 
-    const filteredCharges = existingVendor.charges.filter(
-      (charge) => charge.category !== categoryToUpdate
-    );
+//     const filteredCharges = existingVendor.charges.filter(
+//       (charge) => charge.category !== categoryToUpdate
+//     );
 
-    const updatedCharges = [...filteredCharges, ...charges];
-    existingVendor.charges = updatedCharges;
-    await existingVendor.save();
+//     const updatedCharges = [...filteredCharges, ...charges];
+//     existingVendor.charges = updatedCharges;
+//     await existingVendor.save();
 
-    res.status(200).json({
-      message: `${categoryToUpdate} charges updated successfully.`,
-      vendor: existingVendor,
-    });
-  } catch (error) {
-    console.error("Error while updating charges:", error.message);
-    res.status(500).send('Server error');
-  }
-};
+//     res.status(200).json({
+//       message: `${categoryToUpdate} charges updated successfully.`,
+//       vendor: existingVendor,
+//     });
+//   } catch (error) {
+//     console.error("Error while updating charges:", error.message);
+//     res.status(500).send('Server error');
+//   }
+// };
 
 
-module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType, updateParkingChargesCategory};
+module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType};
