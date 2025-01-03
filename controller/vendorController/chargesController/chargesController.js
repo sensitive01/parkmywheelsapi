@@ -60,6 +60,7 @@ const parkingCharges = async (req, res) => {
           // Update the existing charge
           existingCharge.type = newCharge.type || existingCharge.type;
           existingCharge.amount = newCharge.amount || existingCharge.amount;
+          existingCharge.category = newCharge.category || existingCharge.category;  // Update the category as well
         } else {
           // Add the new charge if no matching chargeid is found
           existingVendor.charges.push(newCharge);
@@ -87,6 +88,7 @@ const parkingCharges = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 const getChargesbyId = async (req, res) => {
   const { id } = req.params;
