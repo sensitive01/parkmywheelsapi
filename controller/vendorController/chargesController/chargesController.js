@@ -1,29 +1,80 @@
 const Parking = require('../../../models/chargesSchema');
 
 
+// const parkingCharges = async (req, res) => {
+//   const { vendorid, charges } = req.body;
+
+//   try {
+
+//     if (!vendorid || !charges || !Array.isArray(charges)) {
+//       return res.status(400).json({ message: "Invalid input data" });
+//     }
+    
+//     const existingVendor = await Parking.findOne({ vendorid });
+
+//     if (existingVendor) {
+
+//       existingVendor.charges.push(...charges);
+
+
+//       await existingVendor.save();
+//       return res.status(201).json({
+//         message: "New charges added successfully",
+//         vendor: existingVendor,
+//       });
+//     }
+
+//     const newVendor = new Parking({ vendorid, charges });
+//     await newVendor.save();
+
+//     res.status(201).json({
+//       message: "Vendor created successfully",
+//       vendor: newVendor,
+//     });
+//   } catch (error) {
+//     console.error("Error managing parking charges:", error);
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
 const parkingCharges = async (req, res) => {
   const { vendorid, charges } = req.body;
 
   try {
-
+    // Validate input data
     if (!vendorid || !charges || !Array.isArray(charges)) {
       return res.status(400).json({ message: "Invalid input data" });
     }
-    
+
+    // Check if the vendor already exists
     const existingVendor = await Parking.findOne({ vendorid });
 
     if (existingVendor) {
+      // Iterate over the incoming charges
+      charges.forEach((newCharge) => {
+        const existingCharge = existingVendor.charges.find(
+          (charge) => charge.chargeid === newCharge.chargeid
+        );
 
-      existingVendor.charges.push(...charges);
+        if (existingCharge) {
+          // Update the existing charge
+          existingCharge.type = newCharge.type || existingCharge.type;
+          existingCharge.amount = newCharge.amount || existingCharge.amount;
+        } else {
+          // Add the new charge if no matching chargeid is found
+          existingVendor.charges.push(newCharge);
+        }
+      });
 
-
+      // Save the updated vendor data
       await existingVendor.save();
       return res.status(201).json({
-        message: "New charges added successfully",
+        message: "Charges updated successfully",
         vendor: existingVendor,
       });
     }
 
+    // If the vendor does not exist, create a new one
     const newVendor = new Parking({ vendorid, charges });
     await newVendor.save();
 
@@ -36,7 +87,6 @@ const parkingCharges = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 
 const getChargesbyId = async (req, res) => {
   const { id } = req.params;
