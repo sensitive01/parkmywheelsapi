@@ -232,29 +232,30 @@ const vendorLogin = async (req, res) => {
 };
 
 
-// const fetchVendorData = async (req, res) => {
-//   try {
-//     console.log("Welcome to fetch vendor data");
+const fetchVendorData = async (req, res) => {
+  try {
+    console.log("Welcome to fetch vendor data");
 
-//     const { id } = req.query;
-//     const vendorData = await vendorModel.findOne({ _id: id }, { password: 0 });
+    const { id } = req.query;
+    const vendorData = await vendorModel.findOne({ _id: id }, { password: 0 });
 
-//     if (!vendorData) {
-//       return res.status(404).json({ message: "Vendor not found" });
-//     }
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
 
     
-//     return res.status(200).json({
-//       message: "Vendor data fetched successfully",
-//       data: vendorData
-//     });
-//   } catch (err) {
-//     console.log("Error in fetching the vendor details", err);
-//     return res.status(500).json({ message: "Server error", error: err.message });
-//   }
-// };
+    return res.status(200).json({
+      message: "Vendor data fetched successfully",
+      data: vendorData
+    });
+  } catch (err) {
+    console.log("Error in fetching the vendor details", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
-const fetchVendorData = async (req, res) => {
+
+const fetchSlotVendorData = async (req, res) => {
   try {
     console.log("Welcome to fetch vendor data");
 
@@ -383,5 +384,6 @@ module.exports = {
   vendorChangePassword,
   fetchVendorData,
   fetchAllVendorData,
-  updateVendorData
+  updateVendorData,
+  fetchSlotVendorData,
 };
