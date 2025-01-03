@@ -232,27 +232,65 @@ const vendorLogin = async (req, res) => {
 };
 
 
+// const fetchVendorData = async (req, res) => {
+//   try {
+//     console.log("Welcome to fetch vendor data");
+
+//     const { id } = req.query;
+//     const vendorData = await vendorModel.findOne({ _id: id }, { password: 0 });
+
+//     if (!vendorData) {
+//       return res.status(404).json({ message: "Vendor not found" });
+//     }
+
+    
+//     return res.status(200).json({
+//       message: "Vendor data fetched successfully",
+//       data: vendorData
+//     });
+//   } catch (err) {
+//     console.log("Error in fetching the vendor details", err);
+//     return res.status(500).json({ message: "Server error", error: err.message });
+//   }
+// };
+
 const fetchVendorData = async (req, res) => {
   try {
     console.log("Welcome to fetch vendor data");
 
-    const { id } = req.query;
-    const vendorData = await vendorModel.findOne({ _id: id }, { password: 0 });
+    const { id } = req.params; // Get the vendor ID from the route parameter
+    console.log("Vendor ID:", id); // Log the ID to verify it's correct
+
+    const vendorData = await vendorModel.findOne({ _id: id }, { parkingEntries: 1 }); // Only fetch parkingEntries
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    
+    // Extract and calculate counts for each parking type
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.toLowerCase(); // Normalize type to lowercase
+      acc[type] = parseInt(entry.count) || 0; // Add count, ensure it's a number
+      return acc;
+    }, {});
+
+    // Calculate total count
+    const totalCount = Object.values(parkingEntries).reduce((acc, count) => acc + count, 0);
+
+    // Respond with the requested data structure
     return res.status(200).json({
-      message: "Vendor data fetched successfully",
-      data: vendorData
+      totalCount: totalCount,
+      bike: parkingEntries.bike || 0,
+      car: parkingEntries.car || 0,
+      others: parkingEntries.others || 0
     });
   } catch (err) {
     console.log("Error in fetching the vendor details", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+
 
 const fetchAllVendorData = async (req,res) => {
   try {
@@ -282,13 +320,11 @@ const updateVendorData = async (req, res) => {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
 
-    // First find the vendor
     const existingVendor = await vendorModel.findById(vendorId);
     if (!existingVendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    // Prepare the update object
     const updateData = {
       vendorName: vendorName || existingVendor.vendorName,
       latitude: latitude || existingVendor.latitude,
@@ -299,18 +335,16 @@ const updateVendorData = async (req, res) => {
       parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
     };
 
-    // Handle image upload
     let uploadedImageUrl;
     if (req.file) {
       uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
-      updateData.image = uploadedImageUrl; // Add image URL to updateData if it exists
+      updateData.image = uploadedImageUrl; 
     }
 
-    // Log update details for debugging
     console.log("Updating vendor with ID:", vendorId);
     console.log("Update data:", JSON.stringify(updateData, null, 2));
 
-    // Update the vendor
+
     const updatedVendor = await vendorModel.findByIdAndUpdate(
       vendorId,
       { $set: updateData },
@@ -324,7 +358,6 @@ const updateVendorData = async (req, res) => {
       return res.status(404).json({ message: "Failed to update vendor" });
     }
 
-    // Fetch the latest data to ensure we have the current state
     const latestVendor = await vendorModel.findById(vendorId);
 
     return res.status(200).json({
@@ -340,7 +373,6 @@ const updateVendorData = async (req, res) => {
     });
   }
 };
-
 
 
 module.exports = {
