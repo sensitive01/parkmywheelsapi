@@ -89,7 +89,6 @@ const getChargesByCategoryAndType = async (req, res) => {
 
 
 
-
 const updateParkingChargesCategory = async (req, res) => {
   const { vendorid, charges } = req.body;
 
@@ -128,5 +127,6 @@ const updateParkingChargesCategory = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
 
 module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType, updateParkingChargesCategory};
