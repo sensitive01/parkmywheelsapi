@@ -138,7 +138,7 @@ const vendorSignup = async (req, res) => {
     let uploadedImageUrl;
 
     if (imageFile) {
-      uploadedImageUrl = await uploadImage(imageFile.buffer, "vendor_images");
+      uploadedImageUrl = await uploadImage(imageFile.buffer, "image");
     }
 
     if (!vendorName || !address || !password) {
@@ -312,6 +312,71 @@ const fetchAllVendorData = async (req,res) => {
   }
 };
 
+// const updateVendorData = async (req, res) => {
+//   try {
+//     const { vendorId } = req.params;
+//     const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries } = req.body;
+
+//     if (!vendorId) {
+//       return res.status(400).json({ message: "Vendor ID is required" });
+//     }
+
+//     const existingVendor = await vendorModel.findById(vendorId);
+//     if (!existingVendor) {
+//       return res.status(404).json({ message: "Vendor not found" });
+//     }
+
+//     const updateData = {
+//       vendorName: vendorName || existingVendor.vendorName,
+//       latitude: latitude || existingVendor.latitude,
+//       longitude: longitude || existingVendor.longitude,
+//       address: address || existingVendor.address,
+//       landMark: landmark || existingVendor.landMark,
+//       contacts: Array.isArray(contacts) ? contacts : existingVendor.contacts,
+//       parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+//     };
+
+//     let uploadedImageUrl;
+//     if (req.file) {
+//       uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
+//       updateData.image = uploadedImageUrl; 
+//     }
+
+//     console.log("Updating vendor with ID:", vendorId);
+//     console.log("Update data:", JSON.stringify(updateData, null, 2));
+
+
+//     const updatedVendor = await vendorModel.findByIdAndUpdate(
+//       vendorId,
+//       { $set: updateData },
+//       { 
+//         new: true,
+//         runValidators: true
+//       }
+//     );
+
+//     if (!updatedVendor) {
+//       return res.status(404).json({ message: "Failed to update vendor" });
+//     }
+
+//     const latestVendor = await vendorModel.findById(vendorId);
+
+//     return res.status(200).json({
+//       message: "Vendor data updated successfully",
+//       vendorDetails: latestVendor
+//     });
+
+//   } catch (err) {
+//     console.error("Error in updating vendor data:", err);
+//     return res.status(500).json({ 
+//       message: "Internal server error", 
+//       error: err.message 
+//     });
+//   }
+// };
+
+
+
 const updateVendorData = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -338,42 +403,34 @@ const updateVendorData = async (req, res) => {
 
     let uploadedImageUrl;
     if (req.file) {
+      // Check if a file is provided and upload to Cloudinary
       uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
-      updateData.image = uploadedImageUrl; 
+      updateData.image = uploadedImageUrl;
+    } else {
+      console.log("No file received in the request");
     }
-
-    console.log("Updating vendor with ID:", vendorId);
-    console.log("Update data:", JSON.stringify(updateData, null, 2));
-
 
     const updatedVendor = await vendorModel.findByIdAndUpdate(
       vendorId,
       { $set: updateData },
-      { 
-        new: true,
-        runValidators: true
-      }
+      { new: true, runValidators: true }
     );
 
     if (!updatedVendor) {
       return res.status(404).json({ message: "Failed to update vendor" });
     }
 
-    const latestVendor = await vendorModel.findById(vendorId);
-
     return res.status(200).json({
       message: "Vendor data updated successfully",
-      vendorDetails: latestVendor
+      vendorDetails: updatedVendor,
     });
 
   } catch (err) {
     console.error("Error in updating vendor data:", err);
-    return res.status(500).json({ 
-      message: "Internal server error", 
-      error: err.message 
-    });
+    return res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
+
 
 
 module.exports = {
