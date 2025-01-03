@@ -282,64 +282,33 @@ const updateVendorData = async (req, res) => {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
 
-    // Parse contacts if it's a string and validate structure
-    let parsedContacts;
-    try {
-      parsedContacts = typeof contacts === "string" ? JSON.parse(contacts) : contacts;
-      
-      // Validate contacts structure
-      if (Array.isArray(parsedContacts)) {
-        for (const contact of parsedContacts) {
-          if (!contact.name || !contact.mobile) {
-            return res.status(400).json({ 
-              message: "Each contact must have both name and mobile number"
-            });
-          }
-        }
-      } else {
-        return res.status(400).json({ message: "Contacts must be an array" });
-      }
-    } catch (error) {
-      return res.status(400).json({ 
-        message: "Invalid format for contacts. Must be a valid JSON array."
-      });
-    }
-
-    // Parse parkingEntries
-    let parsedParkingEntries;
-    try {
-      parsedParkingEntries = typeof parkingEntries === "string" ? JSON.parse(parkingEntries) : parkingEntries;
-    } catch (error) {
-      return res.status(400).json({ message: "Invalid format for parkingEntries" });
-    }
-
-    // Handle image upload
-    let uploadedImageUrl;
-    if (req.file) {
-      uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
-    }
-
-    // Build update object
-    const updateData = {};
-    
-    if (vendorName) updateData.vendorName = vendorName;
-    if (parsedContacts) updateData.contacts = parsedContacts;
-    if (latitude) updateData.latitude = latitude;
-    if (longitude) updateData.longitude = longitude;
-    if (address) updateData.address = address;
-    if (landmark) updateData.landMark = landmark;
-    if (parsedParkingEntries) updateData.parkingEntries = parsedParkingEntries;
-    if (uploadedImageUrl) updateData.image = uploadedImageUrl;
-
-    // Log update details for debugging
-    console.log("Updating vendor with ID:", vendorId);
-    console.log("Update data:", JSON.stringify(updateData, null, 2));
-
     // First find the vendor
     const existingVendor = await vendorModel.findById(vendorId);
     if (!existingVendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    // Prepare the update object
+    const updateData = {
+      vendorName: vendorName || existingVendor.vendorName,
+      latitude: latitude || existingVendor.latitude,
+      longitude: longitude || existingVendor.longitude,
+      address: address || existingVendor.address,
+      landMark: landmark || existingVendor.landMark,
+      contacts: Array.isArray(contacts) ? contacts : existingVendor.contacts,
+      parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+    };
+
+    // Handle image upload
+    let uploadedImageUrl;
+    if (req.file) {
+      uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
+      updateData.image = uploadedImageUrl; // Add image URL to updateData if it exists
+    }
+
+    // Log update details for debugging
+    console.log("Updating vendor with ID:", vendorId);
+    console.log("Update data:", JSON.stringify(updateData, null, 2));
 
     // Update the vendor
     const updatedVendor = await vendorModel.findByIdAndUpdate(
