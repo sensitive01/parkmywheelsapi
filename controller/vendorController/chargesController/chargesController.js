@@ -56,7 +56,7 @@ const getChargesbyId = async (req, res) => {
 
 
 const getChargesByCategoryAndType = async (req, res) => {
-  const { vendorid, category, type } = req.params;
+  const { vendorid, category, chargeid } = req.params;
 
   try {
     const vendor = await Parking.findOne({ vendorid });
@@ -67,13 +67,13 @@ const getChargesByCategoryAndType = async (req, res) => {
 
     // Filter charges based on category and type
     const filteredCharges = vendor.charges.filter(
-      (charge) => charge.category === category && charge.type === type
+      (charge) => charge.category === category && charge.chargeid === chargeid
     );
 
     if (filteredCharges.length === 0) {
       return res
         .status(404)
-        .json({ message: `No charges found for category ${category} and type ${type}` });
+        .json({ message: `No charges found for category ${category} and type ${chargeid}` });
     }
 
     res.status(200).json({
