@@ -473,7 +473,7 @@ exports.getAvailableSlotCount = async (req, res) => {
     availableSlots.Others = Math.max(availableSlots.Others, 0);
 
     return res.status(200).json({
-      availableCount: availableSlots.Cars + availableSlots.Bikes + availableSlots.Others,
+      totalCount: availableSlots.Cars + availableSlots.Bikes + availableSlots.Others,
       Cars: availableSlots.Cars,
       Bikes: availableSlots.Bikes,
       Others: availableSlots.Others
