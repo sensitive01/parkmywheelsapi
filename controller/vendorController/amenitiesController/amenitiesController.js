@@ -28,8 +28,6 @@ const addAmenitiesData = async (req, res) => {
   }
 };
 
-
-//get amenities data
 const getAmenitiesData = async (req, res) => {
   
     const { id } = req.params; 
@@ -52,7 +50,6 @@ const getAmenitiesData = async (req, res) => {
   };
 
 
-  // Update amenities data by vendorId
 const updateAmenitiesData = async (req, res) => {
   const { id } = req.params;  
   const { amenities } = req.body; 

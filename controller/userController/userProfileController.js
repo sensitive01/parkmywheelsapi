@@ -9,7 +9,7 @@ const getUserDataHome = async (req, res) => {
   try {
     console.log("Welcome to get data in home");
 
-    const { id } = req.query; // User ID passed as a query parameter
+    const { id } = req.query; 
 
     if (!id) {
       return res.status(400).json({
@@ -43,7 +43,7 @@ const getUserData = async (req, res) => {
   try {
     console.log("Welcome to getting the user data", req.query);
 
-    const { id } = req.query; // User ID passed as a query parameter
+    const { id } = req.query; 
 
     if (!id) {
       return res.status(400).json({
@@ -100,7 +100,6 @@ const updateUserData = async (req, res) => {
 
     if (req.files && req.files.image) {
       const imageFile = req.files.image[0];
-      // Upload image to the 'user_images' folder
       const uploadedImageUrl = await uploadImage(
         imageFile.buffer,
         "user_images"
@@ -144,7 +143,7 @@ const getUserVehicleData = async (req, res) => {
   try {
     console.log("Welcome to get all user vehicle data");
 
-    const { id } = req.query; // User ID passed as a query parameter
+    const { id } = req.query;
     console.log(id);
 
     if (!id) {
@@ -185,7 +184,6 @@ const addNewVehicle = async (req, res) => {
 
     const imageFile = req.files.image[0];
 
-    // Upload the image to Cloudinary
     const imageUrl = await uploadImage(imageFile.buffer, "vehicles");
 
     const newVehicle = new vehicleModel({

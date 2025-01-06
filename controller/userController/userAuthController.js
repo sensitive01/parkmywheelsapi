@@ -11,8 +11,6 @@ const generateUserUUID = () => {
 };
 
 
-// for user forgot password 
-
 const userForgotPassword = async (req, res) => {
   try {
     const { contactNo } = req.body;
@@ -33,7 +31,7 @@ const userForgotPassword = async (req, res) => {
     console.log("Generated OTP:", otp);
 
     req.app.locals.otp = otp;
-    // req.app.locals.contactNo = contactNo;
+
 
     return res.status(200).json({
       message: "OTP sent successfully",

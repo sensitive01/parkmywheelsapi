@@ -15,7 +15,7 @@ const kycDetailsSchema = new mongoose.Schema({
     required: true,
   },
   idProofImage: {
-    type: String, // URL or file path of the image
+    type: String, 
     required: true,
   },
   addressProof: {
@@ -27,7 +27,7 @@ const kycDetailsSchema = new mongoose.Schema({
     required: true,
   },
   addressProofImage: {
-    type: String, // URL or file path of the image
+    type: String, 
     required: true,
   },
   status: {

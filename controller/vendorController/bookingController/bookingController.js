@@ -1,7 +1,6 @@
 const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
 
-// Create a new booking
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -22,9 +21,6 @@ exports.createBooking = async (req, res) => {
       sts,
     } = req.body;
 
-   
-
-    // Create the booking
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -51,10 +47,9 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-// Fetch bookings by status
 exports.getBookingsByStatus = async (req, res) => {
   try {
-    const { status } = req.params; // e.g., "pending", "approved", "cancelled"
+    const { status } = req.params;
     const bookings = await Booking.find({ status });
     res.status(200).json({ success: true, data: bookings });
   } catch (error) {
@@ -62,25 +57,20 @@ exports.getBookingsByStatus = async (req, res) => {
   }
 };
 
-
-// Approve a pending booking
 exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID",req.params)
-    const { id } = req.params; // Get the booking ID from the route parameters
+    const { id } = req.params; 
 
-    // Find the booking by ID
     const booking = await Booking.findById({_id:id});
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    // Check if the booking is pending
     if (booking.status !== "Pending") {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    // Update the status to approved
     booking.status = "Approved";
 
 
@@ -97,24 +87,20 @@ exports.updateApproveBooking = async (req, res) => {
   }
 };
 
-// Cancel a pending booking
 exports.updateCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID",req.params)
-    const { id } = req.params; // Get the booking ID from the route parameters
+    const { id } = req.params; 
 
-    // Find the booking by ID
     const booking = await Booking.findById({_id:id});
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    // Check if the booking is pending
     if (booking.status !== "Pending") {
       return res.status(400).json({ success: false, message: "Only pending bookings can be Cancelled" });
     }
 
-    // Update the status to approved
     booking.status = "Cancelled";
     
 
@@ -131,24 +117,20 @@ exports.updateCancelBooking = async (req, res) => {
   }
 };
 
-
 exports.allowParking = async (req, res) => {
   try {
     console.log("BOOKING ID",req.params)
-    const { id } = req.params; // Get the booking ID from the route parameters
+    const { id } = req.params;
 
-    // Find the booking by ID
     const booking = await Booking.findById({_id:id});
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    // Check if the booking is pending
     if (booking.status !== "Approved") {
       return res.status(400).json({ success: false, message: "Only Approved booking are allowed" });
     }
 
-    // Update the status to approved
     booking.status = "Parked";
     
 
@@ -165,49 +147,40 @@ exports.allowParking = async (req, res) => {
   }
 };
 
-
-// Fetch bookings by vendorId
 exports.getBookingsByVendorId = async (req, res) => {
   try {
-    const { id } = req.params;  // id will be the vendorId from the URL parameter
+    const { id } = req.params; 
 
-    // Find bookings that match the vendorId
     const bookings = await Booking.find({ vendorId: id });
 
     if (!bookings || bookings.length === 0) {
       return res.status(400).json({ error: "No bookings found for this vendor" });
     }
-
-    // Return the list of bookings
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-// get booking by userid
+
 exports.getBookingsByuserid = async (req, res) => {
   try {
-    const { id } = req.params;  // id will be the vendorId from the URL parameter
+    const { id } = req.params; 
 
-    // Find bookings that match the vendorId
     const bookings = await Booking.find({ userid: id });
 
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
 
-    // Return the list of bookings
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-
-// Get booking by ID
 exports.getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id); // Find by ID passed in the URL params
+    const booking = await Booking.findById(req.params.id); 
 
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
@@ -219,10 +192,9 @@ exports.getBookingById = async (req, res) => {
   }
 };
 
-// src/controllers/bookingController.js
 exports.getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find(); // Retrieves all bookings from the database
+    const bookings = await Booking.find();
 
     if (bookings.length === 0) {
       return res.status(404).json({ message: "No bookings found" });
@@ -234,10 +206,9 @@ exports.getAllBookings = async (req, res) => {
   }
 };
 
-// src/controllers/bookingController.js
 exports.deleteBooking = async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndDelete(req.params.id); // Delete by ID
+    const booking = await Booking.findByIdAndDelete(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
@@ -258,22 +229,16 @@ exports.updateBookingStatus = async(req,res)=>{
   }
 }
 
-
-
-
-
-// src/controllers/bookingController.js
 exports.updateBooking = async (req, res) => {
   try {
     const { carType, personName, mobileNumber, vehicleNumber, isSubscription, bookingDate, bookingTime } = req.body;
 
-    // Validate input fields (basic validation)
     if (!carType || !personName || !mobileNumber || !vehicleNumber || !bookingDate) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
     const updatedBooking = await Booking.findByIdAndUpdate(
-      req.params.id, // ID from URL params
+      req.params.id, 
       {
         carType,
         personName,
@@ -283,7 +248,7 @@ exports.updateBooking = async (req, res) => {
         bookingDate,
         bookingTime
       },
-      { new: true } // Return the updated booking object
+      { new: true }
     );
 
     if (!updatedBooking) {
@@ -300,28 +265,22 @@ exports.updateBookingAmountAndHour = async (req, res) => {
   try {
     const { amount, hour } = req.body;
 
-    // Validate input fields
     if (amount === undefined || hour === undefined) {
       return res.status(400).json({ error: "Amount and hour are required" });
     }
 
-    // Find the booking by ID
     const booking = await Booking.findById(req.params.id);
-    
-    // Check if the booking exists
+
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Update the amount, hour, and status fields
     booking.amount = amount;
     booking.hour = hour;
-    booking.status = "COMPLETED";  // Update the status to "COMPLETED"
+    booking.status = "COMPLETED"; 
 
-    // Save the updated booking
     const updatedBooking = await booking.save();
 
-    // Send response with only amount, hour, and status
     res.status(200).json({
       message: "Booking updated successfully",
       booking: {
@@ -336,61 +295,15 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 };
 
 
-
-
-
-
-// exports.exitVehicle = async (req, res) => {
-//   try {
-//     console.log("EXIT VEHICLE ID", req.params.id); // Log the ID passed in the URL
-//     const { id } = req.params; // Get the booking ID from the route parameters
-//     const { amount, hour } = req.body; // Get the updated amount and hour from request body
-
-//     // Log the incoming data
-//     console.log("Amount:", amount, "Hour:", hour);
-
-//     // Find the booking by ID
-//     const booking = await Booking.findById(id);
-//     if (!booking) {
-//       return res.status(400).json({ success: false, message: "Booking not found" });
-//     }
-
-//     // Check if the booking is parked
-//     if (booking.status !== "PARKED") {
-//       return res.status(400).json({ success: false, message: "Only parked vehicles can exit" });
-//     }
-
-//     // Update the status to COMPLETED and update amount and hour
-//     booking.status = "COMPLETED";
-//     booking.amount = amount;
-//     booking.hour = hour;
-
-//     await booking.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Vehicle exit recorded successfully",
-//       data: booking,
-//     });
-//   } catch (error) {
-//     console.log("Error in exitVehicle", error);
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
-
-
 exports.getParkedVehicleCount = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    // Validate vendorId format (if necessary)
     console.log("Received vendorId:", vendorId);
 
-    // Trim the vendorId to avoid leading/trailing spaces
     const trimmedVendorId = vendorId.trim();
     console.log("Trimmed vendorId:", trimmedVendorId);
 
-    // Check if data exists for the given vendorId
     const existingData = await Booking.find({ vendorId: trimmedVendorId });
     console.log("Existing data for vendor:", existingData);
 
@@ -398,7 +311,6 @@ exports.getParkedVehicleCount = async (req, res) => {
       return res.status(404).json({ message: "No bookings found for this vendor." });
     }
 
-    // Perform aggregation to count parked vehicles
     const aggregationResult = await Booking.aggregate([
       {
         $match: { 
@@ -416,7 +328,6 @@ exports.getParkedVehicleCount = async (req, res) => {
 
     console.log("Aggregation Result:", aggregationResult);
 
-    // Formatting the response
     let response = {
       totalCount: 0,
       Cars: 0,
@@ -431,7 +342,7 @@ exports.getParkedVehicleCount = async (req, res) => {
       } else if (_id === "Bike") {
         response.Bikes = count;
       } else {
-        response.Others += count; // For any other vehicle types
+        response.Others += count;
       }
     });
 
@@ -447,14 +358,13 @@ exports.getParkedVehicleCount = async (req, res) => {
 
 exports.getAvailableSlotCount = async (req, res) => {
   try {
-    const { vendorId } = req.params;  // Extract vendorId from the request params
+    const { vendorId } = req.params;
 
-    console.log("Received Vendor ID:", vendorId); // Log vendorId for debugging
-    const trimmedVendorId = vendorId.trim();  // Trim the vendorId
+    console.log("Received Vendor ID:", vendorId); 
+    const trimmedVendorId = vendorId.trim(); 
 
-    console.log("Trimmed Vendor ID:", trimmedVendorId); // Log trimmed vendorId for debugging
+    console.log("Trimmed Vendor ID:", trimmedVendorId); 
 
-    // Fetch the total available parking slots for the vendor
     const vendorData = await vendorModel.findOne({ _id: trimmedVendorId }, { parkingEntries: 1 });
 
     if (!vendorData) {
@@ -473,7 +383,6 @@ exports.getAvailableSlotCount = async (req, res) => {
       Others: parkingEntries["Others"] || 0
     };
 
-    // Fetch the parked vehicle count
     const aggregationResult = await Booking.aggregate([
       {
         $match: { 
@@ -505,14 +414,12 @@ exports.getAvailableSlotCount = async (req, res) => {
       }
     });
 
-    // Calculate available slots
     const availableSlots = {
       Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
       Others: totalAvailableSlots.Others - bookedSlots.Others
     };
 
-    // Handle negative values if booked slots exceed available slots
     availableSlots.Cars = Math.max(availableSlots.Cars, 0);
     availableSlots.Bikes = Math.max(availableSlots.Bikes, 0);
     availableSlots.Others = Math.max(availableSlots.Others, 0);

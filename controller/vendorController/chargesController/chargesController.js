@@ -4,41 +4,31 @@ const parkingCharges = async (req, res) => {
   const { vendorid, charges } = req.body;
 
   try {
-    // Validate input data
     if (!vendorid || !charges || !Array.isArray(charges)) {
       return res.status(400).json({ message: "Invalid input data" });
     }
-
-    // Check if the vendor already exists
     const existingVendor = await Parking.findOne({ vendorid });
 
     if (existingVendor) {
-      // Iterate over the incoming charges
       charges.forEach((newCharge) => {
         const existingCharge = existingVendor.charges.find(
           (charge) => charge.chargeid === newCharge.chargeid
         );
 
         if (existingCharge) {
-          // Update the existing charge
           existingCharge.type = newCharge.type || existingCharge.type;
           existingCharge.amount = newCharge.amount || existingCharge.amount;
-          existingCharge.category = newCharge.category || existingCharge.category;  // Update the category as well
+          existingCharge.category = newCharge.category || existingCharge.category; 
         } else {
-          // Add the new charge if no matching chargeid is found
           existingVendor.charges.push(newCharge);
         }
       });
-
-      // Save the updated vendor data
       await existingVendor.save();
       return res.status(201).json({
         message: "Charges updated successfully",
         vendor: existingVendor,
       });
     }
-
-    // If the vendor does not exist, create a new one
     const newVendor = new Parking({ vendorid, charges });
     await newVendor.save();
 
@@ -79,8 +69,6 @@ const getChargesByCategoryAndType = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: `Vendor with ID ${vendorid} not found` });
     }
-
-    // Filter charges based on category and type
     const filteredCharges = vendor.charges.filter(
       (charge) => charge.category === category && charge.chargeid === chargeid
     );

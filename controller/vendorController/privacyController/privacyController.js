@@ -1,7 +1,7 @@
 const PrivacyPolicy = require("../../../models/privacySchema");
 
 const getPrivacyPolicy = async (req, res) => {
-  const { id } = req.params; // Fetch the id from the URL parameter
+  const { id } = req.params; 
 
   try {
     
