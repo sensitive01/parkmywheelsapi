@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Chatbox Sub-schema with userId, image, chat message, and time
 const chatboxSchema = new mongoose.Schema({
   userId: {
     type: String,  
@@ -28,6 +27,14 @@ const chatboxSchema = new mongoose.Schema({
 const helpSupportSchema = new mongoose.Schema(
   {
     userId: {
+      type: String,
+    
+    },
+    vendorActive: {
+      type: Boolean,
+      default: true,
+    },
+  vendorId: {
       type: String,
     
     },

@@ -280,9 +280,6 @@ const fetchSlotVendorData = async (req, res) => {
 };
 
 
-
-
-
 const fetchAllVendorData = async (req,res) => {
   try {
     const vendorData = await vendorModel.find({}, { password: 0 });

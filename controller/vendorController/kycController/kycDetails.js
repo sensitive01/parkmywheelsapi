@@ -1,10 +1,9 @@
 const { uploadImage } = require("../../../config/cloudinary");
 const KycDetails = require('../../../models/kycSchema');
 
-// Create KYC Details
 const createKycData = async (req, res) => {
   try {
-    console.log("BODY", req.body); // Debugging: Log files being sent in the request
+    console.log("BODY", req.body);
 
     const {
       vendorId,
@@ -14,13 +13,11 @@ const createKycData = async (req, res) => {
       addressProofNumber,
       status,
     } = req.body;
-    console.log("FILES:", req.files); // Debugging: Log files
+    console.log("FILES:", req.files); 
 
     if (!req.files) {
       return res.status(400).json({ message: 'Images are required' });
     }
-
-    // Upload images to Cloudinary and get the URLs
     const idProofImage = await uploadImage(req.files.idProofImage[0].buffer, "kyc/idProofs");
     const addressProofImage = await uploadImage(req.files.addressProofImage[0].buffer, "kyc/addressProofs");
 
@@ -38,7 +35,7 @@ const createKycData = async (req, res) => {
     await kycDetails.save();
     res.status(200).json({ message: 'KYC details created successfully', data: kycDetails });
   } catch (error) {
-    console.log("Multer error", error); // Log the error for debugging
+    console.log("Multer error", error); 
     res.status(500).json({ message: 'Error creating KYC details', error: error.message });
   }
 };
@@ -76,7 +73,6 @@ const updateKycData = async (req, res) => {
 
     const updateData = { idProof, idProofNumber, addressProof, addressProofNumber, status };
 
-    // Handle optional file uploads
     if (req.files && req.files.idProofImage) {
       updateData.idProofImage = await uploadImage(req.files.idProofImage[0].buffer, "kyc/idProofs");
     }
@@ -107,7 +103,6 @@ const updateKycData = async (req, res) => {
 
 const getallKycData = async (req, res) => {
   try {
-    // Fetch all KYC details without filtering by vendorId
     const kycDetails = await KycDetails.find();
 
     if (!kycDetails || kycDetails.length === 0) {

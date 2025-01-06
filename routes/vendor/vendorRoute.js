@@ -3,7 +3,6 @@ const multer = require("multer");
 const vendorRoute = express.Router();
 const vendorController = require("../../controller/vendorController/vendorController");
 const meetingController = require("../../controller/vendorController/meetingController/meetingController")
-// const meetingController = require("../../controller/vendorController/meetingController/meetingController")
 const bookingController = require("../../controller/vendorController/bookingController/bookingController")
 const vehiclefetchController = require("../../controller/vendorController/vehiclefetchController/vehiclefetchController");
 const fetchbyidController = require("../../controller/vendorController/fetchbyidController/fetchBookingsByVendorId");
@@ -12,6 +11,7 @@ const chargesController = require("../../controller/vendorController/chargesCont
 const bannerController = require("../../controller/vendorController/bannerController/bannerController");
 const amenitiesController = require("../../controller/vendorController/amenitiesController/amenitiesController");
 const kycController = require("../../controller/vendorController/kycController/kycDetails");
+const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -23,10 +23,7 @@ vendorRoute.post("/change-password", vendorController.vendorChangePassword);
 
 
 vendorRoute.post("/createmeeting", meetingController.create);
-
-// Route to get meetings by vendor
 vendorRoute.get("/fetchmeeting/:id", meetingController.getMeetingsByVendor);
-// vendorRoute.post("/create", )
 
 vendorRoute.post("/createbooking", bookingController.createBooking);
 vendorRoute.get("/getbookingdata/:id", bookingController.getBookingsByVendorId);
@@ -65,9 +62,9 @@ vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
 vendorRoute.put("/allowparking/:id", bookingController.allowParking);
 
 
-vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBookingsByVendorId); //total how many bookings
+vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBookingsByVendorId);
 
-vendorRoute.get("/vendortotalparking/:id", vehiclefetchController.fetchParkingData); // total booking including cars and bikes
+vendorRoute.get("/vendortotalparking/:id", vehiclefetchController.fetchParkingData);
 
 // Routes
 vendorRoute.post(
@@ -88,8 +85,8 @@ vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorControlle
 
 //Route for KYC
 vendorRoute.post("/createkyc",  upload.fields([
-  { name: "idProofImage", maxCount: 1 }, // Handle idProofImage field
-  { name: "addressProofImage", maxCount: 1 } // Handle addressProofImage field
+  { name: "idProofImage", maxCount: 1 },
+  { name: "addressProofImage", maxCount: 1 }
 ]),kycController.createKycData)
 vendorRoute.get("/getkyc/:id", kycController.getKycData)
 vendorRoute.put(
@@ -102,6 +99,9 @@ vendorRoute.put(
 );
 vendorRoute.get("/getallkyc", kycController.getallKycData)
 
+// Route for helpfeedback
 
+vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
+vendorRoute.get("/gethelpvendor/:vendorId", helpfeedbackController.getVendorHelpSupportRequests);
 
 module.exports = vendorRoute;

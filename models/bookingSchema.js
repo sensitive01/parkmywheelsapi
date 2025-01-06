@@ -59,7 +59,7 @@ type: String,
     },
     cancelledStatus: {
       type: String,
-      default: "", // Default value is an empty string
+      default: "", 
     },
   },
   

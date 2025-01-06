@@ -9,9 +9,6 @@ const vendorSchema = new mongoose.Schema(
       mobile: { type: String, required: true }
     }
   ],
-  // contactNo: {
-  //   type: String,
-  // },
     latitude: {
       type: String,
     },
