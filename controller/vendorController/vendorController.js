@@ -260,17 +260,18 @@ const fetchSlotVendorData = async (req, res) => {
     }
 
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
-      const type = entry.type.toLowerCase();
-      acc[type] = parseInt(entry.count) || 0; 
+      const type = entry.type.trim(); 
+      acc[type] = parseInt(entry.count) || 0;
       return acc;
     }, {});
-
-    const totalCount = Object.values(parkingEntries).reduce((acc, count) => acc + count, 0);
+   
+    console.log("Processed Parking Entries:", parkingEntries);
+    
     return res.status(200).json({
-      totalCount: totalCount,
-      bike: parkingEntries.bike || 0,
-      car: parkingEntries.car || 0,
-      others: parkingEntries.others || 0
+      totalCount: Object.values(parkingEntries).reduce((acc, count) => acc + count, 0),
+      Cars: parkingEntries["Cars"] || 0, 
+      Bikes: parkingEntries["Bikes"] || 0,
+      Others: parkingEntries["Others"] || 0
     });
   } catch (err) {
     console.log("Error in fetching the vendor details", err);
