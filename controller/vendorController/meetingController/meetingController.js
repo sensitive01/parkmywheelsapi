@@ -14,7 +14,7 @@ const create = async (req, res) => {
       } = req.body;
 
       // Validation for missing fields
-      if (!name || !department || !email || !mobile || !businessURL || !callbackTime || !vendorId) {
+      if (!name || !department || !email || !mobile  || !callbackTime || !vendorId) {
           return res.status(400).json({ message: "All fields are required" });
       }
 

@@ -296,6 +296,46 @@ exports.updateBooking = async (req, res) => {
 };
 
 
+exports.exitVehicle = async (req, res) => {
+  try {
+    console.log("EXIT VEHICLE ID", req.params.id); // Log the ID passed in the URL
+    const { id } = req.params; // Get the booking ID from the route parameters
+    const { amount, hour } = req.body; // Get the updated amount and hour from request body
+
+    // Log the incoming data
+    console.log("Amount:", amount, "Hour:", hour);
+
+    // Find the booking by ID
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(400).json({ success: false, message: "Booking not found" });
+    }
+
+    // Check if the booking is parked
+    if (booking.status !== "Parked") {
+      return res.status(400).json({ success: false, message: "Only parked vehicles can exit" });
+    }
+
+    // Update the status to COMPLETED and update amount and hour
+    booking.status = "COMPLETED";
+    booking.amount = amount;
+    booking.hour = hour;
+
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Vehicle exit recorded successfully",
+      data: booking,
+    });
+  } catch (error) {
+    console.log("Error in exitVehicle", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
 // const bookParkingSlot = async (req, res) => {
 //   try {
 //     console.log("Welcome to the booking vehicle");
