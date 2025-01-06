@@ -1,4 +1,5 @@
 const Booking = require("../../../models/bookingSchema");
+const vendorModel = require("../../../models/venderSchema");
 
 // Create a new booking
 exports.createBooking = async (req, res) => {
@@ -397,6 +398,96 @@ exports.getParkedVehicleCount = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+exports.getAvailableSlotCount = async (req, res) => {
+  try {
+    const { vendorId } = req.params;  // Extract vendorId from the request params
+
+    console.log("Received Vendor ID:", vendorId); // Log vendorId for debugging
+    const trimmedVendorId = vendorId.trim();  // Trim the vendorId
+
+    console.log("Trimmed Vendor ID:", trimmedVendorId); // Log trimmed vendorId for debugging
+
+    // Fetch the total available parking slots for the vendor
+    const vendorData = await vendorModel.findOne({ _id: trimmedVendorId }, { parkingEntries: 1 });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim();
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+
+    const totalAvailableSlots = {
+      Cars: parkingEntries["Cars"] || 0,
+      Bikes: parkingEntries["Bikes"] || 0,
+      Others: parkingEntries["Others"] || 0
+    };
+
+    // Fetch the parked vehicle count
+    const aggregationResult = await Booking.aggregate([
+      {
+        $match: { 
+          vendorId: trimmedVendorId,
+          status: "PARKED"
+        }
+      },
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    let bookedSlots = {
+      Cars: 0,
+      Bikes: 0,
+      Others: 0
+    };
+
+    aggregationResult.forEach(({ _id, count }) => {
+      if (_id === "Car") {
+        bookedSlots.Cars = count;
+      } else if (_id === "Bike") {
+        bookedSlots.Bikes = count;
+      } else {
+        bookedSlots.Others = count;
+      }
+    });
+
+    // Calculate available slots
+    const availableSlots = {
+      Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
+      Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
+      Others: totalAvailableSlots.Others - bookedSlots.Others
+    };
+
+    // Handle negative values if booked slots exceed available slots
+    availableSlots.Cars = Math.max(availableSlots.Cars, 0);
+    availableSlots.Bikes = Math.max(availableSlots.Bikes, 0);
+    availableSlots.Others = Math.max(availableSlots.Others, 0);
+
+    return res.status(200).json({
+      availableCount: availableSlots.Cars + availableSlots.Bikes + availableSlots.Others,
+      Cars: availableSlots.Cars,
+      Bikes: availableSlots.Bikes,
+      Others: availableSlots.Others
+    });
+
+  } catch (error) {
+    console.error("Error fetching available slot count for vendor ID:", req.params.vendorId, error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
+
 
 
 
