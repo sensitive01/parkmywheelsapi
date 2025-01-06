@@ -35,7 +35,7 @@ vendorRoute.get("/getbooking/:id", bookingController.getBookingById);
 vendorRoute.get("/bookings", bookingController.getAllBookings);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
-vendorRoute.post("/exitvehicle/:id", bookingController.exitVehicle);
+vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour);
 vendorRoute.get("/bookedslots/:vendorId", bookingController.getParkedVehicleCount);
 vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotCount);
 
