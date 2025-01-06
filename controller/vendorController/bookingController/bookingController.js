@@ -333,6 +333,70 @@ exports.exitVehicle = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.getParkedVehicleCount = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    // Validate vendorId format (if necessary)
+    console.log("Received vendorId:", vendorId);
+
+    // Trim the vendorId to avoid leading/trailing spaces
+    const trimmedVendorId = vendorId.trim();
+    console.log("Trimmed vendorId:", trimmedVendorId);
+
+    // Check if data exists for the given vendorId
+    const existingData = await Booking.find({ vendorId: trimmedVendorId });
+    console.log("Existing data for vendor:", existingData);
+
+    if (existingData.length === 0) {
+      return res.status(404).json({ message: "No bookings found for this vendor." });
+    }
+
+    // Perform aggregation to count parked vehicles
+    const aggregationResult = await Booking.aggregate([
+      {
+        $match: { 
+          vendorId: trimmedVendorId,
+          status: "PARKED"
+        }
+      },
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    console.log("Aggregation Result:", aggregationResult);
+
+    // Formatting the response
+    let response = {
+      totalCount: 0,
+      Cars: 0,
+      Bikes: 0,
+      Others: 0
+    };
+
+    aggregationResult.forEach(({ _id, count }) => {
+      response.totalCount += count;
+      if (_id === "Car") {
+        response.Cars = count;
+      } else if (_id === "Bike") {
+        response.Bikes = count;
+      } else {
+        response.Others += count; // For any other vehicle types
+      }
+    });
+
+    console.log("Final Response:", response);
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching parked vehicle count for vendor ID:", vendorId, error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 
 
