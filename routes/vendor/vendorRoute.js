@@ -102,6 +102,6 @@ vendorRoute.get("/getallkyc", kycController.getallKycData)
 // Route for helpfeedback
 
 vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
-vendorRoute.get("/gethelpvendor/:vendorId", helpfeedbackController.getVendorHelpSupportRequests);
+vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelpSupportRequests);
 
 module.exports = vendorRoute;
