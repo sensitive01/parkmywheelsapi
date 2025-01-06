@@ -2,25 +2,25 @@ const VendorHelpSupport = require("../../../models/userhelp");
 
 const createVendorHelpSupportRequest = async (req, res) => {
   try {
-    const { vendorId, description, vendorActive, chatbox } = req.body;
+    const { vendorid, description, vendoractive, chatbox } = req.body;
 
-    if (!vendorId || !description) {
+    if (!vendorid || !description) {
       return res.status(400).json({
         message: "Vendor ID and description are required.",
       });
     }
 
     const newHelpRequest = new VendorHelpSupport({
-      vendorId,
+      vendorid,
       description,
-      vendorActive: vendorActive !== undefined ? vendorActive : true,
+      vendoractive: vendoractive !== undefined ? vendoractive : true,
       chatbox: [],
     });
 
     if (chatbox && Array.isArray(chatbox)) {
       chatbox.forEach((chat) => {
         const newMessage = {
-          vendorId: chat.vendorId,
+          vendorid: chat.vendorid,
           message: chat.message,
           image: chat.image,
           time: chat.time || new Date().toLocaleTimeString(),
@@ -47,17 +47,17 @@ const createVendorHelpSupportRequest = async (req, res) => {
 
 const getVendorHelpSupportRequests = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const { vendorid } = req.params;
 
-    if (!vendorId) {
+    if (!vendorid) {
       return res.status(400).json({ message: "Vendor ID is required in the request." });
     }
 
-    const helpRequests = await VendorHelpSupport.find({ vendorId });
+    const helpRequests = await VendorHelpSupport.find({ vendorid });
 
     if (helpRequests.length === 0) {
       return res.status(404).json({
-        message: `No vendor help and support requests found for vendorId: ${vendorId}`,
+        message: `No vendor help and support requests found for vendorid: ${vendorid}`,
       });
     }
 

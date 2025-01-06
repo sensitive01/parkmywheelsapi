@@ -30,11 +30,11 @@ const helpSupportSchema = new mongoose.Schema(
       type: String,
     
     },
-    vendorActive: {
+    vendoractive: {
       type: Boolean,
       default: true,
     },
-  vendorId: {
+    vendorid: {
       type: String,
     
     },
