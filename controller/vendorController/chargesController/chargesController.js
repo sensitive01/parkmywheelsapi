@@ -89,7 +89,78 @@ const getChargesByCategoryAndType = async (req, res) => {
   }
 };
 
+const fetchC = async (req, res) => {
+  const vendorid = req.params.id; // Extract vendorid from the URL parameter
+  
+  try {
+    // Query the database for the vendor's charges
+    const result = await Parking.findOne(
+      { 
+        vendorid: vendorid, 
+        "charges.category": "Car", 
+        "charges.chargeid": { $in: ["A", "B", "C", "D"] }
+      }
+    );
 
+    // Check if the result is found and has charges
+    if (!result || !result.charges || result.charges.length === 0) {
+      console.log("No matching charges found.");
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Transform the charges into the desired format
+    const transformedData = transformCharges(result.charges);
+
+    // Respond with the transformed data as JSON
+    return res.json(transformedData);
+  } catch (error) {
+    console.error("Error fetching charges:", error);
+    return res.status(500).json({ message: "Error fetching charges." });
+  }
+};
+
+// Function to transform charges into the desired format
+const transformCharges = (charges) => {
+  // Initialize an object to hold the transformed data
+  const transformedData = {
+    minimumHoursAmount: { amount: null, type: null },
+    additionalHoursAmount: { amount: null, type: null },
+    fullDayAmount: { amount: null, type: null },
+    monthlyAmount: { amount: null, type: null },
+  };
+
+  // Iterate through the charges and assign values based on chargeid
+  charges.forEach(charge => {
+    switch (charge.chargeid) {
+      case "A":
+        if (charge.amount && charge.type) {
+          transformedData.minimumHoursAmount = { amount: charge.amount, type: charge.type };
+        } else {
+          console.log("Charge A missing amount or type.");
+        }
+        break;
+      case "B":
+        if (charge.amount && charge.type) {
+          transformedData.additionalHoursAmount = { amount: charge.amount, type: charge.type };
+        }
+        break;
+      case "C":
+        if (charge.amount && charge.type) {
+          transformedData.fullDayAmount = { amount: charge.amount, type: charge.type };
+        }
+        break;
+      case "D":
+        if (charge.amount && charge.type) {
+          transformedData.monthlyAmount = { amount: charge.amount, type: charge.type };
+        }
+        break;
+      default:
+        break;
+    }
+  });
+
+  return transformedData;
+};
 
 
 // const updateParkingChargesCategory = async (req, res) => {
@@ -132,4 +203,4 @@ const getChargesByCategoryAndType = async (req, res) => {
 // };
 
 
-module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType};
+module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType, fetchC, transformCharges};
