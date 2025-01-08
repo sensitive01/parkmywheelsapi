@@ -134,24 +134,24 @@ const transformCharges = (charges) => {
     switch (charge.chargeid) {
       case "A":
         if (charge.amount && charge.type) {
-          transformedData.minimumHoursAmount = { amount: charge.amount, type: charge.type };
+          transformedData.minimumHoursAmount = `${charge.type} : Rs ${charge.amount}`;
         } else {
           console.log("Charge A missing amount or type.");
         }
         break;
       case "B":
         if (charge.amount && charge.type) {
-          transformedData.additionalHoursAmount = { amount: charge.amount, type: charge.type };
+          transformedData.additionalHoursAmount = `${charge.type} : Rs ${charge.amount}`;
         }
         break;
       case "C":
         if (charge.amount && charge.type) {
-          transformedData.fullDayAmount = { amount: charge.amount, type: charge.type };
+          transformedData.fullDayAmount = `24hours : Rs ${charge.amount}`;
         }
         break;
       case "D":
         if (charge.amount && charge.type) {
-          transformedData.monthlyAmount = { amount: charge.amount, type: charge.type };
+          transformedData.monthlyAmount = `monthly: Rs ${charge.amount}`;
         }
         break;
       default:
