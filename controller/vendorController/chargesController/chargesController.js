@@ -104,7 +104,7 @@ const fetchC = async (req, res) => {
 
     // Check if the result is found and has charges
     if (!result || !result.charges || result.charges.length === 0) {
-      console.log("No matching charges found.");
+      console.log(`No charges found for vendorid: ${vendorid}.`);
       return res.status(404).json({ message: "No matching charges found." });
     }
 
@@ -114,7 +114,7 @@ const fetchC = async (req, res) => {
     // Respond with the transformed data as JSON
     return res.json(transformedData);
   } catch (error) {
-    console.error("Error fetching charges:", error);
+    console.error("Error fetching charges for vendorid:", vendorid, error);
     return res.status(500).json({ message: "Error fetching charges." });
   }
 };
@@ -131,30 +131,40 @@ const transformCharges = (charges) => {
 
   // Iterate through the charges and assign values based on chargeid
   charges.forEach(charge => {
+    // Log the charge data for debugging
+    console.log("Processing charge:", charge);
+
     switch (charge.chargeid) {
       case "A":
         if (charge.amount && charge.type) {
-          transformedData.minimumHoursAmount = `${charge.type} : Rs ${charge.amount}`;
+          transformedData.minimumHoursAmount = { amount: charge.amount, type: charge.type };
         } else {
           console.log("Charge A missing amount or type.");
         }
         break;
       case "B":
         if (charge.amount && charge.type) {
-          transformedData.additionalHoursAmount = `${charge.type} : Rs ${charge.amount}`;
+          transformedData.additionalHoursAmount = { amount: charge.amount, type: charge.type };
+        } else {
+          console.log("Charge B missing amount or type.");
         }
         break;
       case "C":
         if (charge.amount && charge.type) {
-          transformedData.fullDayAmount = `24hours : Rs ${charge.amount}`;
+          transformedData.fullDayAmount = { amount: charge.amount, type: "24hours" }; // Use "24hours" for this case
+        } else {
+          console.log("Charge C missing amount or type.");
         }
         break;
       case "D":
         if (charge.amount && charge.type) {
-          transformedData.monthlyAmount = `monthly: Rs ${charge.amount}`;
+          transformedData.monthlyAmount = { amount: charge.amount, type: "monthly" }; // Use "monthly" for this case
+        } else {
+          console.log("Charge D missing amount or type.");
         }
         break;
       default:
+        console.log(`Unknown chargeid: ${charge.chargeid}`);
         break;
     }
   });
