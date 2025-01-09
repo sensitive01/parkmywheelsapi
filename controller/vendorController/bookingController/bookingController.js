@@ -295,7 +295,6 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 };
 
 
-
 exports.getParkedVehicleCount = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -304,13 +303,6 @@ exports.getParkedVehicleCount = async (req, res) => {
 
     const trimmedVendorId = vendorId.trim();
     console.log("Trimmed vendorId:", trimmedVendorId);
-
-    const existingData = await Booking.find({ vendorId: trimmedVendorId });
-    console.log("Existing data for vendor:", existingData);
-
-    if (existingData.length === 0) {
-      return res.status(404).json({ message: "No bookings found for this vendor." });
-    }
 
     const aggregationResult = await Booking.aggregate([
       {
