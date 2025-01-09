@@ -295,6 +295,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 };
 
 
+
 exports.getParkedVehicleCount = async (req, res) => {
   try {
     const { vendorId } = req.params;
