@@ -154,11 +154,11 @@ exports.getBookingsByVendorId = async (req, res) => {
     const bookings = await Booking.find({ vendorId: id });
 
     if (!bookings || bookings.length === 0) {
-      return res.status(400).json({ error: "No bookings found for this vendor" });
+      return res.status(400).json({ message: "No bookings found for this vendor" });
     }
     res.status(200).json({ bookings });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
