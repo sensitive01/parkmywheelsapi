@@ -28,6 +28,7 @@ const vendorSchema = new mongoose.Schema(
     landMark: {
       type: String,
     },
+        subscription: { type: String, default: "false" },
     image: {
       type: String,
     },
@@ -41,7 +42,7 @@ const vendorSchema = new mongoose.Schema(
      count:{
         type:String
       },
-       subscription: { type: String, default: false },
+    
   
     }],
   },
