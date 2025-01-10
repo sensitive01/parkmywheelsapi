@@ -20,7 +20,7 @@ vendorRoute.post("/forgotpassword", vendorController.vendorForgotPassword);
 vendorRoute.post("/verify-otp", vendorController.verifyOTP);
 vendorRoute.post("/resend-otp", vendorController.vendorForgotPassword);
 vendorRoute.post("/change-password", vendorController.vendorChangePassword);
-
+vendorRoute.get("/fetchsubscription/:vendorId", vendorController.fetchVendorSubscription);
 
 vendorRoute.post("/createmeeting", meetingController.create);
 vendorRoute.get("/fetchmeeting/:id", meetingController.getMeetingsByVendor);
