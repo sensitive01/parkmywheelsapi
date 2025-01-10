@@ -157,7 +157,7 @@ const vendorSignup = async (req, res) => {
       landMark: landmark,
       parkingEntries: parsedParkingEntries,
       address,
-      subscription: false,
+      subscription: "false",
       password: hashedPassword,
       image: uploadedImageUrl || "",
     });
