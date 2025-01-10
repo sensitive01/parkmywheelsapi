@@ -38,9 +38,10 @@ const vendorSchema = new mongoose.Schema(
         type:String,
         
       },
-      count:{
+     count:{
         type:String
-      }
+      },
+       subscription: { type: String, default: false },
   
     }],
   },
