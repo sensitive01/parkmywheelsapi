@@ -157,6 +157,7 @@ const vendorSignup = async (req, res) => {
       landMark: landmark,
       parkingEntries: parsedParkingEntries,
       address,
+      subscription: false,
       password: hashedPassword,
       image: uploadedImageUrl || "",
     });
@@ -178,6 +179,7 @@ const vendorSignup = async (req, res) => {
         landmark: newVendor.landMark,
         address: newVendor.address,
         image: newVendor.image,
+              subscription: newVendor.subscription, 
       },
     });
   } catch (err) {
