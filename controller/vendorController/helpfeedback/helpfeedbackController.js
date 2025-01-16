@@ -79,10 +79,14 @@ const getVendorHelpSupportRequests = async (req, res) => {
 
 const sendchat = async (req, res) => {
   try {
+    console.log("Request received with params:", req.params);
+    console.log("Request body:", req.body);
+
     const { helpRequestId } = req.params; // Get the help request ID from the URL
     const { vendorid, message, image } = req.body; // Get message details from the request body
 
     if (!vendorid || !message) {
+      console.log("Validation failed: vendorid or message missing");
       return res.status(400).json({
         message: "Vendor ID and message are required.",
       });
@@ -91,10 +95,13 @@ const sendchat = async (req, res) => {
     // Find the help request by ID
     const helpRequest = await VendorHelpSupport.findById(helpRequestId);
     if (!helpRequest) {
+      console.log("Help request not found:", helpRequestId);
       return res.status(404).json({
         message: "Help request not found.",
       });
     }
+
+    console.log("Help request found:", helpRequest);
 
     // Create a new chat message
     const newMessage = {
@@ -108,6 +115,8 @@ const sendchat = async (req, res) => {
     helpRequest.chatbox.push(newMessage);
     await helpRequest.save();
 
+    console.log("Message added successfully:", newMessage);
+
     return res.status(200).json({
       message: "Message added to chatbox successfully.",
       chatbox: helpRequest.chatbox,
@@ -120,6 +129,7 @@ const sendchat = async (req, res) => {
     });
   }
 };
+
 
 // Get chat history for a specific help request
 const fetchchathistory = async (req, res) => {
