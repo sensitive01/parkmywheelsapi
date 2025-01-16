@@ -103,8 +103,8 @@ vendorRoute.get("/getallkyc", kycController.getallKycData)
 
 vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
 vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelpSupportRequests);
-vendorRoute.post("/sendchat", helpfeedbackController.sendchat);
-vendorRoute.get("/fetchchat/:vendorid", helpfeedbackController.fetchchathistory);
+vendorRoute.post("/sendchat/helpRequestId", helpfeedbackController.sendchat);
+vendorRoute.get("/fetchchat/:helpRequestId", helpfeedbackController.fetchchathistory);
 vendorRoute.get("/charge/:id", chargesController.fetchC);
 
 module.exports = vendorRoute;
