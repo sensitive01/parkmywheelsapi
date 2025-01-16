@@ -67,7 +67,7 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    if (booking.status !== "Pending") {
+    if (booking.status !== "PENDING") {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
