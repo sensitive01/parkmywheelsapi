@@ -22,7 +22,16 @@ const chatboxSchema = new mongoose.Schema({
     default: Date.now,  
   },
 });
-
+const chatMessageSchema = new mongoose.Schema({
+  vendorid: { type: String, required: true },
+  message: { type: String, required: true },
+  vendoractive: {
+    type: Boolean,
+    default: true,
+  },
+  image: { type: String }, // Optional field for image URLs
+  time: { type: String, default: new Date().toLocaleTimeString() },
+});
 // Help and Support Schema with chatbox as an array
 const helpSupportSchema = new mongoose.Schema(
   {
@@ -38,6 +47,7 @@ const helpSupportSchema = new mongoose.Schema(
       type: String,
     
     },
+    chatbox: [chatMessageSchema],
     description: {
       type: String, 
     },
