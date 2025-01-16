@@ -76,8 +76,83 @@ const getVendorHelpSupportRequests = async (req, res) => {
 
 
 
+
+const sendchat = async (req, res) => {
+  try {
+    const { helpRequestId } = req.params; // Get the help request ID from the URL
+    const { vendorid, message, image } = req.body; // Get message details from the request body
+
+    if (!vendorid || !message) {
+      return res.status(400).json({
+        message: "Vendor ID and message are required.",
+      });
+    }
+
+    // Find the help request by ID
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({
+        message: "Help request not found.",
+      });
+    }
+
+    // Create a new chat message
+    const newMessage = {
+      vendorid,
+      message,
+      image,
+      time: new Date().toLocaleTimeString(),
+    };
+
+    // Add the new message to the chatbox
+    helpRequest.chatbox.push(newMessage);
+    await helpRequest.save();
+
+    return res.status(200).json({
+      message: "Message added to chatbox successfully.",
+      chatbox: helpRequest.chatbox,
+    });
+  } catch (error) {
+    console.error("Error adding message to chatbox:", error);
+    return res.status(500).json({
+      message: "Server error while adding message to chatbox.",
+      error: error.message,
+    });
+  }
+};
+
+// Get chat history for a specific help request
+const fetchchathistory = async (req, res) => {
+  try {
+    const { helpRequestId } = req.params; // Get the help request ID from the URL
+
+    // Find the help request by ID
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({
+        message: "Help request not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Chat history retrieved successfully.",
+      chatbox: helpRequest.chatbox,
+    });
+  } catch (error) {
+    console.error("Error retrieving chat history:", error);
+    return res.status(500).json({
+      message: "Server error while retrieving chat history.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createVendorHelpSupportRequest,
   getVendorHelpSupportRequests,
+  sendchat,
+  fetchchathistory,
 };
+
+
 
