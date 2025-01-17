@@ -5,6 +5,7 @@ const userRoute = express();
 const userController = require("../../controller/userController/userAuthController");
 const userProfileController = require("../../controller/userController/userProfileController");
 const userHelpController = require("../../controller/userController/userHelpController/userHelpController")
+const feedbackController = require("../../controller/userController/feedbackreviewController/feedbackreview");
 
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
@@ -42,5 +43,13 @@ userRoute.post("/book-parking-slot", userProfileController.bookParkingSlot);
 
 
 userRoute.get("/get-book-parking-slot", userProfileController.getBookingDetails);
+
+// feedback routes
+
+userRoute.get("/getfeedback", feedbackController.fetchFeedback);
+userRoute.post("/createfeedback", feedbackController.addFeedback);
+userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId);
+userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
+
 
 module.exports = userRoute;
