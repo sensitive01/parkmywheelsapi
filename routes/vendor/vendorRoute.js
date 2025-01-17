@@ -103,7 +103,6 @@ vendorRoute.get("/getallkyc", kycController.getallKycData)
 
 vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
 vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelpSupportRequests);
-// vendorRoute.post("/sendchat/:helpRequestId", helpfeedbackController.sendchat);
 vendorRoute.post("/sendchat/:helpRequestId", upload.single("image"), helpfeedbackController.sendchat);
 vendorRoute.get("/fetchchat/:helpRequestId", helpfeedbackController.fetchchathistory);
 vendorRoute.get("/charge/:id", chargesController.fetchC);
