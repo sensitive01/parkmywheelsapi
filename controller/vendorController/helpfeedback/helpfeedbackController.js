@@ -86,7 +86,7 @@ const sendchat = async (req, res) => {
     const { helpRequestId } = req.params;
     const { vendorid, message } = req.body;
 
-    if (!vendorid || !message) {
+    if (!vendorid ) {
       return res.status(400).json({ message: "Vendor ID and message are required." });
     }
 
