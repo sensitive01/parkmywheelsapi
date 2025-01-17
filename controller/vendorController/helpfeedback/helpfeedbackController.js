@@ -1,4 +1,5 @@
 const VendorHelpSupport = require("../../../models/userhelp");
+const { uploadImage } = require("../../../config/cloudinary");
 
 const createVendorHelpSupportRequest = async (req, res) => {
   try {
@@ -76,59 +77,51 @@ const getVendorHelpSupportRequests = async (req, res) => {
 
 
 
-
 const sendchat = async (req, res) => {
   try {
     console.log("Request received with params:", req.params);
     console.log("Request body:", req.body);
+    console.log("Uploaded files:", req.files);
 
-    const { helpRequestId } = req.params; // Get the help request ID from the URL
-    const { vendorid, message, image } = req.body; // Get message details from the request body
+    const { helpRequestId } = req.params;
+    const { vendorid, message } = req.body;
 
     if (!vendorid || !message) {
-      console.log("Validation failed: vendorid or message missing");
-      return res.status(400).json({
-        message: "Vendor ID and message are required.",
-      });
+      return res.status(400).json({ message: "Vendor ID and message are required." });
     }
 
-    // Find the help request by ID
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadImage(req.file.buffer, "chatbox/images");
+    }
+
+    // Find the help request
     const helpRequest = await VendorHelpSupport.findById(helpRequestId);
     if (!helpRequest) {
-      console.log("Help request not found:", helpRequestId);
-      return res.status(404).json({
-        message: "Help request not found.",
-      });
+      return res.status(404).json({ message: "Help request not found." });
     }
 
-    console.log("Help request found:", helpRequest);
-
-    // Create a new chat message
-    const newMessage = {
-      vendorid,
+    // Create the chat message object
+    const chatMessage = {
+      userId: vendorid,
       message,
-      image,
+      image: imageUrl,
       time: new Date().toLocaleTimeString(),
+      timestamp: new Date(),
     };
 
-    // Add the new message to the chatbox
-    helpRequest.chatbox.push(newMessage);
+    // Push the new message into the chatbox array
+    helpRequest.chatbox.push(chatMessage);
     await helpRequest.save();
 
-    console.log("Message added successfully:", newMessage);
-
-    return res.status(200).json({
-      message: "Message added to chatbox successfully.",
-      chatbox: helpRequest.chatbox,
-    });
+    res.status(200).json({ message: "Chat message sent successfully.", data: chatMessage });
   } catch (error) {
-    console.error("Error adding message to chatbox:", error);
-    return res.status(500).json({
-      message: "Server error while adding message to chatbox.",
-      error: error.message,
-    });
+    console.error("Error in sendchat:", error);
+    res.status(500).json({ message: "Error sending chat message", error: error.message });
   }
 };
+
+
 
 
 // Get chat history for a specific help request
