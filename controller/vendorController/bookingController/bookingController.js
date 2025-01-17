@@ -101,18 +101,18 @@ exports.updateCancelBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    if (booking.status !== "Pending") {
-      return res.status(400).json({ success: false, message: "Only pending bookings can be Cancelled" });
+    if (booking.status !== "PENDING") {
+      return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
     booking.status = "Cancelled";
-    
+
 
     await booking.save();
 
     res.status(200).json({
       success: true,
-      message: "Booking Cancelled successfully",
+      message: "Booking approved successfully",
       data: booking,
     });
   } catch (error) {
@@ -120,6 +120,9 @@ exports.updateCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
 
 exports.allowParking = async (req, res) => {
   try {
