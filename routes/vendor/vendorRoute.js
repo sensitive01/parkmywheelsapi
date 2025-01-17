@@ -13,8 +13,11 @@ const amenitiesController = require("../../controller/vendorController/amenities
 const kycController = require("../../controller/vendorController/kycController/kycDetails");
 const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
 
+const agenda = require("../../config/agenda");
+
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
 
 vendorRoute.post("/forgotpassword", vendorController.vendorForgotPassword);
 vendorRoute.post("/verify-otp", vendorController.verifyOTP);
@@ -107,5 +110,21 @@ vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelp
 vendorRoute.post("/sendchat/:helpRequestId", upload.single("image"), helpfeedbackController.sendchat);
 vendorRoute.get("/fetchchat/:helpRequestId", helpfeedbackController.fetchchathistory);
 vendorRoute.get("/charge/:id", chargesController.fetchC);
+
+vendorRoute.get("/test-agenda", async (req, res) => {
+  try {
+    await agenda.now("decrease subscription left");
+
+    return res.status(200).json({
+      message: "Subscription decrement job triggered successfully",
+    });
+  } catch (error) {
+    console.error("Error triggering Agenda job:", error);
+    return res.status(500).json({
+      message: "Error triggering job",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = vendorRoute;
