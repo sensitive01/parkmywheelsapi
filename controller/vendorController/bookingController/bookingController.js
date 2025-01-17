@@ -121,6 +121,35 @@ exports.updateCancelBooking = async (req, res) => {
   }
 };
 
+exports.updateApprovedCancelBooking = async (req, res) => {
+  try {
+    console.log("BOOKING ID",req.params)
+    const { id } = req.params; 
+
+    const booking = await Booking.findById({_id:id});
+    if (!booking) {
+      return res.status(400).json({ success: false, message: "Booking not found" });
+    }
+
+    if (booking.status !== "Approved") {
+      return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
+    }
+
+    booking.status = "Cancelled";
+
+
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Booking approved successfully",
+      data: booking,
+    });
+  } catch (error) {
+    console.log("err",error)
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 
 

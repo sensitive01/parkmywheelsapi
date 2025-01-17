@@ -59,6 +59,7 @@ vendorRoute.put("/updateparkingentries/:id", amenitiesController.updateParkingEn
 
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
 vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
+vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCancelBooking)
 vendorRoute.put("/allowparking/:id", bookingController.allowParking);
 
 
