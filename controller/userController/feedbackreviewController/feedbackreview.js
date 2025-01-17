@@ -30,22 +30,22 @@ const addFeedback = async (req, res) => {
   }
 };
 
-// Fetch Feedback by User ID
 const fetchFeedbackByUserId = async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const feedback = await Feedback.find({ userId });
-    if (!feedback.length) {
-      return res.status(404).json({ message: "No feedback found for this user" });
+    try {
+      const { userId } = req.params;  // Extract userId from params
+      const feedback = await Feedback.find({ userId });  // Find feedback by userId
+  
+      if (!feedback.length) {
+        return res.status(404).json({ message: "No feedback found for this user" });
+      }
+  
+      res.status(200).json(feedback);  // Return feedback as response
+    } catch (error) {
+      console.error("Error fetching feedback:", error);
+      res.status(500).json({ message: "Internal Server Error" });
     }
-
-    res.status(200).json(feedback);
-  } catch (error) {
-    console.error("Error fetching feedback:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-};
+  };
+  
 
 // Update Feedback by User ID
 const updateFeedback = async (req, res) => {
