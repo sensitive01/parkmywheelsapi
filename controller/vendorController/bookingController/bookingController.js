@@ -1,6 +1,6 @@
 const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
-
+const moment = require("moment"); 
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -22,6 +22,8 @@ exports.createBooking = async (req, res) => {
       status,
       sts,
     } = req.body;
+    const approvedDate = null;
+    const approvedTime = null;
 
     const newBooking = new Booking({
       userid,
@@ -41,6 +43,8 @@ exports.createBooking = async (req, res) => {
       subsctiptiontype,
       status,
       sts,
+      approvedDate,
+      approvedTime,
     });
 
     await newBooking.save();
@@ -61,67 +65,51 @@ exports.getBookingsByStatus = async (req, res) => {
   }
 };
 
+
 exports.updateApproveBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID",req.params)
-    const { id } = req.params; 
+    console.log("BOOKING ID", req.params);
+    const { id } = req.params;
 
-    const booking = await Booking.findById({_id:id});
+    // Fetch the booking by ID
+    const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
+    // Only allow approval for bookings that are in "PENDING" status
     if (booking.status !== "PENDING") {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    booking.status = "Approved";
+    // Get current date and time using moment.js
+    const approvedDate = moment().format("DD-MM-YYYY");
+    const approvedTime = moment().format("hh:mm A");
 
-
-    await booking.save();
+    // Update the booking with approved status, date, and time
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      { 
+        status: "Approved", 
+        approvedDate, 
+        approvedTime 
+      },
+      { new: true } // This returns the updated document
+    );
 
     res.status(200).json({
       success: true,
       message: "Booking approved successfully",
-      data: booking,
+      data: updatedBooking,
     });
   } catch (error) {
-    console.log("err",error)
+    console.log("err", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 exports.updateCancelBooking = async (req, res) => {
-  try {
-    console.log("BOOKING ID",req.params)
-    const { id } = req.params; 
-
-    const booking = await Booking.findById({_id:id});
-    if (!booking) {
-      return res.status(400).json({ success: false, message: "Booking not found" });
-    }
-
-    if (booking.status !== "PENDING") {
-      return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
-    }
-
-    booking.status = "Cancelled";
-
-
-    await booking.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Booking approved successfully",
-      data: booking,
-    });
-  } catch (error) {
-    console.log("err",error)
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-exports.updateApprovedCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
@@ -131,14 +119,57 @@ exports.updateApprovedCancelBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
+    if (booking.status !== "PENDING") {
+      return res.status(400).json({ success: false, message: "Only pending bookings can be cancelled" });
+    }
+
+    // Update the booking status, `updatedAt` is automatically updated
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      { status: "Cancelled" }, // Updating status
+      { new: true } // Returns updated document
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Booking cancelled successfully",
+      data: updatedBooking,
+    });
+  } catch (error) {
+    console.log("err", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+exports.updateApprovedCancelBooking = async (req, res) => {
+  try {
+    console.log("BOOKING ID", req.params);
+    const { id } = req.params;
+
+    // Fetch the booking by ID
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(400).json({ success: false, message: "Booking not found" });
+    }
+
+    // Only allow cancellation for approved bookings
     if (booking.status !== "Approved") {
       return res.status(400).json({ success: false, message: "Only approved bookings can be cancelled" });
     }
 
-    // Update booking status and `updatedAt` will be automatically set
+    // Get current date and time for cancellation
+    const approvedDate = moment().format("DD-MM-YYYY");
+    const approvedTime = moment().format("hh:mm A");
+
+    // Update the booking with cancelled status, and keep the approvedDate and approvedTime
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { status: "Cancelled" }, // Updating only the status
+      { 
+        status: "Cancelled", 
+        approvedDate, 
+        approvedTime 
+      },
       { new: true } // Return the updated document
     );
 
@@ -158,33 +189,36 @@ exports.updateApprovedCancelBooking = async (req, res) => {
 
 exports.allowParking = async (req, res) => {
   try {
-    console.log("BOOKING ID",req.params)
+    console.log("BOOKING ID", req.params);
     const { id } = req.params;
 
-    const booking = await Booking.findById({_id:id});
+    const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
     if (booking.status !== "Approved") {
-      return res.status(400).json({ success: false, message: "Only Approved booking are allowed" });
+      return res.status(400).json({ success: false, message: "Only Approved bookings are allowed" });
     }
 
-    booking.status = "Parked";
-    
-
-    await booking.save();
+    // Update the booking status, `updatedAt` updates automatically
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      { status: "Parked" }, // Updating status
+      { new: true } // Returns updated document
+    );
 
     res.status(200).json({
       success: true,
       message: "Vehicle Parked Successfully",
-      data: booking,
+      data: updatedBooking,
     });
   } catch (error) {
-    console.log("err",error)
+    console.log("err", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 exports.getBookingsByVendorId = async (req, res) => {
   try {
