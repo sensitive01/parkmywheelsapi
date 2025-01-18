@@ -162,7 +162,6 @@ exports.updateCancelBooking = async (req, res) => {
 };
 
 
-
 exports.updateApprovedCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
