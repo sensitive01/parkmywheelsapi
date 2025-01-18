@@ -77,6 +77,16 @@ type: String,
       type: String,
       
     },
+    cancelledDate: {
+      type: String,
+      
+    },
+    cancelledTime: {
+      type: String,
+      
+    },
+    parkedDate: { type: String,  }, 
+    parkedTime: { type: String, },
   },
   { timestamps: true }
   
