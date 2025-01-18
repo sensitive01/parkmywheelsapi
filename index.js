@@ -1,43 +1,49 @@
-const express = require("express");
-const cors = require("cors");
-const app = express();
-const cookieParser = require("cookie-parser");
+  const express = require("express");
+  const cors = require("cors");
+  const app = express();
+  const cookieParser = require("cookie-parser");
 
-const { PORT } = require("./config/variables.js");
-const dbConnect = require("./config/dbConnect.js");
-const userRoute = require("./routes/user/userRoute.js");
-const vendorRoute = require("./routes/vendor/vendorRoute.js")
+  const { PORT } = require("./config/variables.js");
+  const dbConnect = require("./config/dbConnect.js");
+  const userRoute = require("./routes/user/userRoute.js");
+  const vendorRoute = require("./routes/vendor/vendorRoute.js")
 
-app.set("trust proxy", true);
+  const agenda = require("./config/agenda");
 
-// DATABASE CONNECTION
-dbConnect();
+  app.set("trust proxy", true);
 
-app.use(cookieParser()); 
-app.use(express.json());
+  // DATABASE CONNECTION
+  dbConnect();
 
-const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app"];
+  app.use(cookieParser()); 
+  app.use(express.json());
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.error(`CORS error for origin: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-};
+  const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app"];
 
-app.use(cors(corsOptions));
+  const corsOptions = {
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error(`CORS error for origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  };
 
-app.disable("x-powered-by");
+  app.use(cors(corsOptions));
 
-app.use("/", userRoute);
-app.use("/vendor", vendorRoute);
+  app.disable("x-powered-by");
 
+  app.use("/", userRoute);
+  app.use("/vendor", vendorRoute);
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
-});
+  (async function () {
+    await agenda.start(); // Start agenda
+    console.log("Agenda started successfully!"); 
+  })();
+
+  app.listen(PORT, () => {
+    console.log(`Server is running at http://localhost:${PORT}`);
+  });

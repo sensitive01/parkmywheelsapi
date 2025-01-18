@@ -70,6 +70,7 @@ type: String,
       default: "", 
     },
   },
+  { timestamps: true }
   
 );
 
