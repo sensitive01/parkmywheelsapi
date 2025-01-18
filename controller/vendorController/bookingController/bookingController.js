@@ -25,6 +25,12 @@ exports.createBooking = async (req, res) => {
     const approvedDate = null;
     const approvedTime = null;
 
+    const cancelledDate = null;
+    const cancelledTime = null;
+
+    const parkedDate = null; 
+    const parkedTime = null;
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -45,6 +51,10 @@ exports.createBooking = async (req, res) => {
       sts,
       approvedDate,
       approvedTime,
+      cancelledDate,
+      cancelledTime,
+      parkedDate,
+      parkedTime,
     });
 
     await newBooking.save();
@@ -85,6 +95,7 @@ exports.updateApproveBooking = async (req, res) => {
     // Get current date and time using moment.js
     const approvedDate = moment().format("DD-MM-YYYY");
     const approvedTime = moment().format("hh:mm A");
+    console.log("approvedDate",approvedDate, "approvedTime", approvedTime)
 
     // Update the booking with approved status, date, and time
     const updatedBooking = await Booking.findByIdAndUpdate(
@@ -123,10 +134,19 @@ exports.updateCancelBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be cancelled" });
     }
 
-    // Update the booking status, `updatedAt` is automatically updated
+    // Get current date and time using moment.js
+    const cancelledDate = moment().format("DD-MM-YYYY");
+    const cancelledTime = moment().format("hh:mm A");
+    console.log("cancelledDate", cancelledDate, "cancelledTime", cancelledTime);
+
+    // Update the booking with cancelled status, date, and time
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { status: "Cancelled" }, // Updating status
+      { 
+        status: "Cancelled", 
+        cancelledDate, 
+        cancelledTime 
+      },
       { new: true } // Returns updated document
     );
 
@@ -140,6 +160,7 @@ exports.updateCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 
 exports.updateApprovedCancelBooking = async (req, res) => {
@@ -159,16 +180,16 @@ exports.updateApprovedCancelBooking = async (req, res) => {
     }
 
     // Get current date and time for cancellation
-    const approvedDate = moment().format("DD-MM-YYYY");
-    const approvedTime = moment().format("hh:mm A");
+    const cancelledDate = moment().format("DD-MM-YYYY");
+    const cancelledTime = moment().format("hh:mm A");
 
     // Update the booking with cancelled status, and keep the approvedDate and approvedTime
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
         status: "Cancelled", 
-        approvedDate, 
-        approvedTime 
+        cancelledDate, 
+        cancelledTime 
       },
       { new: true } // Return the updated document
     );
@@ -185,27 +206,35 @@ exports.updateApprovedCancelBooking = async (req, res) => {
 };
 
 
-
-
 exports.allowParking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
 
+    // Fetch the booking by ID
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
+    // Only allow parking for approved bookings
     if (booking.status !== "Approved") {
-      return res.status(400).json({ success: false, message: "Only Approved bookings are allowed" });
+      return res.status(400).json({ success: false, message: "Only Approved bookings are allowed for parking" });
     }
 
-    // Update the booking status, `updatedAt` updates automatically
+    // Get current date and time for parking
+    const parkedDate = moment().format("DD-MM-YYYY");
+    const parkedTime = moment().format("hh:mm A");
+
+    // Update the booking with "Parked" status, and keep the approvedDate and approvedTime
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { status: "Parked" }, // Updating status
-      { new: true } // Returns updated document
+      { 
+        status: "Parked", 
+        parkedDate, 
+        parkedTime 
+      },
+      { new: true } // Return the updated document
     );
 
     res.status(200).json({
@@ -218,6 +247,7 @@ exports.allowParking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 
 exports.getBookingsByVendorId = async (req, res) => {
