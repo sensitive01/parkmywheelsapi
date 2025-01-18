@@ -123,33 +123,36 @@ exports.updateCancelBooking = async (req, res) => {
 
 exports.updateApprovedCancelBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID",req.params)
-    const { id } = req.params; 
+    console.log("BOOKING ID", req.params);
+    const { id } = req.params;
 
-    const booking = await Booking.findById({_id:id});
+    const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
     if (booking.status !== "Approved") {
-      return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
+      return res.status(400).json({ success: false, message: "Only approved bookings can be cancelled" });
     }
 
-    booking.status = "Cancelled";
-
-
-    await booking.save();
+    // Update booking status and `updatedAt` will be automatically set
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      { status: "Cancelled" }, // Updating only the status
+      { new: true } // Return the updated document
+    );
 
     res.status(200).json({
       success: true,
-      message: "Booking approved successfully",
-      data: booking,
+      message: "Booking cancelled successfully",
+      data: updatedBooking,
     });
   } catch (error) {
-    console.log("err",error)
+    console.log("err", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 
 

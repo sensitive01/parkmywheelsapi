@@ -12,7 +12,6 @@ const bannerController = require("../../controller/vendorController/bannerContro
 const amenitiesController = require("../../controller/vendorController/amenitiesController/amenitiesController");
 const kycController = require("../../controller/vendorController/kycController/kycDetails");
 const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
-
 const agenda = require("../../config/agenda");
 
 const storage = multer.memoryStorage();
@@ -62,7 +61,7 @@ vendorRoute.put("/updateparkingentries/:id", amenitiesController.updateParkingEn
 
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
 vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
-vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCancelBooking)
+vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCancelBooking);
 vendorRoute.put("/allowparking/:id", bookingController.allowParking);
 
 
@@ -111,19 +110,12 @@ vendorRoute.post("/sendchat/:helpRequestId", upload.single("image"), helpfeedbac
 vendorRoute.get("/fetchchat/:helpRequestId", helpfeedbackController.fetchchathistory);
 vendorRoute.get("/charge/:id", chargesController.fetchC);
 
-vendorRoute.get("/test-agenda", async (req, res) => {
+vendorRoute.get("/run-agenda-job", async (req, res) => {
   try {
-    await agenda.now("decrease subscription left");
-
-    return res.status(200).json({
-      message: "Subscription decrement job triggered successfully",
-    });
+    await agenda.now("decrease subscription left"); // Runs immediately
+    res.status(200).json({ message: "Agenda job triggered successfully." });
   } catch (error) {
-    console.error("Error triggering Agenda job:", error);
-    return res.status(500).json({
-      message: "Error triggering job",
-      error: error.message,
-    });
+    res.status(500).json({ error: "Failed to trigger agenda job." });
   }
 });
 
