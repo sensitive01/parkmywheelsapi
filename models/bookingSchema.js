@@ -69,6 +69,14 @@ type: String,
       type: String,
       default: "", 
     },
+    approvedDate: {
+      type: String,
+      
+    },
+    approvedTime: {
+      type: String,
+      
+    },
   },
   { timestamps: true }
   
