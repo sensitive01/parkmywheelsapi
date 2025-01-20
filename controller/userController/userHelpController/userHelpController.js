@@ -121,8 +121,78 @@ const getChatMessageByChatId = async (req, res) => {
   }
 };
 
+const sendChatDetails = async (req, res) => {
+  try {
+    console.log("Request received with params:", req.params);
+    console.log("Request body:", req.body);
+    console.log("Uploaded files:", req.files);
+
+    const { helpRequestId } = req.params;
+    const { userId, message } = req.body;
+
+    if (!userId ) {
+      return res.status(400).json({ message: "Vendor ID and message are required." });
+    }
+
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadImage(req.file.buffer, "chatbox/images");
+    }
+
+    // Find the help request
+    const helpRequest = await HelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({ message: "Help request not found." });
+    }
+
+    // Create the chat message object
+    const chatMessage = {
+      userId: userId,
+      message,
+      image: imageUrl,
+      time: new Date().toLocaleTimeString(),
+      timestamp: new Date(),
+    };
+
+    // Push the new message into the chatbox array
+    helpRequest.chatbox.push(chatMessage);
+    await helpRequest.save();
+
+    res.status(200).json({ message: "Chat message sent successfully.", data: chatMessage });
+  } catch (error) {
+    console.error("Error in sendchat:", error);
+    res.status(500).json({ message: "Error sending chat message", error: error.message });
+  }
+};
+
+const fetchuserchathistory = async (req, res) => {
+  try {
+    const { helpRequestId } = req.params; // Get the help request ID from the URL
+
+    // Find the help request by ID
+    const helpRequest = await HelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({
+        message: "Help request not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Chat history retrieved successfully.",
+      chatbox: helpRequest.chatbox,
+    });
+  } catch (error) {
+    console.error("Error retrieving chat history:", error);
+    return res.status(500).json({
+      message: "Server error while retrieving chat history.",
+      error: error.message,
+    });
+  }
+};
 
 
 
 
-module.exports = { createHelpSupportRequest, getHelpSupportRequests, getChatMessageByChatId };
+
+
+module.exports = { createHelpSupportRequest, getHelpSupportRequests, getChatMessageByChatId, sendChatDetails, fetchuserchathistory };

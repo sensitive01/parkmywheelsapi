@@ -606,8 +606,6 @@ exports.getReceivableAmount = async (req, res) => {
 
 
 
-
-
 // const bookParkingSlot = async (req, res) => {
 //   try {
 //     console.log("Welcome to the booking vehicle");
