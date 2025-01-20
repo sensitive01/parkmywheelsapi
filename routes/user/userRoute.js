@@ -18,8 +18,8 @@ userRoute.post("/change-password",userController.userChangePassword)
 userRoute.post("/helpandsupport", userHelpController.createHelpSupportRequest)
 userRoute.get("/gethelpandsupport/:userId", userHelpController.getHelpSupportRequests)
 userRoute.get("/chat/:chatId", userHelpController.getChatMessageByChatId);
-
-
+userRoute.post("/sendchat/:helpRequestId", upload.single("image"), userHelpController.sendChatDetails);
+userRoute.get("/fetchuserchat/:helpRequestId", userHelpController.fetchuserchathistory);
 
 userRoute.post("/signup", userController.userSignUp);
 userRoute.post("/login", userController.userVerification);
