@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const HelpSupport = require("../../../models/userhelp");
+const { uploadImage } = require("../../../config/cloudinary");
 
 const createHelpSupportRequest = async (req, res) => {
   try {
