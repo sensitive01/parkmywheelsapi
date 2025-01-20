@@ -1,18 +1,24 @@
 const mongoose = require("mongoose");
 
-const bankdetailsSchema = new mongoose.Schema({
-    accountnumber: {
+const bankdetailsSchema = new mongoose.Schema(
+  {
+    vendorId: {
         type: String,
+      },
+    accountnumber: {
+      type: String,
     },
     confirmaccountnumber: {
-        type: String,
+      type: String,
     },
     accountholdername: {
-        type: String,
+      type: String,
     },
     ifsccode: {
-        type: String,
+      type: String,
     },
-})
+  },
+  { timestamps: true } 
+);
 
 module.exports = mongoose.model("BankDetails", bankdetailsSchema);
