@@ -17,8 +17,7 @@ const bankdetailsSchema = new mongoose.Schema(
     ifsccode: {
       type: String,
     },
-  },
-  { timestamps: true } 
+  }
 );
 
 module.exports = mongoose.model("BankDetails", bankdetailsSchema);
