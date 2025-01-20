@@ -23,6 +23,7 @@ vendorRoute.post("/verify-otp", vendorController.verifyOTP);
 vendorRoute.post("/resend-otp", vendorController.vendorForgotPassword);
 vendorRoute.post("/change-password", vendorController.vendorChangePassword);
 vendorRoute.get("/fetchsubscription/:vendorId", vendorController.fetchVendorSubscription);
+// vendorRoute.get("/fetchplatformfee/:vendorId", vendorController.fetchVendorPlatformfee);
 
 vendorRoute.post("/createmeeting", meetingController.create);
 vendorRoute.get("/fetchmeeting/:id", meetingController.getMeetingsByVendor);
@@ -35,6 +36,7 @@ vendorRoute.get("/bookings", bookingController.getAllBookings);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
 vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour);
+vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
 vendorRoute.get("/bookedslots/:vendorId", bookingController.getParkedVehicleCount);
 vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotCount);
 

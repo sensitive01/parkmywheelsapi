@@ -534,6 +534,76 @@ exports.getAvailableSlotCount = async (req, res) => {
 
 
 
+exports.getReceivableAmount = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    // Validate vendorId
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    // Fetch vendor's platform fee percentage
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    const platformFeePercentage = parseFloat(vendor.platformfee) || 0; // Convert platformfee to a number
+
+    // Fetch completed bookings for the vendor
+    const completedBookings = await Booking.find({ vendorId, status: "COMPLETED" });
+
+    if (completedBookings.length === 0) {
+      return res.status(404).json({ success: false, message: "No completed bookings found" });
+    }
+
+    // Process each booking to calculate and update platformfee
+    const bookingsWithUpdatedPlatformFee = await Promise.all(
+      completedBookings.map(async (booking) => {
+        const amount = parseFloat(booking.amount); // Ensure the amount is a number
+        const platformfee = (amount * platformFeePercentage) / 100;
+        const receivableAmount = amount - platformfee;
+
+        // Update the booking with the calculated platformfee
+        booking.platformfee = platformfee.toFixed(2);
+        await booking.save();
+
+        return {
+          _id: booking._id,
+          amount,
+          platformfee: booking.platformfee, // Now updated in the database
+          receivableAmount: receivableAmount.toFixed(2),
+          vehicleType: booking.vehicleType,
+          bookingDate: booking.bookingDate,
+          parkingDate: booking.parkingDate,
+          parkingTime: booking.parkingTime,
+        };
+      })
+    );
+
+    // Calculate total amounts
+    const totalAmount = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+    const totalReceivable = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.receivableAmount), 0);
+
+    // Respond with the calculated data
+    res.status(200).json({
+      success: true,
+      message: "Platform fees updated and receivable amounts calculated successfully",
+      data: {
+        platformFeePercentage,
+        totalAmount: totalAmount.toFixed(2),
+        totalReceivable: totalReceivable.toFixed(2),
+        bookings: bookingsWithUpdatedPlatformFee,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating platform fees:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 
 
 
