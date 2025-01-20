@@ -44,12 +44,16 @@ userRoute.post("/book-parking-slot", userProfileController.bookParkingSlot);
 
 userRoute.get("/get-book-parking-slot", userProfileController.getBookingDetails);
 
+userRoute.get("/getwallet/:id", userProfileController.fetchWallet);
+
 // feedback routes
 
 userRoute.get("/getfeedback", feedbackController.fetchFeedback);
 userRoute.post("/createfeedback", feedbackController.addFeedback);
 userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId);
 userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
+
+
 
 
 module.exports = userRoute;

@@ -290,6 +290,46 @@ const getBookingDetails = async (req, res) => {
 
 
 
+const fetchWallet = async (req, res) => {
+  try {
+    const { id } = req.params; // Extract userId from route parameters
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Query the database for wallet data
+    const walletData = await userModel.findOne(
+      { uuid: id },
+      { walletamount: 1, walletstatus: 1, userName: 1, _id: 0 } // Correct field names
+    );
+
+    if (!walletData) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Wallet data retrieved successfully",
+      data: walletData,
+    });
+  } catch (err) {
+    console.error("Error in fetching wallet data", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error in fetching wallet data",
+      error: err.message,
+    });
+  }
+};
+
 
 
 
@@ -303,6 +343,7 @@ module.exports = {
   getUserDataHome,
   bookParkingSlot,
   getVendorDetails,
-  getBookingDetails
+  getBookingDetails,
+  fetchWallet
 
 };
