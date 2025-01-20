@@ -88,6 +88,8 @@ vendorRoute.put(
    vendorController.updateVendorData);
 vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorController.updateParkingEntriesVendorData);
 
+vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscription);
+
 
 //Route for KYC
 vendorRoute.post("/createkyc",  upload.fields([

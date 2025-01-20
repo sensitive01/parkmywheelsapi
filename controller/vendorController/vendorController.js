@@ -159,6 +159,8 @@ const vendorSignup = async (req, res) => {
       parkingEntries: parsedParkingEntries,
       address,
       subscription: "false",
+      subscriptionleft: "0",
+      subscriptionenddate: "",
       password: hashedPassword,
       image: uploadedImageUrl || "",
     });
@@ -180,7 +182,9 @@ const vendorSignup = async (req, res) => {
         landmark: newVendor.landMark,
         address: newVendor.address,
         image: newVendor.image,
-              subscription: newVendor.subscription, 
+        subscription: newVendor.subscription, 
+        subscriptionleft: newVendor.subscriptionleft,
+        subscriptionenddate: newVendor.subscriptionenddate,
       },
     });
   } catch (err) {
@@ -188,6 +192,78 @@ const vendorSignup = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+const updateVendorSubscription = async (req, res) => {
+  try {
+    // Extract vendorId from URL parameters
+    const { vendorId } = req.params;
+    let { subscription, subscriptionleft } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    // If subscription or subscriptionleft is not provided, set default values
+    if (typeof subscription === "undefined") {
+      subscription = "true";
+    }
+    if (typeof subscriptionleft === "undefined") {
+      subscriptionleft = "30";
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // If the subscription is true and subscriptionleft is 30, calculate the new subscription end date
+    if (subscription === "true" && subscriptionleft === "30") {
+      const today = new Date();
+      let subscriptionEndDate;
+
+      // If subscriptionenddate is missing, set it
+      if (!vendor.subscriptionenddate) {
+        subscriptionEndDate = new Date(today.setDate(today.getDate() + 30)); // Add 30 days to the current date
+        vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+      }
+    }
+
+    // Update vendor subscription details
+    vendor.subscription = subscription;  // Ensure subscription is set
+    vendor.subscriptionleft = subscriptionleft;  // Ensure subscriptionleft is set
+
+    // If subscriptionenddate is still not set, we calculate and set it
+    if (!vendor.subscriptionenddate) {
+      const today = new Date();
+      let subscriptionEndDate = new Date(today.setDate(today.getDate() + 30)); // Add 30 days to the current date
+      vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+    }
+
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Vendor subscription updated successfully",
+      vendorDetails: {
+        vendorId: vendor._id,
+        vendorName: vendor.vendorName,
+        contacts: vendor.contacts,
+        latitude: vendor.latitude,
+        longitude: vendor.longitude,
+        landmark: vendor.landMark,
+        address: vendor.address,
+        image: vendor.image,
+        subscription: vendor.subscription,          // Explicitly return subscription
+        subscriptionleft: vendor.subscriptionleft,  // Explicitly return subscriptionleft
+        subscriptionenddate: vendor.subscriptionenddate, // Explicitly return subscriptionenddate
+      },
+    });
+  } catch (err) {
+    console.error("Error updating vendor subscription", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 
 const vendorLogin = async (req, res) => {
@@ -432,4 +508,5 @@ module.exports = {
   fetchSlotVendorData,
   fetchVendorSubscription,
   updateParkingEntriesVendorData,
+  updateVendorSubscription,
 };

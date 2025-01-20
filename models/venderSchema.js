@@ -29,9 +29,10 @@ const vendorSchema = new mongoose.Schema(
       type: String,
     },
 
-    subscriptionleft: { type: String, default: "30" },
+    subscriptionleft: { type: String, default: "0" },
     platformfee: { type: String, },
     subscription: { type: String, default: "false" },
+    subscriptionenddate: { type: String, },
     image: {
       type: String,
     },
