@@ -123,8 +123,7 @@ vendorRoute.get("/run-agenda-job", async (req, res) => {
 });
 
 // Route for bankdetails
-
-vendorRoute.post("/bankdetails", bankdetailsConroller.createOrUpdateBankDetail);
+vendorRoute.post("/bankdetails", upload.none(), bankdetailsConroller.createOrUpdateBankDetail);
 vendorRoute.get("/getbankdetails/:vendorId", bankdetailsConroller.getBankDetails);
 
 module.exports = vendorRoute;
