@@ -54,7 +54,8 @@ const getVendorHelpSupportRequests = async (req, res) => {
       return res.status(400).json({ message: "Vendor ID is required in the request." });
     }
 
-    const helpRequests = await VendorHelpSupport.find({ vendorid });
+    // Fetching vendor help and support requests in descending order by date
+    const helpRequests = await VendorHelpSupport.find({ vendorid }).sort({ date: -1 });
 
     if (helpRequests.length === 0) {
       return res.status(404).json({
@@ -74,6 +75,7 @@ const getVendorHelpSupportRequests = async (req, res) => {
     });
   }
 };
+
 
 
 

@@ -50,13 +50,14 @@ const createHelpSupportRequest = async (req, res) => {
 
 const getHelpSupportRequests = async (req, res) => {
   try {
-    const { userId } = req.params;  
-  
+    const { userId } = req.params;
+
     if (!userId) {
       return res.status(400).json({ message: "User ID is required in the request." });
     }
 
-    const helpRequests = await HelpSupport.find({ userId });
+    // Fetching help and support requests in descending order by date
+    const helpRequests = await HelpSupport.find({ userId }).sort({ date: -1 });
 
     if (helpRequests.length === 0) {
       return res.status(404).json({
@@ -76,6 +77,7 @@ const getHelpSupportRequests = async (req, res) => {
     });
   }
 };
+
 
 
 const getChatMessageByChatId = async (req, res) => {
