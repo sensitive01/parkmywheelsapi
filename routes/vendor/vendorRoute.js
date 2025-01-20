@@ -12,6 +12,7 @@ const bannerController = require("../../controller/vendorController/bannerContro
 const amenitiesController = require("../../controller/vendorController/amenitiesController/amenitiesController");
 const kycController = require("../../controller/vendorController/kycController/kycDetails");
 const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
+const bankdetailsConroller = require("../../controller/vendorController/bankdetailsController/bankdetailsController");
 const agenda = require("../../config/agenda");
 
 const storage = multer.memoryStorage();
@@ -114,11 +115,16 @@ vendorRoute.get("/charge/:id", chargesController.fetchC);
 
 vendorRoute.get("/run-agenda-job", async (req, res) => {
   try {
-    await agenda.now("decrease subscription left"); // Runs immediately
+    await agenda.now("decrease subscription left"); 
     res.status(200).json({ message: "Agenda job triggered successfully." });
   } catch (error) {
     res.status(500).json({ error: "Failed to trigger agenda job." });
   }
 });
+
+// Route for bankdetails
+
+vendorRoute.post("/bankdetails", bankdetailsConroller.createOrUpdateBankDetail);
+vendorRoute.get("/getbankdetails/:vendorId", bankdetailsConroller.getBankDetails);
 
 module.exports = vendorRoute;
