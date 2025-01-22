@@ -6,6 +6,7 @@ exports.createBooking = async (req, res) => {
     const {
       userid,
       vendorId,
+      vendorName,
       amount,
       hour,
       personName,
@@ -38,6 +39,7 @@ exports.createBooking = async (req, res) => {
       hour,
       personName,
       vehicleType,
+      vendorName,
       mobileNumber,
       carType,
       vehicleNumber,
