@@ -10,6 +10,9 @@ const bookingSchema = new mongoose.Schema(
     vendorId: {
       type: String,
     },
+       vendorName:{
+    type:String,
+   },
     amount: {
       type: String,
     },
