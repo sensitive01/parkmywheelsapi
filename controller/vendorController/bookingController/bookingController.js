@@ -317,6 +317,13 @@ exports.getBookingsByuserid = async (req, res) => {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
 
+    // Sort bookings by bookingDate and bookingTime
+    bookings.sort((a, b) => {
+      const dateA = new Date(`${a.bookingDate} ${a.bookingTime}`);
+      const dateB = new Date(`${b.bookingDate} ${b.bookingTime}`);
+      return dateA - dateB; // Ascending order
+    });
+
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
