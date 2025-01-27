@@ -317,11 +317,24 @@ exports.getBookingsByuserid = async (req, res) => {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
 
+    // Function to convert 12-hour time format to 24-hour format
+    const convertTo24Hour = (time) => {
+      const [timePart, modifier] = time.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      if (modifier === 'PM' && hours !== '12') {
+        hours = parseInt(hours, 10) + 12;
+      }
+      if (modifier === 'AM' && hours === '12') {
+        hours = '00';
+      }
+      return `${hours}:${minutes}`;
+    };
+
     // Sort bookings by bookingDate and bookingTime
     bookings.sort((a, b) => {
       // Convert bookingDate and bookingTime to Date objects
-      const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${a.bookingTime}`);
-      const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${b.bookingTime}`);
+      const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
+      const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
       return dateA - dateB; // Ascending order
     });
 
