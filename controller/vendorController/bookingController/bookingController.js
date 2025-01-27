@@ -77,7 +77,48 @@ exports.getBookingsByStatus = async (req, res) => {
   }
 };
 
+exports.userupdateCancelBooking = async (req, res) => {
+  try {
+    console.log("BOOKING ID", req.params);
+    const { id } = req.params;
 
+    // Fetch the booking by ID
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(400).json({ success: false, message: "Booking not found" });
+    }
+
+    // Only allow cancellation for approved bookings
+    // if (booking.status !== "Approved") {
+    //   return res.status(400).json({ success: false, message: "Only approved bookings can be cancelled" });
+    // }
+
+    // Get current date and time for cancellation
+    const cancelledDate = moment().format("DD-MM-YYYY");
+    const cancelledTime = moment().format("hh:mm A");
+
+    // Update the booking with cancelled status, and keep the approvedDate and approvedTime
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      { 
+        status: "Cancelled", 
+        cancelledStatus: "NoShow", 
+        cancelledDate, 
+        cancelledTime 
+      },
+      { new: true } // Return the updated document
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Booking cancelled successfully",
+      data: updatedBooking,
+    });
+  } catch (error) {
+    console.log("err", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
