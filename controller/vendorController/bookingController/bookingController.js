@@ -319,8 +319,9 @@ exports.getBookingsByuserid = async (req, res) => {
 
     // Sort bookings by bookingDate and bookingTime
     bookings.sort((a, b) => {
-      const dateA = new Date(`${a.bookingDate} ${a.bookingTime}`);
-      const dateB = new Date(`${b.bookingDate} ${b.bookingTime}`);
+      // Convert bookingDate and bookingTime to Date objects
+      const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${a.bookingTime}`);
+      const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${b.bookingTime}`);
       return dateA - dateB; // Ascending order
     });
 
