@@ -24,7 +24,7 @@ vendorRoute.post("/verify-otp", vendorController.verifyOTP);
 vendorRoute.post("/resend-otp", vendorController.vendorForgotPassword);
 vendorRoute.post("/change-password", vendorController.vendorChangePassword);
 vendorRoute.get("/fetchsubscription/:vendorId", vendorController.fetchVendorSubscription);
-// vendorRoute.get("/fetchplatformfee/:vendorId", vendorController.fetchVendorPlatformfee);
+
 
 vendorRoute.post("/createmeeting", meetingController.create);
 vendorRoute.get("/fetchmeeting/:id", meetingController.getMeetingsByVendor);
@@ -51,16 +51,15 @@ vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
 
 vendorRoute.post("/update-status",bookingController.updateBookingStatus)
 
-//Route for banner
+
 vendorRoute.post("/createbanner", upload.fields([{ name: 'image', maxCount: 1 }]), bannerController.createBanner)
 vendorRoute.get("/getbanner", bannerController.getBanners)
 
-//Route for amenities
+
 vendorRoute.post("/amenities", amenitiesController.addAmenitiesData)
 vendorRoute.get("/getamenitiesdata/:id", amenitiesController.getAmenitiesData)
 vendorRoute.put("/updateamenitiesdata/:id",amenitiesController.updateAmenitiesData )
 vendorRoute.put("/updateparkingentries/:id", amenitiesController.updateParkingEntries)
-
 
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
 vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
@@ -68,13 +67,11 @@ vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCa
 vendorRoute.put("/allowparking/:id", bookingController.allowParking);
 vendorRoute.put("/usercancelbooking/:id", bookingController.userupdateCancelBooking);
 
-
-
 vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBookingsByVendorId);
 
 vendorRoute.get("/vendortotalparking/:id", vehiclefetchController.fetchParkingData);
 
-// Routes
+
 vendorRoute.post(
   "/signup",
   upload.single("image"),
@@ -93,7 +90,6 @@ vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorControlle
 vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscription);
 
 
-//Route for KYC
 vendorRoute.post("/createkyc",  upload.fields([
   { name: "idProofImage", maxCount: 1 },
   { name: "addressProofImage", maxCount: 1 }
@@ -109,7 +105,7 @@ vendorRoute.put(
 );
 vendorRoute.get("/getallkyc", kycController.getallKycData)
 
-// Route for helpfeedback
+
 
 vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
 vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelpSupportRequests);
@@ -126,8 +122,9 @@ vendorRoute.get("/run-agenda-job", async (req, res) => {
   }
 });
 
-// Route for bankdetails
 vendorRoute.post("/bankdetails", upload.none(), bankdetailsConroller.createOrUpdateBankDetail);
 vendorRoute.get("/getbankdetails/:vendorId", bankdetailsConroller.getBankDetails);
+
+vendorRoute.get("/fetchsubscriptionleft/:vendorId", vendorController.fetchVendorSubscriptionLeft);
 
 module.exports = vendorRoute;
