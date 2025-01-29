@@ -81,23 +81,13 @@ exports.userupdateCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
-
-    // Fetch the booking by ID
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    // Only allow cancellation for approved bookings
-    // if (booking.status !== "Approved") {
-    //   return res.status(400).json({ success: false, message: "Only approved bookings can be cancelled" });
-    // }
-
-    // Get current date and time for cancellation
     const cancelledDate = moment().format("DD-MM-YYYY");
     const cancelledTime = moment().format("hh:mm A");
-
-    // Update the booking with cancelled status, and keep the approvedDate and approvedTime
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -106,7 +96,7 @@ exports.userupdateCancelBooking = async (req, res) => {
         cancelledDate, 
         cancelledTime 
       },
-      { new: true } // Return the updated document
+      { new: true } 
     );
 
     res.status(200).json({
@@ -123,24 +113,18 @@ exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
-
-    // Fetch the booking by ID
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
 
-    // Only allow approval for bookings that are in "PENDING" status
     if (booking.status !== "PENDING") {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    // Get current date and time using moment.js
     const approvedDate = moment().format("DD-MM-YYYY");
     const approvedTime = moment().format("hh:mm A");
     console.log("approvedDate",approvedDate, "approvedTime", approvedTime)
-
-    // Update the booking with approved status, date, and time
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -148,7 +132,7 @@ exports.updateApproveBooking = async (req, res) => {
         approvedDate, 
         approvedTime 
       },
-      { new: true } // This returns the updated document
+      { new: true }
     );
 
     res.status(200).json({
@@ -177,12 +161,9 @@ exports.updateCancelBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be cancelled" });
     }
 
-    // Get current date and time using moment.js
     const cancelledDate = moment().format("DD-MM-YYYY");
     const cancelledTime = moment().format("hh:mm A");
     console.log("cancelledDate", cancelledDate, "cancelledTime", cancelledTime);
-
-    // Update the booking with cancelled status, date, and time
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -190,7 +171,7 @@ exports.updateCancelBooking = async (req, res) => {
         cancelledDate, 
         cancelledTime 
       },
-      { new: true } // Returns updated document
+      { new: true }
     );
 
     res.status(200).json({
@@ -209,23 +190,16 @@ exports.updateApprovedCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
-
-    // Fetch the booking by ID
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
-
-    // Only allow cancellation for approved bookings
     if (booking.status !== "Approved") {
       return res.status(400).json({ success: false, message: "Only approved bookings can be cancelled" });
     }
 
-    // Get current date and time for cancellation
     const cancelledDate = moment().format("DD-MM-YYYY");
     const cancelledTime = moment().format("hh:mm A");
-
-    // Update the booking with cancelled status, and keep the approvedDate and approvedTime
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -233,7 +207,7 @@ exports.updateApprovedCancelBooking = async (req, res) => {
         cancelledDate, 
         cancelledTime 
       },
-      { new: true } // Return the updated document
+      { new: true } 
     );
 
     res.status(200).json({
@@ -252,23 +226,15 @@ exports.allowParking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
-
-    // Fetch the booking by ID
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
-
-    // Only allow parking for approved bookings
     if (booking.status !== "Approved") {
       return res.status(400).json({ success: false, message: "Only Approved bookings are allowed for parking" });
     }
-
-    // Get current date and time for parking
     const parkedDate = moment().format("DD-MM-YYYY");
     const parkedTime = moment().format("hh:mm A");
-
-    // Update the booking with "Parked" status, and keep the approvedDate and approvedTime
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -276,7 +242,7 @@ exports.allowParking = async (req, res) => {
         parkedDate, 
         parkedTime 
       },
-      { new: true } // Return the updated document
+      { new: true } 
     );
 
     res.status(200).json({
@@ -316,8 +282,6 @@ exports.getBookingsByuserid = async (req, res) => {
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
-
-    // Function to convert 12-hour time format to 24-hour format
     const convertTo24Hour = (time) => {
       const [timePart, modifier] = time.split(' ');
       let [hours, minutes] = timePart.split(':');
@@ -330,12 +294,10 @@ exports.getBookingsByuserid = async (req, res) => {
       return `${hours}:${minutes}`;
     };
 
-    // Sort bookings by bookingDate and bookingTime
     bookings.sort((a, b) => {
-      // Convert bookingDate and bookingTime to Date objects
       const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
       const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
-      return dateA - dateB; // Ascending order
+      return dateA - dateB;
     });
 
     res.status(200).json({ bookings });
@@ -601,42 +563,32 @@ exports.getAvailableSlotCount = async (req, res) => {
 exports.getReceivableAmount = async (req, res) => {
   try {
     const { vendorId } = req.params;
-
-    // Validate vendorId
     if (!vendorId) {
       return res.status(400).json({ success: false, message: "Vendor ID is required" });
     }
-
-    // Fetch vendor's platform fee percentage
     const vendor = await vendorModel.findById(vendorId);
     if (!vendor) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    const platformFeePercentage = parseFloat(vendor.platformfee) || 0; // Convert platformfee to a number
-
-    // Fetch completed bookings for the vendor
+    const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     const completedBookings = await Booking.find({ vendorId, status: "COMPLETED" });
 
     if (completedBookings.length === 0) {
       return res.status(404).json({ success: false, message: "No completed bookings found" });
     }
-
-    // Process each booking to calculate and update platformfee
     const bookingsWithUpdatedPlatformFee = await Promise.all(
       completedBookings.map(async (booking) => {
-        const amount = parseFloat(booking.amount); // Ensure the amount is a number
+        const amount = parseFloat(booking.amount); 
         const platformfee = (amount * platformFeePercentage) / 100;
         const receivableAmount = amount - platformfee;
-
-        // Update the booking with the calculated platformfee
         booking.platformfee = platformfee.toFixed(2);
         await booking.save();
 
         return {
           _id: booking._id,
           amount,
-          platformfee: booking.platformfee, // Now updated in the database
+          platformfee: booking.platformfee,
           receivableAmount: receivableAmount.toFixed(2),
           vehicleType: booking.vehicleType,
           bookingDate: booking.bookingDate,
@@ -645,12 +597,8 @@ exports.getReceivableAmount = async (req, res) => {
         };
       })
     );
-
-    // Calculate total amounts
     const totalAmount = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.amount), 0);
     const totalReceivable = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.receivableAmount), 0);
-
-    // Respond with the calculated data
     res.status(200).json({
       success: true,
       message: "Platform fees updated and receivable amounts calculated successfully",
@@ -664,6 +612,37 @@ exports.getReceivableAmount = async (req, res) => {
   } catch (error) {
     console.error("Error updating platform fees:", error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+exports.getUserCancelledCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "User ID is required" 
+      });
+    }
+
+    const cancelledCount = await Booking.countDocuments({
+      userid: userId,
+      status: "Cancelled"
+    });
+
+    res.status(200).json({
+      success: true,
+      totalCancelledCount: cancelledCount
+    });
+
+  } catch (error) {
+    console.error("Error fetching cancelled count:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
