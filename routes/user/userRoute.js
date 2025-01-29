@@ -6,6 +6,7 @@ const userController = require("../../controller/userController/userAuthControll
 const userProfileController = require("../../controller/userController/userProfileController");
 const userHelpController = require("../../controller/userController/userHelpController/userHelpController")
 const feedbackController = require("../../controller/userController/feedbackreviewController/feedbackreview");
+const bookingController = require("../../controller/userController/userbookController/userbookController");
 
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
@@ -53,6 +54,7 @@ userRoute.post("/createfeedback", feedbackController.addFeedback);
 userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId);
 userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
 
+userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts);
 
 
 
