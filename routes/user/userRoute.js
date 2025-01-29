@@ -55,6 +55,7 @@ userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId)
 userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
 
 userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts);
+userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
 
 
 
