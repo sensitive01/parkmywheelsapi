@@ -494,6 +494,30 @@ const fetchVendorSubscription = async (req, res) => {
   }
 };
 
+const fetchVendorSubscriptionLeft = async (req, res) => {
+  try {
+    const { vendorId } = req.params; // Get vendorId from the request parameters
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required." });
+    }
+
+    // Find the vendor by vendorId
+    const vendor = await vendorModel.findOne({ vendorId });
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found." });
+    }
+
+    // Respond with the subscriptionleft data
+    return res.status(200).json({
+      subscriptionleft: vendor.subscriptionleft,
+    });
+  } catch (err) {
+    console.error("Error in fetching vendor subscriptionleft", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 module.exports = {
@@ -509,4 +533,5 @@ module.exports = {
   fetchVendorSubscription,
   updateParkingEntriesVendorData,
   updateVendorSubscription,
+  fetchVendorSubscriptionLeft,
 };
