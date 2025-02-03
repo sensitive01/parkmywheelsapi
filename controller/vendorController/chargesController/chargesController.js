@@ -88,7 +88,36 @@ const getChargesByCategoryAndType = async (req, res) => {
     res.status(500).json({ message: "Error retrieving Parking Charges details", error: error.message });
   }
 };
+const fetchexit = async (req, res) => {
+  const vendorid = req.params.id; // Extract vendorid from the URL parameter
+  const vehicleType = req.params.vehicleType; // Extract vehicle type from the URL parameter
 
+  try {
+    // Query the database for the vendor's charges based on vehicle type
+    const result = await Parking.findOne(
+      { 
+        vendorid: vendorid, 
+        "charges.category": vehicleType, // Use vehicleType to filter charges
+        "charges.chargeid": { $in: ["A", "B", "C", "D"] }
+      }
+    );
+
+    // Check if the result is found and has charges
+    if (!result || !result.charges || result.charges.length === 0) {
+      console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Transform the charges into the desired format
+    const transformedData = transformCharges(result.charges);
+
+    // Respond with the transformed data as JSON
+    return res.json(transformedData);
+  } catch (error) {
+    console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
+    return res.status(500).json({ message: "Error fetching charges." });
+  }
+};
 const fetchC = async (req, res) => {
   const vendorid = req.params.id; // Extract vendorid from the URL parameter
   
@@ -213,4 +242,4 @@ const transformCharges = (charges) => {
 // };
 
 
-module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType, fetchC, transformCharges};
+module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit, fetchC, transformCharges};
