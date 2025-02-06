@@ -242,7 +242,7 @@ exports.allowParking = async (req, res) => {
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
-        status: "Parked", 
+        status: "PARKED", 
         parkedDate, 
         parkedTime 
       },
