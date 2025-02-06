@@ -60,6 +60,43 @@ const getChargesbyId = async (req, res) => {
 };
 
 
+
+const Explorecharge = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const vendor = await Parking.findOne({ vendorid: id });
+
+    if (!vendor) {
+      return res.status(404).json({ message: `Vendor with ID ${id} not found` });
+    }
+
+    // Define expected charge IDs
+    const requiredChargeIds = ["A", "E"];
+    
+    // Create a map of available charges
+    const chargeMap = new Map(
+      vendor.charges.map(({ chargeid, type, amount }) => {
+        const match = type.match(/0 to (\d+) hours?/);
+        const formattedType = match ? `${match[1]}hrs` : type;
+        return [chargeid, { type: formattedType, amount }];
+      })
+    );
+
+    // Ensure both "A" and "E" exist, otherwise return default values
+    const filteredCharges = requiredChargeIds.map(chargeid => 
+      chargeMap.get(chargeid) || { type: "N/A", amount: "0" }
+    );
+
+    res.status(200).json({ message: "Parking Charges data fetched successfully", charges: filteredCharges });
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving Parking Charges details", error: error.message });
+  }
+};
+
+
+
+
 const getChargesByCategoryAndType = async (req, res) => {
   const { vendorid, category, chargeid } = req.params;
 
@@ -242,4 +279,4 @@ const transformCharges = (charges) => {
 // };
 
 
-module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit, fetchC, transformCharges};
+module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit, fetchC, transformCharges,Explorecharge};
