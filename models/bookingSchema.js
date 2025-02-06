@@ -90,6 +90,8 @@ type: String,
     },
     parkedDate: { type: String,  }, 
     parkedTime: { type: String, },
+    exitvehicledate: { type: String },  
+    exitvehicletime: { type: String }, 
   },
   { timestamps: true }
   
