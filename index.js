@@ -8,7 +8,7 @@
   const userRoute = require("./routes/user/userRoute.js");
   const vendorRoute = require("./routes/vendor/vendorRoute.js")
 
-  const agenda = require("./config/agenda");
+const cron = require('node-cron');
 
   app.set("trust proxy", true);
 
