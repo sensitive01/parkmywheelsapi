@@ -45,6 +45,7 @@ vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotC
 vendorRoute.post("/addparkingcharges", chargesController.parkingCharges);
 vendorRoute.get("/getchargesdata/:id", chargesController.getChargesbyId);
 vendorRoute.get("/getchargesbycategoryandtype/:vendorid/:category/:chargeid", chargesController.getChargesByCategoryAndType );
+vendorRoute.get("/explorecharge/:id", chargesController.Explorecharge);
 
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
