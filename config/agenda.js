@@ -1,37 +1,42 @@
-const Agenda = require("agenda");
-const mongoose = require("mongoose");
-const Vendor = require("../models/venderSchema");
-const dbConnect = require("./dbConnect"); 
+const cron = require('node-cron');  // Import node-cron
+const mongoose = require('mongoose');
+const Vendor = require('../models/venderSchema');
+const dbConnect = require('./dbConnect');
 
 dbConnect();
 
-const agenda = new Agenda({ mongo: mongoose.connection });
-
-agenda.define("decrease subscription left", async () => {
-  console.log("Running subscription decrement job...");
+// Cron job definition
+cron.schedule('*/1 * * * *', async () => {  
+  console.log(`[${new Date().toISOString()}] Running subscription decrement job...`);
 
   try {
-    const vendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: 0 } });
+    const vendors = await Vendor.find({ subscription: 'true', subscriptionleft: { $gt: 0 } });
+
+    console.log(`Found ${vendors.length} vendors with active subscriptions.`);
 
     for (const vendor of vendors) {
-      vendor.subscriptionleft = (parseInt(vendor.subscriptionleft) - 1).toString();
+      console.log(`[${new Date().toISOString()}] Processing vendor: ${vendor._id} | Subscription left: ${vendor.subscriptionleft}`);
 
-      if (parseInt(vendor.subscriptionleft) === 0) {
-        vendor.subscription = "false";
+      // Decrease subscription days
+      vendor.subscriptionleft -= 1; 
+
+      // If subscription left is 0, set subscription to false
+      if (vendor.subscriptionleft === 0) {
+        vendor.subscription = 'false';
+        console.log(`[${new Date().toISOString()}] Vendor ${vendor._id} subscription expired. Subscription set to false.`);
       }
 
+      // Save updated vendor
       await vendor.save();
+      
+      // Log the updated details for the vendor
+      console.log(`[${new Date().toISOString()}] Vendor ${vendor._id} | Updated Days left: ${vendor.subscriptionleft} | Subscription: ${vendor.subscription}`);
     }
 
-    console.log("Subscription days updated successfully.");
+    console.log('All subscription days updated successfully.');
   } catch (error) {
-    console.error("Error updating subscription days:", error);
+    console.error(`[${new Date().toISOString()}] Error updating subscription days:`, error);
   }
 });
 
-(async function () {
-  await agenda.start();
-  await agenda.every("24 hours", "decrease subscription left");
-})();
-
-module.exports = agenda;
+console.log('Cron job scheduled.');  // To confirm that the job is scheduled
