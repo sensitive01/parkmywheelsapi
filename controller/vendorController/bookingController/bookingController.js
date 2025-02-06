@@ -22,6 +22,8 @@ exports.createBooking = async (req, res) => {
       subsctiptiontype,
       status,
       sts,
+      exitvehicledate,
+      exitvehicletime, 
     } = req.body;
     const approvedDate = null;
     const approvedTime = null;
@@ -57,6 +59,8 @@ exports.createBooking = async (req, res) => {
       cancelledTime,
       parkedDate,
       parkedTime,
+      exitvehicledate,
+      exitvehicletime, 
     });
 
     await newBooking.save();
@@ -389,6 +393,39 @@ exports.updateBooking = async (req, res) => {
   }
 };
 
+// exports.updateBookingAmountAndHour = async (req, res) => {
+//   try {
+//     const { amount, hour } = req.body;
+
+//     if (amount === undefined || hour === undefined) {
+//       return res.status(400).json({ error: "Amount and hour are required" });
+//     }
+
+//     const booking = await Booking.findById(req.params.id);
+
+//     if (!booking) {
+//       return res.status(404).json({ error: "Booking not found" });
+//     }
+
+//     booking.amount = amount;
+//     booking.hour = hour;
+//     booking.status = "COMPLETED"; 
+
+//     const updatedBooking = await booking.save();
+
+//     res.status(200).json({
+//       message: "Booking updated successfully",
+//       booking: {
+//         amount: updatedBooking.amount,
+//         hour: updatedBooking.hour,
+//         status: updatedBooking.status
+//       }
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
 exports.updateBookingAmountAndHour = async (req, res) => {
   try {
     const { amount, hour } = req.body;
@@ -403,8 +440,13 @@ exports.updateBookingAmountAndHour = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
+    const exitvehicledate = moment().format("DD-MM-YYYY");
+    const exitvehicletime = moment().format("hh:mm A");
+
     booking.amount = amount;
     booking.hour = hour;
+    booking.exitvehicledate = exitvehicledate;
+    booking.exitvehicletime = exitvehicletime;
     booking.status = "COMPLETED"; 
 
     const updatedBooking = await booking.save();
@@ -414,6 +456,8 @@ exports.updateBookingAmountAndHour = async (req, res) => {
       booking: {
         amount: updatedBooking.amount,
         hour: updatedBooking.hour,
+        exitvehicledate: updatedBooking.exitvehicledate,
+        exitvehicletime: updatedBooking.exitvehicletime,
         status: updatedBooking.status
       }
     });
@@ -421,7 +465,6 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 exports.getParkedVehicleCount = async (req, res) => {
   try {

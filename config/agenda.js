@@ -6,7 +6,7 @@ const dbConnect = require('./dbConnect');
 dbConnect();
 
 // Cron job definition
-cron.schedule('*/1 * * * *', async () => {  
+cron.schedule('0 0 * * *', async () => {  
   console.log(`[${new Date().toISOString()}] Running subscription decrement job...`);
 
   try {
