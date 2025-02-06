@@ -1,49 +1,69 @@
-  const express = require("express");
-  const cors = require("cors");
-  const app = express();
-  const cookieParser = require("cookie-parser");
+const express = require("express");
+const cors = require("cors");
+const app = express();
+const cookieParser = require("cookie-parser");
 
-  const { PORT } = require("./config/variables.js");
-  const dbConnect = require("./config/dbConnect.js");
-  const userRoute = require("./routes/user/userRoute.js");
-  const vendorRoute = require("./routes/vendor/vendorRoute.js")
+const { PORT } = require("./config/variables.js");
+const dbConnect = require("./config/dbConnect.js");
+const userRoute = require("./routes/user/userRoute.js");
+const vendorRoute = require("./routes/vendor/vendorRoute.js");
 
-const cron = require('node-cron');
+const cron = require('node-cron');  // Import node-cron for scheduling jobs
 
-  app.set("trust proxy", true);
+app.set("trust proxy", true);
 
-  // DATABASE CONNECTION
-  dbConnect();
+// DATABASE CONNECTION
+dbConnect();
 
-  app.use(cookieParser()); 
-  app.use(express.json());
+app.use(cookieParser()); 
+app.use(express.json());
 
-  const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app"];
+const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app"];
 
-  const corsOptions = {
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.error(`CORS error for origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error(`CORS error for origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+app.disable("x-powered-by");
+
+app.use("/", userRoute);
+app.use("/vendor", vendorRoute);
+
+// Cron job definition to decrement subscription days every day at midnight
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running subscription decrement job...');
+
+  try {
+    const vendors = await Vendor.find({ subscription: 'true', subscriptionleft: { $gt: 0 } });
+
+    for (const vendor of vendors) {
+      vendor.subscriptionleft = (parseInt(vendor.subscriptionleft) - 1).toString();
+
+      if (parseInt(vendor.subscriptionleft) === 0) {
+        vendor.subscription = 'false';
       }
-    },
-    credentials: true,
-  };
 
-  app.use(cors(corsOptions));
+      await vendor.save();
+    }
 
-  app.disable("x-powered-by");
+    console.log('Subscription days updated successfully.');
+  } catch (error) {
+    console.error('Error updating subscription days:', error);
+  }
+});
 
-  app.use("/", userRoute);
-  app.use("/vendor", vendorRoute);
+console.log('Cron job scheduled.'); // To confirm that the job is scheduled
 
-  (async function () {
-    await agenda.start(); // Start agenda
-    console.log("Agenda started successfully!"); 
-  })();
-
-  app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
-  });
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
+});
