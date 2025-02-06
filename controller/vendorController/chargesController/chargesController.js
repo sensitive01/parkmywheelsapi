@@ -125,36 +125,7 @@ const getChargesByCategoryAndType = async (req, res) => {
     res.status(500).json({ message: "Error retrieving Parking Charges details", error: error.message });
   }
 };
-const fetchexit = async (req, res) => {
-  const vendorid = req.params.id; // Extract vendorid from the URL parameter
-  const vehicleType = req.params.vehicleType; // Extract vehicle type from the URL parameter
 
-  try {
-    // Query the database for the vendor's charges based on vehicle type
-    const result = await Parking.findOne(
-      { 
-        vendorid: vendorid, 
-        "charges.category": vehicleType, // Use vehicleType to filter charges
-        "charges.chargeid": { $in: ["A", "B", "C", "D"] }
-      }
-    );
-
-    // Check if the result is found and has charges
-    if (!result || !result.charges || result.charges.length === 0) {
-      console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
-      return res.status(404).json({ message: "No matching charges found." });
-    }
-
-    // Transform the charges into the desired format
-    const transformedData = transformCharges(result.charges);
-
-    // Respond with the transformed data as JSON
-    return res.json(transformedData);
-  } catch (error) {
-    console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
-    return res.status(500).json({ message: "Error fetching charges." });
-  }
-};
 const fetchC = async (req, res) => {
   const vendorid = req.params.id; // Extract vendorid from the URL parameter
   
@@ -186,58 +157,93 @@ const fetchC = async (req, res) => {
 };
 
 // Function to transform charges into the desired format
-const transformCharges = (charges) => {
-  // Initialize an object to hold the transformed data
-  const transformedData = {
-    minimumHoursAmount: { amount: null, type: null },
-    additionalHoursAmount: { amount: null, type: null },
-    fullDayAmount: { amount: null, type: null },
-    monthlyAmount: { amount: null, type: null },
-  };
+const fetchexit = async (req, res) => {
+  const vendorid = req.params.id; // Extract vendorid from the URL parameter
+  const vehicleType = req.params.vehicleType; // Extract vehicle type from the URL parameter
 
-  // Iterate through the charges and assign values based on chargeid
-  charges.forEach(charge => {
-    // Log the charge data for debugging
-    console.log("Processing charge:", charge);
+  // Define charge IDs based on vehicle type
+  let chargeIds;
+  switch (vehicleType) {
+    case 'Car':
+      chargeIds = ["A", "B", "C", "D"];
+      break;
+    case 'Bike':
+      chargeIds = ["E", "F", "G", "H"];
+      break;
+    case 'Others':
+      chargeIds = ["I", "J", "K", "L"];
+      break;
+    default:
+      return res.status(400).json({ message: "Invalid vehicle type." });
+  }
 
-    switch (charge.chargeid) {
-      case "A":
-        if (charge.amount && charge.type) {
-          transformedData.minimumHoursAmount = { amount: charge.amount, type: charge.type };
-        } else {
-          console.log("Charge A missing amount or type.");
-        }
-        break;
-      case "B":
-        if (charge.amount && charge.type) {
-          transformedData.additionalHoursAmount = { amount: charge.amount, type: charge.type };
-        } else {
-          console.log("Charge B missing amount or type.");
-        }
-        break;
-      case "C":
-        if (charge.amount && charge.type) {
-          transformedData.fullDayAmount = { amount: charge.amount, type: "24hours" }; // Use "24hours" for this case
-        } else {
-          console.log("Charge C missing amount or type.");
-        }
-        break;
-      case "D":
-        if (charge.amount && charge.type) {
-          transformedData.monthlyAmount = { amount: charge.amount, type: "monthly" }; // Use "monthly" for this case
-        } else {
-          console.log("Charge D missing amount or type.");
-        }
-        break;
-      default:
-        console.log(`Unknown chargeid: ${charge.chargeid}`);
-        break;
+  try {
+    // Query the database for the vendor's charges based on vehicle type
+    const result = await Parking.findOne(
+      { 
+        vendorid: vendorid, 
+        "charges.category": vehicleType, // Use vehicleType to filter charges
+        "charges.chargeid": { $in: chargeIds } // Use the defined charge IDs based on vehicle type
+      }
+    );
+
+    // Check if the result is found and has charges
+    if (!result || !result.charges || result.charges.length === 0) {
+      console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
+
+      return res.status(404).json({ message: "No matching charges found." });
     }
-  });
 
-  return transformedData;
+    // Filter the charges to only include those that match the vehicleType
+    const filteredCharges = result.charges.filter(charge => charge.category === vehicleType);
+
+    // Check if any charges were found after filtering
+    if (filteredCharges.length === 0) {
+      // console.log(No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.);
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Transform the charges into the desired format
+    const transformedData = transformCharges(filteredCharges);
+
+    // Respond with the transformed data as JSON
+    return res.json(transformedData);
+  } catch (error) {
+    // console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
+    return res.status(500).json({ message: "Error fetching charges." });
+  }
 };
 
+// Function to transform charges into the desired format
+const transformCharges = (charges) => {
+  return charges.map(charge => {
+    console.log("Processing charge:", charge); // Log the charge being processed
+    switch (charge.chargeid) {
+      case 'A':
+      case 'B':
+      case 'C':
+      case 'D':
+      case 'E':
+      case 'F':
+      case 'G':
+      case 'H':
+      case 'I':
+      case 'J':
+      case 'K':
+      case 'L':
+        return {
+          type: charge.type,
+          amount: charge.amount,
+          category: charge.category,
+          chargeid: charge.chargeid,
+        };
+      default:
+        // console.warn(Unknown chargeid: ${charge.chargeid});
+        
+        return null; // Return null for unknown charge IDs
+    }
+  }).filter(charge => charge !== null); // Filter out null values
+};
 
 // const updateParkingChargesCategory = async (req, res) => {
 //   const { vendorid, charges } = req.body;
