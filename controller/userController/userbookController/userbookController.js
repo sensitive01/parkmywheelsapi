@@ -26,7 +26,7 @@ exports.getUserBookingCounts = async (req, res) => {
       })
     ]);
 
-    res.status(200).json({
+    res.status(200).json({  
       totalCancelledCount: cancelledCount,
       totalParkedCount: parkedCount,
       totalPendingCount: pendingCount
