@@ -78,7 +78,7 @@ const Explorecharge = async (req, res) => {
     const chargeMap = new Map(
       vendor.charges.map(({ chargeid, type, amount }) => {
         const match = type.match(/0 to (\d+) hours?/);
-        const formattedType = match ? `${match[1]}hrs` : type;
+        const formattedType = match ? `${match[1]} Hour(s)` : type;
         return [chargeid, { type: formattedType, amount }];
       })
     );
