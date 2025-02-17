@@ -65,7 +65,7 @@ exports.createBooking = async (req, res) => {
 
     await newBooking.save();
 
-    res.status(200).json({ message: "Booking created successfully", booking: newBooking });
+    res.status(200).json({ message: "Booking created successfully", bookingId: newBooking._id,  booking: newBooking });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
