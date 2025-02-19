@@ -46,6 +46,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "Active",
     },
+    walletamount: {
+      type: String,
+      default: "0",
+    },
+    walletstatus: {
+      type: String,
+      default: "Active",
+    },
   },
   {
     timestamps: true,

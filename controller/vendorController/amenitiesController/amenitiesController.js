@@ -28,8 +28,6 @@ const addAmenitiesData = async (req, res) => {
   }
 };
 
-
-//get amenities data
 const getAmenitiesData = async (req, res) => {
   
     const { id } = req.params; 
@@ -51,4 +49,63 @@ const getAmenitiesData = async (req, res) => {
     }
   };
 
-module.exports = { addAmenitiesData, getAmenitiesData };
+
+const updateAmenitiesData = async (req, res) => {
+  const { id } = req.params;  
+  const { amenities } = req.body; 
+  try {
+  
+    const existingVendor = await Amenities.findOne({ vendorId: id });
+
+    if (!existingVendor) {
+      return res.status(404).json({ message: `No data found for vendorId: ${id}` });
+    }
+
+    existingVendor.amenities = amenities || existingVendor.amenities;
+
+    await existingVendor.save();
+
+    res.status(200).json({
+      message: "Amenities data updated successfully",
+      updatedAmenitiesData: existingVendor,
+    });
+  } catch (error) {
+    console.error("Error updating data:", error);
+    res.status(500).json({ message: "Error updating data", error: error.message });
+  }
+};
+
+const updateParkingEntries = async (req, res) => {
+  const { id } = req.params;  
+  const { parkingEntries } = req.body; 
+  
+  try {
+    
+    const existingVendor = await Amenities.findOne({ vendorId: id });
+
+   
+    if (!existingVendor) {
+      return res.status(404).json({ message: `No data found for vendorId: ${id}` });
+    }
+
+    
+    existingVendor.parkingEntries = parkingEntries || existingVendor.parkingEntries;
+
+    
+    await existingVendor.save();
+
+   
+    res.status(200).json({
+      message: "Parking entries data updated successfully",
+      updatedParkingEntries: existingVendor.parkingEntries,
+    });
+  } catch (error) {
+    
+    console.error("Error updating parking entries data:", error);
+    res.status(500).json({ message: "Error updating parking entries data", error: error.message });
+  }
+};
+
+
+module.exports = { addAmenitiesData, getAmenitiesData, updateAmenitiesData, updateParkingEntries };
+
