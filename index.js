@@ -6,7 +6,9 @@ const cookieParser = require("cookie-parser");
 const { PORT } = require("./config/variables.js");
 const dbConnect = require("./config/dbConnect.js");
 const userRoute = require("./routes/user/userRoute.js");
-const vendorRoute = require("./routes/vendor/vendorRoute.js")
+const vendorRoute = require("./routes/vendor/vendorRoute.js");
+
+const cron = require('node-cron');  // Import node-cron for scheduling jobs
 
 app.set("trust proxy", true);
 
@@ -37,6 +39,30 @@ app.disable("x-powered-by");
 app.use("/", userRoute);
 app.use("/vendor", vendorRoute);
 
+// Cron job definition to decrement subscription days every day at midnight
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running subscription decrement job...');
+
+  try {
+    const vendors = await Vendor.find({ subscription: 'true', subscriptionleft: { $gt: 0 } });
+
+    for (const vendor of vendors) {
+      vendor.subscriptionleft = (parseInt(vendor.subscriptionleft) - 1).toString();
+
+      if (parseInt(vendor.subscriptionleft) === 0) {
+        vendor.subscription = 'false';
+      }
+
+      await vendor.save();
+    }
+
+    console.log('Subscription days updated successfully.');
+  } catch (error) {
+    console.error('Error updating subscription days:', error);
+  }
+});
+
+console.log('Cron job scheduled.'); // To confirm that the job is scheduled
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);

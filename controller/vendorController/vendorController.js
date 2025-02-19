@@ -2,39 +2,36 @@ const bcrypt = require("bcrypt");
 const vendorModel = require("../../models/venderSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
+// const agenda = require("../../config/agenda");
 
 const vendorForgotPassword = async (req, res) => {
   try {
-    const { mobile } = req.body; // Extract 'mobile' from the request body
+    const { mobile } = req.body; 
 
-    // Validate if mobile is provided
+
     if (!mobile) {
       return res.status(400).json({ message: "Mobile number is required" });
     }
 
-    // Search for the vendor whose contacts array contains the mobile number
     const existVendor = await vendorModel.findOne({
-      "contacts.mobile": mobile, // Match the mobile field in the contacts array
+      "contacts.mobile": mobile, 
     });
 
-    // If vendor is not found
     if (!existVendor) {
       return res.status(404).json({
         message: "Vendor not found with the provided mobile number",
       });
     }
 
-    // Generate OTP
+
     const otp = generateOTP();
     console.log("Generated OTP:", otp);
 
-    // Save OTP to local state or a temporary store (e.g., Redis)
     req.app.locals.otp = otp;
 
-    // Return success response
     return res.status(200).json({
       message: "OTP sent successfully",
-      otp: otp, // For testing; in production, send via SMS/email
+      otp: otp,
     });
   } catch (err) {
     console.error("Error in forgot password:", err);
@@ -121,7 +118,6 @@ const vendorSignup = async (req, res) => {
       parkingEntries
     } = req.body;
 
-    // Ensure contacts is an array, even if it comes as a string
     let parsedContacts;
     try {
       parsedContacts = typeof contacts === 'string' ? JSON.parse(contacts) : contacts;
@@ -138,7 +134,7 @@ const vendorSignup = async (req, res) => {
     let uploadedImageUrl;
 
     if (imageFile) {
-      uploadedImageUrl = await uploadImage(imageFile.buffer, "vendor_images");
+      uploadedImageUrl = await uploadImage(imageFile.buffer, "image");
     }
 
     if (!vendorName || !address || !password) {
@@ -156,23 +152,23 @@ const vendorSignup = async (req, res) => {
 
     const newVendor = new vendorModel({
       vendorName,
-      contacts: parsedContacts, // Use the parsed contacts
+      contacts: parsedContacts,
       latitude,
       longitude,
       landMark: landmark,
       parkingEntries: parsedParkingEntries,
       address,
+      subscription: "false",
+      subscriptionleft: "0",
+      subscriptionenddate: "",
       password: hashedPassword,
       image: uploadedImageUrl || "",
     });
 
-    // Save the vendor first to get the _id
     await newVendor.save();
 
-    // After saving, set the vendorId to be the _id
     newVendor.vendorId = newVendor._id.toString();
 
-    // Save the vendor document again with the updated vendorId
     await newVendor.save();
 
     return res.status(201).json({
@@ -186,6 +182,9 @@ const vendorSignup = async (req, res) => {
         landmark: newVendor.landMark,
         address: newVendor.address,
         image: newVendor.image,
+        subscription: newVendor.subscription, 
+        subscriptionleft: newVendor.subscriptionleft,
+        subscriptionenddate: newVendor.subscriptionenddate,
       },
     });
   } catch (err) {
@@ -193,6 +192,78 @@ const vendorSignup = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+const updateVendorSubscription = async (req, res) => {
+  try {
+    // Extract vendorId from URL parameters
+    const { vendorId } = req.params;
+    let { subscription, subscriptionleft } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    // If subscription or subscriptionleft is not provided, set default values
+    if (typeof subscription === "undefined") {
+      subscription = "true";
+    }
+    if (typeof subscriptionleft === "undefined") {
+      subscriptionleft = "30";
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // If the subscription is true and subscriptionleft is 30, calculate the new subscription end date
+    if (subscription === "true" && subscriptionleft === "30") {
+      const today = new Date();
+      let subscriptionEndDate;
+
+      // If subscriptionenddate is missing, set it
+      if (!vendor.subscriptionenddate) {
+        subscriptionEndDate = new Date(today.setDate(today.getDate() + 30)); // Add 30 days to the current date
+        vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+      }
+    }
+
+    // Update vendor subscription details
+    vendor.subscription = subscription;  // Ensure subscription is set
+    vendor.subscriptionleft = subscriptionleft;  // Ensure subscriptionleft is set
+
+    // If subscriptionenddate is still not set, we calculate and set it
+    if (!vendor.subscriptionenddate) {
+      const today = new Date();
+      let subscriptionEndDate = new Date(today.setDate(today.getDate() + 30)); // Add 30 days to the current date
+      vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+    }
+
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Vendor subscription updated successfully",
+      vendorDetails: {
+        vendorId: vendor._id,
+        vendorName: vendor.vendorName,
+        contacts: vendor.contacts,
+        latitude: vendor.latitude,
+        longitude: vendor.longitude,
+        landmark: vendor.landMark,
+        address: vendor.address,
+        image: vendor.image,
+        subscription: vendor.subscription,          // Explicitly return subscription
+        subscriptionleft: vendor.subscriptionleft,  // Explicitly return subscriptionleft
+        subscriptionenddate: vendor.subscriptionenddate, // Explicitly return subscriptionenddate
+      },
+    });
+  } catch (err) {
+    console.error("Error updating vendor subscription", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 
 const vendorLogin = async (req, res) => {
@@ -205,7 +276,6 @@ const vendorLogin = async (req, res) => {
         .json({ message: "Mobile number and password are required" });
     }
 
-    // Find the vendor using contacts.mobile instead of contacts
     const vendor = await vendorModel.findOne({ 'contacts.mobile': mobile });
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
@@ -220,7 +290,7 @@ const vendorLogin = async (req, res) => {
       message: "Login successful",
       vendorId: vendor._id,
       vendorName: vendor.vendorName,
-      contacts: vendor.contacts,  // Access the contacts array
+      contacts: vendor.contacts,
       latitude: vendor.latitude,
       longitude: vendor.longitude,
       address: vendor.address,
@@ -254,6 +324,41 @@ const fetchVendorData = async (req, res) => {
   }
 };
 
+
+const fetchSlotVendorData = async (req, res) => {
+  try {
+    console.log("Welcome to fetch vendor data");
+
+    const { id } = req.params; 
+    console.log("Vendor ID:", id); 
+
+    const vendorData = await vendorModel.findOne({ _id: id }, { parkingEntries: 1 });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim(); 
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+   
+    console.log("Processed Parking Entries:", parkingEntries);
+    
+    return res.status(200).json({
+      totalCount: Object.values(parkingEntries).reduce((acc, count) => acc + count, 0),
+      Cars: parkingEntries["Cars"] || 0, 
+      Bikes: parkingEntries["Bikes"] || 0,
+      Others: parkingEntries["Others"] || 0
+    });
+  } catch (err) {
+    console.log("Error in fetching the vendor details", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
 const fetchAllVendorData = async (req,res) => {
   try {
     const vendorData = await vendorModel.find({}, { password: 0 });
@@ -274,8 +379,145 @@ const fetchAllVendorData = async (req,res) => {
 };
 
 
+const updateVendorData = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const existingVendor = await vendorModel.findById(vendorId);
+    if (!existingVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const updateData = {
+      vendorName: vendorName || existingVendor.vendorName,
+      latitude: latitude || existingVendor.latitude,
+      longitude: longitude || existingVendor.longitude,
+      address: address || existingVendor.address,
+      landMark: landmark || existingVendor.landMark,
+      contacts: Array.isArray(contacts) ? contacts : existingVendor.contacts,
+      parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+    };
+
+    let uploadedImageUrl;
+    if (req.file) {
+      uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
+      updateData.image = uploadedImageUrl;
+    } else {
+      console.log("No file received in the request");
+    }
+
+    const updatedVendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Failed to update vendor" });
+    }
+
+    return res.status(200).json({
+      message: "Vendor data updated successfully",
+      vendorDetails: updatedVendor,
+    });
+
+  } catch (err) {
+    console.error("Error in updating vendor data:", err);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
 
 
+const updateParkingEntriesVendorData = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { parkingEntries } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    if (!Array.isArray(parkingEntries)) {
+      return res.status(400).json({ message: "Invalid parkingEntries format. It must be an array." });
+    }
+
+    const updatedVendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { $set: { parkingEntries } },
+      { new: true, projection: { parkingEntries: 1, _id: 0 } } 
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Failed to update vendor" });
+    }
+
+    return res.status(200).json(updatedVendor);
+
+  } catch (err) {
+    console.error("Error in updating parking entries:", err);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
+
+const fetchVendorSubscription = async (req, res) => {
+  try {
+    const { vendorId } = req.params; // Get vendorId from the request parameters
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required." });
+    }
+
+    // Find vendor by vendorId
+    const vendor = await vendorModel.findOne({ vendorId });
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found." });
+    }
+
+    // Respond with vendor details and subscription status
+    return res.status(200).json({
+      message: "Vendor found.",
+      vendor: {
+        vendorId: vendor.vendorId,
+        vendorName: vendor.vendorName,
+        subscription: vendor.subscription, // Subscription status (true or false)
+      },
+    });
+  } catch (err) {
+    console.error("Error in fetching vendor subscription", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const fetchVendorSubscriptionLeft = async (req, res) => {
+  try {
+    const { vendorId } = req.params; // Get vendorId from the request parameters
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required." });
+    }
+
+    // Find the vendor by vendorId
+    const vendor = await vendorModel.findOne({ vendorId });
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found." });
+    }
+
+    // Respond with the subscriptionleft data
+    return res.status(200).json({
+      subscriptionleft: vendor.subscriptionleft,
+    });
+  } catch (err) {
+    console.error("Error in fetching vendor subscriptionleft", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 module.exports = {
@@ -285,5 +527,11 @@ module.exports = {
   verifyOTP,
   vendorChangePassword,
   fetchVendorData,
-  fetchAllVendorData
+  fetchAllVendorData,
+  updateVendorData,
+  fetchSlotVendorData,
+  fetchVendorSubscription,
+  updateParkingEntriesVendorData,
+  updateVendorSubscription,
+  fetchVendorSubscriptionLeft,
 };

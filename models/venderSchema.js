@@ -2,16 +2,13 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
   {
-  vendorName: { type: String, required: true },
-  contacts: [
-    {
-      name: { type: String, required: true },
-      mobile: { type: String, required: true }
-    }
-  ],
-  // contactNo: {
-  //   type: String,
-  // },
+    vendorName: { type: String, required: true },
+    contacts: [
+      {
+        name: { type: String, required: true },
+        mobile: { type: String, required: true }
+      }
+    ],
     latitude: {
       type: String,
     },
@@ -31,20 +28,28 @@ const vendorSchema = new mongoose.Schema(
     landMark: {
       type: String,
     },
+
+    subscriptionleft: { type: String, default: "0" },
+    platformfee: { type: String, },
+    subscription: { type: String, default: "false" },
+    subscriptionenddate: { type: String, },
     image: {
       type: String,
     },
-    vendorId: { type: String,
-       unique: true }, 
-    parkingEntries:[{
-      type:{
-        type:String,
-        
+    vendorId: {
+      type: String,
+      unique: true
+    },
+    parkingEntries: [{
+      type: {
+        type: String,
+
       },
-      count:{
-        type:String
-      }
-  
+      count: {
+        type: String
+      },
+
+
     }],
   },
   { timestamps: true }

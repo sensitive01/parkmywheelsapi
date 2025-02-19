@@ -10,6 +10,9 @@ const bookingSchema = new mongoose.Schema(
     vendorId: {
       type: String,
     },
+       vendorName:{
+    type:String,
+   },
     amount: {
       type: String,
     },
@@ -36,7 +39,15 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       
     },
-  
+
+    parkingDate:{
+      type: String,
+    },
+
+    parkingTime:{
+      type: String,
+    },
+
       subsctiptiontype:{
 type: String,
       },
@@ -59,9 +70,30 @@ type: String,
     },
     cancelledStatus: {
       type: String,
-      default: "", // Default value is an empty string
+      default: "", 
     },
+    approvedDate: {
+      type: String,
+      
+    },
+    approvedTime: {
+      type: String,
+      
+    },
+    cancelledDate: {
+      type: String,
+      
+    },
+    cancelledTime: {
+      type: String,
+      
+    },
+    parkedDate: { type: String,  }, 
+    parkedTime: { type: String, },
+    exitvehicledate: { type: String },  
+    exitvehicletime: { type: String }, 
   },
+  { timestamps: true }
   
 );
 

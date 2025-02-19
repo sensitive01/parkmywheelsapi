@@ -11,8 +11,6 @@ const generateUserUUID = () => {
 };
 
 
-// for user forgot password 
-
 const userForgotPassword = async (req, res) => {
   try {
     const { contactNo } = req.body;
@@ -33,7 +31,7 @@ const userForgotPassword = async (req, res) => {
     console.log("Generated OTP:", otp);
 
     req.app.locals.otp = otp;
-    // req.app.locals.contactNo = contactNo;
+
 
     return res.status(200).json({
       message: "OTP sent successfully",
@@ -150,28 +148,36 @@ const userChangePassword = async (req, res) => {
 
     const { contactNo, password, confirmPassword } = req.body;
 
-   
+    // Validate inputs
+    if (!contactNo || !password || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Check if passwords match
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
+    // Hash the new password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-
-    const user = await userModel.findOneAndUpdate(
-      { userMobile:contactNo },
-      { password: hashedPassword },
-      { new: true }
-    );
+    // Find the user by contact number
+    const user = await userModel.findOne({ userMobile: contactNo });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json({ message: "Password updated successfully" });
+    // Update the user's password field
+    user.userPassword = hashedPassword;
 
+    // Save the updated user to trigger schema validation and middleware
+    await user.save();
+
+    // Send success response
+    res.status(200).json({ message: "Password updated successfully" });
   } catch (err) {
-    console.log("Error in user change password", err);
+    console.error("Error in user change password:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };

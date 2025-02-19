@@ -1,26 +1,24 @@
 const mongoose = require('mongoose');
 const HelpSupport = require("../../../models/userhelp");
+const { uploadImage } = require("../../../config/cloudinary");
 
 const createHelpSupportRequest = async (req, res) => {
   try {
     const { userId, description, userActive, chatbox } = req.body;
 
-    // Validate input
     if (!userId || !description) {
       return res.status(400).json({
         message: "User ID and description are required.",
       });
     }
 
-    // Always create a new document for each request
     const newHelpRequest = new HelpSupport({
       userId,
-      description, // Store as a plain string
-      userActive: userActive || true, // Default to true if not provided
+      description, 
+      userActive: userActive || true,
       chatbox: [],
     });
 
-    // Add chat messages from the incoming chatbox payload
     if (chatbox && Array.isArray(chatbox)) {
       chatbox.forEach((chat) => {
         const newMessage = {
@@ -34,7 +32,6 @@ const createHelpSupportRequest = async (req, res) => {
       });
     }
 
-    // Save the new help request to the database
     await newHelpRequest.save();
 
     return res.status(201).json({
@@ -53,13 +50,14 @@ const createHelpSupportRequest = async (req, res) => {
 
 const getHelpSupportRequests = async (req, res) => {
   try {
-    const { userId } = req.params;  
-  
+    const { userId } = req.params;
+
     if (!userId) {
       return res.status(400).json({ message: "User ID is required in the request." });
     }
 
-    const helpRequests = await HelpSupport.find({ userId });
+    // Fetching help and support requests in descending order by date
+    const helpRequests = await HelpSupport.find({ userId }).sort({ date: -1 });
 
     if (helpRequests.length === 0) {
       return res.status(404).json({
@@ -81,39 +79,38 @@ const getHelpSupportRequests = async (req, res) => {
 };
 
 
+
 const getChatMessageByChatId = async (req, res) => {
   try {
-    const { chatId } = req.params; // Get the chat message _id from request params
+    const { chatId } = req.params;
 
-    // Check if the chatId is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(chatId)) {
       return res.status(400).json({ message: "Invalid chatId format." });
     }
 
-    // Use MongoDB's aggregation pipeline to locate the specific chat message
+
     const result = await HelpSupport.aggregate([
-      { $unwind: "$chatbox" }, // Unwind the chatbox array into individual documents
+      { $unwind: "$chatbox" }, 
       { 
         $match: { 
-          "chatbox._id": new mongoose.Types.ObjectId(chatId) // Use new Types.ObjectId() correctly here
+          "chatbox._id": new mongoose.Types.ObjectId(chatId) 
         }
       },
       {
         $project: {
-          _id: 0, // Exclude the parent document's _id
-          chatMessage: "$chatbox", // Include only the matched chat message
+          _id: 0, 
+          chatMessage: "$chatbox",
         },
       },
     ]);
 
-    // If no result is found
+  
     if (result.length === 0) {
       return res.status(404).json({
         message: "Chat message not found.",
       });
     }
 
-    // Return the matched chat message
     return res.status(200).json({
       message: "Chat message fetched successfully.",
       chatMessage: result[0].chatMessage,
@@ -127,8 +124,78 @@ const getChatMessageByChatId = async (req, res) => {
   }
 };
 
+const sendChatDetails = async (req, res) => {
+  try {
+    console.log("Request received with params:", req.params);
+    console.log("Request body:", req.body);
+    console.log("Uploaded files:", req.files);
+
+    const { helpRequestId } = req.params;
+    const { userId, message } = req.body;
+
+    if (!userId ) {
+      return res.status(400).json({ message: "Vendor ID and message are required." });
+    }
+
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadImage(req.file.buffer, "chatbox/images");
+    }
+
+    // Find the help request
+    const helpRequest = await HelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({ message: "Help request not found." });
+    }
+
+    // Create the chat message object
+    const chatMessage = {
+      userId: userId,
+      message,
+      image: imageUrl,
+      time: new Date().toLocaleTimeString(),
+      timestamp: new Date(),
+    };
+
+    // Push the new message into the chatbox array
+    helpRequest.chatbox.push(chatMessage);
+    await helpRequest.save();
+
+    res.status(200).json({ message: "Chat message sent successfully.", data: chatMessage });
+  } catch (error) {
+    console.error("Error in sendchat:", error);
+    res.status(500).json({ message: "Error sending chat message", error: error.message });
+  }
+};
+
+const fetchuserchathistory = async (req, res) => {
+  try {
+    const { helpRequestId } = req.params; // Get the help request ID from the URL
+
+    // Find the help request by ID
+    const helpRequest = await HelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({
+        message: "Help request not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Chat history retrieved successfully.",
+      chatbox: helpRequest.chatbox,
+    });
+  } catch (error) {
+    console.error("Error retrieving chat history:", error);
+    return res.status(500).json({
+      message: "Server error while retrieving chat history.",
+      error: error.message,
+    });
+  }
+};
 
 
 
 
-module.exports = { createHelpSupportRequest, getHelpSupportRequests, getChatMessageByChatId };
+
+
+module.exports = { createHelpSupportRequest, getHelpSupportRequests, getChatMessageByChatId, sendChatDetails, fetchuserchathistory };
