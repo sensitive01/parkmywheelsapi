@@ -61,7 +61,7 @@ vendorRoute.post("/amenities", amenitiesController.addAmenitiesData)
 vendorRoute.get("/getamenitiesdata/:id", amenitiesController.getAmenitiesData)
 vendorRoute.put("/updateamenitiesdata/:id",amenitiesController.updateAmenitiesData )
 vendorRoute.put("/updateparkingentries/:id", amenitiesController.updateParkingEntries)
-
+vendorRoute.get("/fetchmonth/:id/:vehicleType", chargesController.fetchbookmonth);
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
 vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
 vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCancelBooking);
