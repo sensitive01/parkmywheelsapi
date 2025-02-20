@@ -380,5 +380,96 @@ const booktransformCharges = (charges) => {
     return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
+const fetchbookmonth = async (req, res) => {
+  const vendorid = req.params.id; // Extract vendorid from the URL parameter
+  const vehicleType = req.params.vehicleType; // Extract vehicle type from the URL parameter
 
-module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+  // Define charge IDs based on vehicle type
+  let chargeIds;
+  switch (vehicleType) {
+    case 'Car':
+      chargeIds = ["D" ];
+      break;
+    case 'Bike':
+      chargeIds = ["H" ];
+      break;
+    case 'Others':
+      chargeIds = ["L"];
+      break;
+    default:
+      return res.status(400).json({ message: "Invalid vehicle type." });
+  }
+
+  try {
+    // Query the database for the vendor's charges based on vehicle type
+    const result = await Parking.findOne(
+      { 
+        vendorid: vendorid, 
+        "charges.category": vehicleType, // Use vehicleType to filter charges
+        "charges.chargeid": { $in: chargeIds } // Use the defined charge IDs based on vehicle type
+      }
+    );
+
+    // Check if the result is found and has charges
+    if (!result || !result.charges || result.charges.length === 0) {
+      console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
+
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Filter the charges to only include those that match the vehicleType
+    const filteredCharges = result.charges.filter(charge => charge.category === vehicleType);
+
+    // Check if any charges were found after filtering
+    if (filteredCharges.length === 0) {
+      // console.log(No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.);
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Transform the charges into the desired format
+    const tranformedData = bookmonth(filteredCharges);
+
+    // Respond with the transformed data as JSON
+    return res.json(tranformedData);
+  } catch (error) {
+    // console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
+    return res.status(500).json({ message: "Error fetching charges." });
+  }
+};
+const bookmonth = (charges) => {
+  return charges.map(charge => {
+    console.log("Processing charge:", charge); // Log the charge being processed
+    let transformedCharge = null;
+
+    switch (charge.chargeid) {
+      case 'D':
+      case 'H':
+      case 'L':
+   
+        // Create a transformed charge object
+        transformedCharge = {
+          type: charge.type,
+          amount: charge.amount,
+          category: charge.category,
+          chargeid: charge.chargeid,
+        };
+
+        // Modify the type for specific charge IDs
+        if (charge.chargeid === 'B' || charge.chargeid === 'F' || charge.chargeid === 'J') {
+          // Extract the number of hours from the type string
+          const match = charge.type.match(/Additional (\d+) hours/);
+          if (match) {
+            const hours = match[1]; // Get the number of hours
+            transformedCharge.type = `Every ${hours} hours`; // Construct the new type string
+          }
+        }
+        break;
+      default:
+        // console.warn(`Unknown chargeid: ${charge.chargeid}`);
+        break; // No action needed for unknown charge IDs
+    }
+
+    return transformedCharge; // Return the transformed charge
+  }).filter(charge => charge !== null); // Filter out null values
+};
+module.exports = { parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
