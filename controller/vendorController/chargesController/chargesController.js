@@ -342,30 +342,42 @@ const fetchbookamout = async (req, res) => {
 const booktransformCharges = (charges) => {
   return charges.map(charge => {
     console.log("Processing charge:", charge); // Log the charge being processed
+    let transformedCharge = null;
+
     switch (charge.chargeid) {
       case 'A':
       case 'B':
       case 'C':
-     
       case 'E':
       case 'F':
       case 'G':
-
       case 'I':
       case 'J':
       case 'K':
- 
-        return {
+        // Create a transformed charge object
+        transformedCharge = {
           type: charge.type,
           amount: charge.amount,
           category: charge.category,
           chargeid: charge.chargeid,
         };
+
+        // Modify the type for specific charge IDs
+        if (charge.chargeid === 'B' || charge.chargeid === 'F' || charge.chargeid === 'J') {
+          // Extract the number of hours from the type string
+          const match = charge.type.match(/Additional (\d+) hours/);
+          if (match) {
+            const hours = match[1]; // Get the number of hours
+            transformedCharge.type = `Every ${hours} hours`; // Construct the new type string
+          }
+        }
+        break;
       default:
-        // console.warn(Unknown chargeid: ${charge.chargeid});
-        
-        return null; // Return null for unknown charge IDs
+        // console.warn(`Unknown chargeid: ${charge.chargeid}`);
+        break; // No action needed for unknown charge IDs
     }
+
+    return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
 
