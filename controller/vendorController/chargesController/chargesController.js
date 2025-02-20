@@ -330,7 +330,7 @@ const fetchbookamout = async (req, res) => {
     }
 
     // Transform the charges into the desired format
-    const transformedData = transformCharges(filteredCharges);
+    const transformedData = booktransformCharges(filteredCharges);
 
     // Respond with the transformed data as JSON
     return res.json(transformedData);
@@ -338,6 +338,35 @@ const fetchbookamout = async (req, res) => {
     // console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
     return res.status(500).json({ message: "Error fetching charges." });
   }
+};
+const booktransformCharges = (charges) => {
+  return charges.map(charge => {
+    console.log("Processing charge:", charge); // Log the charge being processed
+    switch (charge.chargeid) {
+      case 'A':
+      case 'B':
+      case 'C':
+     
+      case 'E':
+      case 'F':
+      case 'G':
+
+      case 'I':
+      case 'J':
+      case 'K':
+ 
+        return {
+          type: charge.type,
+          amount: charge.amount,
+          category: charge.category,
+          chargeid: charge.chargeid,
+        };
+      default:
+        // console.warn(Unknown chargeid: ${charge.chargeid});
+        
+        return null; // Return null for unknown charge IDs
+    }
+  }).filter(charge => charge !== null); // Filter out null values
 };
 
 module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
