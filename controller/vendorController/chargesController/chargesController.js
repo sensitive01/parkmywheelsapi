@@ -283,6 +283,61 @@ const transformCharges = (charges) => {
 //     res.status(500).send('Server error');
 //   }
 // };
+const fetchbookamout = async (req, res) => {
+  const vendorid = req.params.id; // Extract vendorid from the URL parameter
+  const vehicleType = req.params.vehicleType; // Extract vehicle type from the URL parameter
 
+  // Define charge IDs based on vehicle type
+  let chargeIds;
+  switch (vehicleType) {
+    case 'Car':
+      chargeIds = ["A", "B", "C" ];
+      break;
+    case 'Bike':
+      chargeIds = ["E", "F", "G"];
+      break;
+    case 'Others':
+      chargeIds = ["I", "J", "K"];
+      break;
+    default:
+      return res.status(400).json({ message: "Invalid vehicle type." });
+  }
 
-module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit, fetchC, transformCharges,Explorecharge};
+  try {
+    // Query the database for the vendor's charges based on vehicle type
+    const result = await Parking.findOne(
+      { 
+        vendorid: vendorid, 
+        "charges.category": vehicleType, // Use vehicleType to filter charges
+        "charges.chargeid": { $in: chargeIds } // Use the defined charge IDs based on vehicle type
+      }
+    );
+
+    // Check if the result is found and has charges
+    if (!result || !result.charges || result.charges.length === 0) {
+      console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
+
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Filter the charges to only include those that match the vehicleType
+    const filteredCharges = result.charges.filter(charge => charge.category === vehicleType);
+
+    // Check if any charges were found after filtering
+    if (filteredCharges.length === 0) {
+      // console.log(No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.);
+      return res.status(404).json({ message: "No matching charges found." });
+    }
+
+    // Transform the charges into the desired format
+    const transformedData = transformCharges(filteredCharges);
+
+    // Respond with the transformed data as JSON
+    return res.json(transformedData);
+  } catch (error) {
+    // console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
+    return res.status(500).json({ message: "Error fetching charges." });
+  }
+};
+
+module.exports = { parkingCharges, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
