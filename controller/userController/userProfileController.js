@@ -332,10 +332,7 @@ const fetchWallet = async (req, res) => {
 
 const deleteUserVehicle = async (req, res) => {
   try {
-    console.log("Welcome to delete user vehicle");
-
     const { id, vehicleId } = req.query;
-    console.log(`User  ID: ${id}, Vehicle ID: ${vehicleId}`);
 
     if (!id || !vehicleId) {
       return res.status(400).json({
@@ -344,7 +341,15 @@ const deleteUserVehicle = async (req, res) => {
       });
     }
 
-    const deletedVehicle = await vehicleModel.findOneAndDelete({ userId: id, _id: vehicleId });
+    // Validate ObjectIDs
+    if (!mongoose.Types.ObjectId.isValid(vehicleId) || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User ID or Vehicle ID",
+      });
+    }
+
+    const deletedVehicle = await Vehicle.findOneAndDelete({ userId: id, _id: vehicleId });
 
     if (!deletedVehicle) {
       return res.status(404).json({
@@ -367,7 +372,6 @@ const deleteUserVehicle = async (req, res) => {
     });
   }
 };
-
 
 
 
