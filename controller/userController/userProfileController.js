@@ -334,30 +334,31 @@ const fetchWallet = async (req, res) => {
 
 const deleteUserVehicle = async (req, res) => {
   try {
-    const {  vehicleId } = req.query;
-    console.log(vehicleId)
+    const { vehicleId } = req.query;
+    console.log("Deleting vehicle with ID:", vehicleId);
 
-    if (  !vehicleId) {
+    if (!vehicleId) {
       return res.status(400).json({
         success: false,
-        message: "User  ID and Vehicle ID are required",
+        message: "Vehicle ID is required",
       });
     }
 
-    // Validate ObjectIDs
-    // if (!mongoose.Types.ObjectId.isValid(vehicleId) || !mongoose.Types.ObjectId.isValid(id)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Invalid User ID or Vehicle ID",
-    //   });
-    // }
+    // Validate ObjectID
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Vehicle ID",
+      });
+    }
 
-    const deletedVehicle = await vehicleModel.findOneAndDelete(vehicleId);
+    // Correct query for deleting a single vehicle
+    const deletedVehicle = await vehicleModel.findOneAndDelete({ _id: vehicleId });
 
     if (!deletedVehicle) {
       return res.status(404).json({
         success: false,
-        message: "Vehicle not found for this user",
+        message: "Vehicle not found",
       });
     }
 
@@ -367,14 +368,15 @@ const deleteUserVehicle = async (req, res) => {
       vehicle: deletedVehicle,
     });
   } catch (err) {
-    console.error("Error in deleting the user vehicle", err);
+    console.error("Error deleting vehicle:", err);
     res.status(500).json({
       success: false,
-      message: "Error in deleting the user vehicle",
+      message: "Error deleting vehicle",
       error: err.message,
     });
   }
 };
+
 
 
 module.exports = {
