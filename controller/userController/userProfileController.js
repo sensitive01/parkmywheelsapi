@@ -330,27 +330,9 @@ const fetchWallet = async (req, res) => {
   }
 };
 
+
+
 const deleteUserVehicle = async (req, res) => {
-  try {
-    const {  vehicleId } = req.query;
-    console.log(vehicleId)
-
-    if (  !vehicleId) {
-      return res.status(400).json({
-        success: false,
-        message: "User  ID and Vehicle ID are required",
-      });
-    }
-
-    // Validate ObjectIDs
-    // if (!mongoose.Types.ObjectId.isValid(vehicleId) || !mongoose.Types.ObjectId.isValid(id)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Invalid User ID or Vehicle ID",
-    //   });
-    // }
-
-    const deleteUserVehicle = async (req, res) => {
   try {
     const {  vehicleId } = req.query;
     console.log(vehicleId)
@@ -395,18 +377,16 @@ const deleteUserVehicle = async (req, res) => {
 };
 
 
-
-
 module.exports = {
   getUserData,
   updateUserData,
   addNewVehicle,
-  deleteUserVehicle,
   getUserVehicleData,
   getUserDataHome,
   bookParkingSlot,
   getVendorDetails,
   getBookingDetails,
-  fetchWallet
+  fetchWallet,
+  deleteUserVehicle,
 
 };
