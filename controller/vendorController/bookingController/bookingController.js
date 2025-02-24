@@ -65,7 +65,7 @@ exports.createBooking = async (req, res) => {
 
     await newBooking.save();
 
-    res.status(200).json({ message: "Booking created successfully", bookingId: newBooking._id,  booking: newBooking });
+    res.status(200).json({ message: "Booking created successfully",  bookingId: newBooking._id, booking: newBooking });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -286,7 +286,9 @@ exports.getBookingsByuserid = async (req, res) => {
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
+
     const convertTo24Hour = (time) => {
+      if (!time) return '00:00'; // Default if time is missing
       const [timePart, modifier] = time.split(' ');
       let [hours, minutes] = timePart.split(':');
       if (modifier === 'PM' && hours !== '12') {
@@ -301,8 +303,10 @@ exports.getBookingsByuserid = async (req, res) => {
     bookings.sort((a, b) => {
       const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
       const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
-      return dateA - dateB;
+      return dateB - dateA; // Change from dateA - dateB to dateB - dateA
     });
+    
+  
 
     res.status(200).json({ bookings });
   } catch (error) {
