@@ -330,7 +330,39 @@ const fetchWallet = async (req, res) => {
   }
 };
 
+const deleteUserVehicle = async (req, res) => {
+  try {
+    console.log("Welcome to delete user vehicle");
 
+    const { id, vehicleId } = req.query;
+    console.log(id, vehicleId);
+
+    if (!id || !vehicleId) {
+      return res.status(400).json({
+        message: "User ID and Vehicle ID are required",
+      });
+    }
+
+    const deletedVehicle = await vehicleModel.findOneAndDelete({ userId: id, _id: vehicleId });
+
+    if (!deletedVehicle) {
+      return res.status(404).json({
+        message: "Vehicle not found for this user",
+      });
+    }
+
+    res.status(200).json({
+      message: "Vehicle deleted successfully",
+      vehicle: deletedVehicle,
+    });
+  } catch (err) {
+    console.error("Error in deleting the user vehicle", err);
+    res.status(500).json({
+      message: "Error in deleting the user vehicle",
+      error: err.message,
+    });
+  }
+};
 
 
 
@@ -339,6 +371,7 @@ module.exports = {
   getUserData,
   updateUserData,
   addNewVehicle,
+  deleteUserVehicle,
   getUserVehicleData,
   getUserDataHome,
   bookParkingSlot,
