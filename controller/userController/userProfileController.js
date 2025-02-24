@@ -344,14 +344,6 @@ const deleteUserVehicle = async (req, res) => {
       });
     }
 
-    // Validate ObjectID
-    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Vehicle ID",
-      });
-    }
-
     // Correct query for deleting a single vehicle
     const deletedVehicle = await vehicleModel.findOneAndDelete({ _id: vehicleId });
 
@@ -376,7 +368,6 @@ const deleteUserVehicle = async (req, res) => {
     });
   }
 };
-
 
 
 module.exports = {
