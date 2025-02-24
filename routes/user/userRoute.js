@@ -33,7 +33,7 @@ userRoute.get("/home", userProfileController.getUserDataHome);
 
 userRoute.get("/get-vehicle", userProfileController.getUserVehicleData);
 
-userRoute.get("/deletevehicle", userProfileController.deleteUserVehicle);
+userRoute.delete("/deletevehicle", userProfileController.deleteUserVehicle);
 userRoute.post("/add-vehicle", upload.fields([{ name: 'image' }]), userProfileController.addNewVehicle);
 
 userRoute.get("/get-slot-details-vendor",userProfileController.getVendorDetails)
