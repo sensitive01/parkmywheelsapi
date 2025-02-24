@@ -335,11 +335,12 @@ const deleteUserVehicle = async (req, res) => {
     console.log("Welcome to delete user vehicle");
 
     const { id, vehicleId } = req.query;
-    console.log(id, vehicleId);
+    console.log(`User  ID: ${id}, Vehicle ID: ${vehicleId}`);
 
     if (!id || !vehicleId) {
       return res.status(400).json({
-        message: "User ID and Vehicle ID are required",
+        success: false,
+        message: "User  ID and Vehicle ID are required",
       });
     }
 
@@ -347,17 +348,20 @@ const deleteUserVehicle = async (req, res) => {
 
     if (!deletedVehicle) {
       return res.status(404).json({
+        success: false,
         message: "Vehicle not found for this user",
       });
     }
 
     res.status(200).json({
+      success: true,
       message: "Vehicle deleted successfully",
       vehicle: deletedVehicle,
     });
   } catch (err) {
     console.error("Error in deleting the user vehicle", err);
     res.status(500).json({
+      success: false,
       message: "Error in deleting the user vehicle",
       error: err.message,
     });
