@@ -350,7 +350,27 @@ const deleteUserVehicle = async (req, res) => {
     //   });
     // }
 
-    const deletedVehicle = await venderSchema.findOneAndDelete(vehicleId);
+    const deleteUserVehicle = async (req, res) => {
+  try {
+    const {  vehicleId } = req.query;
+    console.log(vehicleId)
+
+    if (  !vehicleId) {
+      return res.status(400).json({
+        success: false,
+        message: "User  ID and Vehicle ID are required",
+      });
+    }
+
+    // Validate ObjectIDs
+    // if (!mongoose.Types.ObjectId.isValid(vehicleId) || !mongoose.Types.ObjectId.isValid(id)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Invalid User ID or Vehicle ID",
+    //   });
+    // }
+
+    const deletedVehicle = await vehicleModel.findOneAndDelete(vehicleId);
 
     if (!deletedVehicle) {
       return res.status(404).json({
@@ -373,6 +393,7 @@ const deleteUserVehicle = async (req, res) => {
     });
   }
 };
+
 
 
 
