@@ -4,6 +4,7 @@ const vehicleModel = require("../../models/vehicleModel");
 const ParkingBooking = require("../../models/parkingSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const venderSchema = require("../../models/venderSchema");
+const Favorite = require("../../models/favouritesSchema"); // Ensure this path is correct
 
 const getUserDataHome = async (req, res) => {
   try {
@@ -368,7 +369,73 @@ const deleteUserVehicle = async (req, res) => {
     });
   }
 };
+const addFavoriteVendor = async (req, res) => {
+  try {
+    const { userId, vendorId } = req.body;
 
+    // Validate input
+    if (!userId || !vendorId) {
+      return res.status(400).json({ message: "User  ID and Vendor ID are required" });
+    }
+
+    // Check if the vendor is already in favorites
+    const existingFavorite = await Favorite.findOne({ userId, vendorId });
+    if (existingFavorite) {
+      return res.status(400).json({ message: "Vendor is already in favorites" });
+    }
+
+    // Create a new favorite entry
+    const favorite = new Favorite({ userId, vendorId });
+    await favorite.save();
+
+    res.status(201).json({ message: "Vendor added to favorites", favorite });
+  } catch (err) {
+    console.error("Error adding favorite vendor:", err);
+    res.status(500).json({ message: "Error adding favorite vendor", error: err.message });
+  }
+};
+
+
+const removeFavoriteVendor = async (req, res) => {
+  try {
+    const { userId, vendorId } = req.body;
+
+    // Validate input
+    if (!userId || !vendorId) {
+      return res.status(400).json({ message: "User  ID and Vendor ID are required" });
+    }
+
+    // Find and remove the favorite entry
+    const result = await Favorite.findOneAndDelete({ userId, vendorId });
+    if (!result) {
+      return res.status(404).json({ message: "Favorite vendor not found" });
+    }
+
+    res.status(200).json({ message: "Vendor removed from favorites" });
+  } catch (err) {
+    console.error("Error removing favorite vendor:", err);
+    res.status(500).json({ message: "Error removing favorite vendor", error: err.message });
+  }
+};
+
+// Fetch favorite vendors for a user
+const getFavoriteVendors = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Validate input
+    if (!userId) {
+      return res.status(400).json({ message: "User  ID is required" });
+    }
+
+    // Fetch favorite vendors
+    const favorites = await Favorite.find({ userId });
+    res.status(200).json({ favorites });
+  } catch (err) {
+    console.error("Error fetching favorite vendors:", err);
+    res.status(500).json({ message: "Error fetching favorite vendors", error: err.message });
+  }
+};
 
 module.exports = {
   getUserData,
@@ -380,6 +447,9 @@ module.exports = {
   getVendorDetails,
   getBookingDetails,
   fetchWallet,
+    addFavoriteVendor, 
+  removeFavoriteVendor,// Ensure this is exported
+  getFavoriteVendors,
   deleteUserVehicle,
 
 };
