@@ -7,6 +7,9 @@ const userProfileController = require("../../controller/userController/userProfi
 const userHelpController = require("../../controller/userController/userHelpController/userHelpController")
 const feedbackController = require("../../controller/userController/feedbackreviewController/feedbackreview");
 const bookingController = require("../../controller/userController/userbookController/userbookController");
+const addFavoriteVendor =require("../../controller/userController/userProfileController");
+const removeFavoriteVendor =require("../../controller/userController/userProfileController");
+const getFavoriteVendors =require("../../controller/userController/userProfileController");
 
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
@@ -54,6 +57,9 @@ userRoute.get("/getfeedback", feedbackController.fetchFeedback);
 userRoute.post("/createfeedback", feedbackController.addFeedback);
 userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId);
 userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
+userRoute.post("/addfavourite", addFavoriteVendor.addFavoriteVendor);
+userRoute.delete("/removefavourite", removeFavoriteVendor.removeFavoriteVendor);
+userRoute.get("/getfavourite", getFavoriteVendors.getFavoriteVendors);
 
 userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts);
 userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
