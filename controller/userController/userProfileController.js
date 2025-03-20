@@ -5,7 +5,7 @@ const ParkingBooking = require("../../models/parkingSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const venderSchema = require("../../models/venderSchema");
 const Favorite = require("../../models/favouritesSchema"); // Ensure this path is correct
-const Vendor = require("../../models/vendorModel"); // Ensure this path is correct
+const Vendor = require("../../models/venderSchema"); // Ensure this path is correct
 
 const getUserDataHome = async (req, res) => {
   try {
