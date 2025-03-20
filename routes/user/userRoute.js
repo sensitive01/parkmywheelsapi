@@ -7,6 +7,10 @@ const userProfileController = require("../../controller/userController/userProfi
 const userHelpController = require("../../controller/userController/userHelpController/userHelpController")
 const feedbackController = require("../../controller/userController/feedbackreviewController/feedbackreview");
 const bookingController = require("../../controller/userController/userbookController/userbookController");
+const addFavoriteVendor =require("../../controller/userController/userProfileController");
+const removeFavoriteVendor =require("../../controller/userController/userProfileController");
+const getFavoriteVendors =require("../../controller/userController/userProfileController");
+const getVendors =require("../../controller/userController/userProfileController");
 
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
@@ -33,6 +37,7 @@ userRoute.get("/home", userProfileController.getUserDataHome);
 
 userRoute.get("/get-vehicle", userProfileController.getUserVehicleData);
 
+userRoute.delete("/deletevehicle", userProfileController.deleteUserVehicle);
 
 userRoute.post("/add-vehicle", upload.fields([{ name: 'image' }]), userProfileController.addNewVehicle);
 
@@ -53,10 +58,13 @@ userRoute.get("/getfeedback", feedbackController.fetchFeedback);
 userRoute.post("/createfeedback", feedbackController.addFeedback);
 userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId);
 userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
+userRoute.post("/addfavourite", addFavoriteVendor.addFavoriteVendor);
+userRoute.delete("/removefavourite", removeFavoriteVendor.removeFavoriteVendor);
+userRoute.get("/getfavourite", getFavoriteVendors.getFavoriteVendors);
 
 userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts);
 userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
 
-
+userRoute.get("/getfavlist", getVendors.getVendors);
 
 module.exports = userRoute;
