@@ -61,7 +61,7 @@ vendorRoute.post("/amenities", amenitiesController.addAmenitiesData)
 vendorRoute.get("/getamenitiesdata/:id", amenitiesController.getAmenitiesData)
 vendorRoute.put("/updateamenitiesdata/:id",amenitiesController.updateAmenitiesData )
 vendorRoute.put("/updateparkingentries/:id", amenitiesController.updateParkingEntries)
-
+vendorRoute.get("/fetchmonth/:id/:vehicleType", chargesController.fetchbookmonth);
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
 vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
 vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCancelBooking);
@@ -113,6 +113,8 @@ vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelp
 vendorRoute.post("/sendchat/:helpRequestId", upload.single("image"), helpfeedbackController.sendchat);
 vendorRoute.get("/fetchchat/:helpRequestId", helpfeedbackController.fetchchathistory);
 vendorRoute.get("/charge/:id", chargesController.fetchC);
+vendorRoute.get("/fetchbookcharge/:id/:vehicleType", chargesController.fetchbookamout);
+
 vendorRoute.get("/charges/:id/:vehicleType", chargesController.fetchexit);
 vendorRoute.get("/run-agenda-job", async (req, res) => {
   try {

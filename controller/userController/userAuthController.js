@@ -89,7 +89,7 @@ const userSignUp = async (req, res) => {
    
     const mobile = parseInt(userMobile);
 
-    const existUser = await userModel.findOne({ userEmail });
+    const existUser = await userModel.findOne({ userMobile });
     if (!existUser) {
       const hashedPassword = await bcrypt.hash(userPassword, 10);
       
@@ -109,7 +109,7 @@ const userSignUp = async (req, res) => {
 
       res.status(201).json({ message: "User registered successfully.", userData: newUser });
     } else {
-      res.status(400).json({ message: "User already registered." });
+      res.status(400).json({ message: "User already registered with the mobile number." });
     }
   } catch (err) {
     res.status(500).json({ message: "Internal server error." });

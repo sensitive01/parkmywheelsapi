@@ -13,10 +13,10 @@ const userSchema = new mongoose.Schema(
     },
     userEmail: {
       type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
+      // required: true,
+      // unique: true,
+      // lowercase: true,
+      // trim: true,
     },
     userMobile: {
       type: String,
