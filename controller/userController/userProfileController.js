@@ -5,6 +5,7 @@ const ParkingBooking = require("../../models/parkingSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const venderSchema = require("../../models/venderSchema");
 const Favorite = require("../../models/favouritesSchema"); // Ensure this path is correct
+const Vendor = require("../../models/vendorModel"); // Ensure this path is correct
 
 const getUserDataHome = async (req, res) => {
   try {
@@ -436,6 +437,37 @@ const getFavoriteVendors = async (req, res) => {
     res.status(500).json({ message: "Error fetching favorite vendors", error: err.message });
   }
 };
+const getVendors = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    // Validate input
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Fetch favorite vendors
+    const favorites = await Favorite.find({ userId });
+
+    if (!favorites.length) {
+      return res.status(404).json({ message: "No favorite vendors found" });
+    }
+
+    // Extract vendor IDs from favorites list
+    const vendorIds = favorites.map((fav) => fav.vendorId);
+
+    // Fetch vendor details using the correct model (Vendor, not vendorSchema)
+    const vendors = await Vendor.find({ _id: { $in: vendorIds } }, { password: 0 }).lean();
+
+    return res.status(200).json({
+      message: "Favorite vendors fetched successfully",
+      data: vendors
+    });
+  } catch (err) {
+    console.error("Error fetching favorite vendors:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
 module.exports = {
   getUserData,
@@ -451,5 +483,5 @@ module.exports = {
   removeFavoriteVendor,// Ensure this is exported
   getFavoriteVendors,
   deleteUserVehicle,
-
+getVendors,
 };
