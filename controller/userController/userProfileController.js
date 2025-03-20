@@ -421,15 +421,15 @@ const removeFavoriteVendor = async (req, res) => {
 // Fetch favorite vendors for a user
 const getFavoriteVendors = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId } = req.query; // Use req.query for GET requests
 
     // Validate input
     if (!userId) {
-      return res.status(400).json({ message: "User  ID is required" });
+      return res.status(400).json({ message: "User ID is required" });
     }
 
     // Fetch favorite vendors
-    const favorites = await Favorite.find({ userId });
+    const favorites = await Favorite.find({ userId }).populate("vendorId");
     res.status(200).json({ favorites });
   } catch (err) {
     console.error("Error fetching favorite vendors:", err);
