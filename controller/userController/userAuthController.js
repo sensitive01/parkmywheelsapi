@@ -113,6 +113,7 @@ const userSignUp = async (req, res) => {
       res.status(400).json({ message: "User already registered with the mobile number." });
     }
   } catch (err) {
+    console.log("Error in registration",err)
     res.status(500).json({ message: "Internal server error." });
   }
 };
