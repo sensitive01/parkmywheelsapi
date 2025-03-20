@@ -90,13 +90,14 @@ const userSignUp = async (req, res) => {
     const mobile = parseInt(userMobile);
 
     const existUser = await userModel.findOne({ userMobile });
+    console.log("ExistUser",existUser)
     if (!existUser) {
       const hashedPassword = await bcrypt.hash(userPassword, 10);
       
       const userData = {
         uuid,
         userName,
-        userEmail,
+        userEmail:userEmail||"",
         userMobile: mobile,
         userPassword: hashedPassword,
     
