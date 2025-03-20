@@ -10,6 +10,7 @@ const bookingController = require("../../controller/userController/userbookContr
 const addFavoriteVendor =require("../../controller/userController/userProfileController");
 const removeFavoriteVendor =require("../../controller/userController/userProfileController");
 const getFavoriteVendors =require("../../controller/userController/userProfileController");
+const getVendors =require("../../controller/userController/userProfileController");
 
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
@@ -64,6 +65,6 @@ userRoute.get("/getfavourite", getFavoriteVendors.getFavoriteVendors);
 userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts);
 userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
 
-
+userRoute.get("/getfavlist", getVendors.getVendors);
 
 module.exports = userRoute;
