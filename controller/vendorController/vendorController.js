@@ -3,7 +3,6 @@ const vendorModel = require("../../models/venderSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
-
 const vendorForgotPassword = async (req, res) => {
   try {
     const { mobile } = req.body; 
