@@ -196,7 +196,7 @@ const myspacereg = async (req, res) => {
   try {
     console.log("Received request body:", JSON.stringify(req.body, null, 2));
 
-    const { vendorName, latitude, longitude, address, landmark, placetype, vendorId, parkingEntries } = req.body;
+    const { vendorName, latitude, longitude, address, landmark, password,placetype, vendorId, parkingEntries } = req.body;
 
     // Validate required fields
     if (!vendorName || !latitude || !longitude || !address || !vendorId) {
@@ -234,12 +234,13 @@ const myspacereg = async (req, res) => {
       landMark: landmark,
       parkingEntries: parsedParkingEntries,
       address,
-      subscription: false,  // Changed from string to boolean
-      subscriptionleft: 0,  // Changed from string to number
+      subscription: false,
+      subscriptionleft: 0,
       subscriptionenddate: "",
-      password: "", // Empty password as per requirement
+      password: password || " ",  // ✅ Use provided password or default
       image: uploadedImageUrl,
     });
+    
 
     // Save to database
     await newVendor.save();
