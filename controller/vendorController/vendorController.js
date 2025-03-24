@@ -3,6 +3,7 @@ const vendorModel = require("../../models/venderSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
+
 const vendorForgotPassword = async (req, res) => {
   try {
     const { mobile } = req.body; 
@@ -193,28 +194,13 @@ const vendorSignup = async (req, res) => {
 };
 const myspacereg = async (req, res) => {
   try {
-    console.log("req.body", req.body);
-    const {
-      vendorName,
+    console.log("Received request body:", JSON.stringify(req.body, null, 2));
 
-      // contacts,
-      latitude,
-      longitude,
-      address,
-      landmark,
-      placetype,
-      vendorId,
-      parkingEntries
+    const {
+      vendorName, latitude, longitude, address, landmark, placetype, vendorId, parkingEntries
     } = req.body;
 
-    const imageFile = req.file;
-    let uploadedImageUrl;
-
-    if (imageFile) {
-      uploadedImageUrl = await uploadImage(imageFile.buffer, "image");
-    }
-
-    if (!vendorName || !address ) {
+    if (!vendorName || !address) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -225,48 +211,34 @@ const myspacereg = async (req, res) => {
       return res.status(400).json({ message: "Invalid format for parkingEntries" });
     }
 
+    let uploadedImageUrl = "";
+    try {
+      if (req.file) {
+        uploadedImageUrl = await uploadImage(req.file.buffer, "image");
+      }
+    } catch (imageError) {
+      console.error("Image upload failed:", imageError);
+      return res.status(500).json({ message: "Image upload failed" });
+    }
+
     const newVendor = new vendorModel({
-      vendorName,
-      placetype,
-      // contacts: parsedContacts,
-      latitude,
-      vendorId,
-      longitude,
-      landMark: landmark,
-      parkingEntries: parsedParkingEntries,
-      address,
-      subscription: "false",
-      subscriptionleft: "0",
-      subscriptionenddate: "",
-      password: "",
-      image: uploadedImageUrl || "",
+      vendorName, placetype, latitude, vendorId, longitude, landMark: landmark,
+      parkingEntries: parsedParkingEntries, address, subscription: "false",
+      subscriptionleft: "0", subscriptionenddate: "", password: "", image: uploadedImageUrl,
     });
 
-    await newVendor.save();
+    await newVendor.save()
+      .then(() => console.log("Space Created successfully"))
+      .catch((dbError) => {
+        console.error("Database save error:", dbError);
+        throw new Error("Database save error");
+      });
 
-    newVendor.vendorId = newVendor._id.toString();
+    return res.status(201).json({ message: "New Space registered successfully", vendorDetails: newVendor });
 
-    await newVendor.save();
-
-    return res.status(201).json({
-      message: "New Space registered successfully",
-      vendorDetails: {
-        vendorId: newVendor.vendorId,
-        vendorName: newVendor.vendorName,
-        contacts: newVendor.contacts,
-        latitude: newVendor.latitude,
-        longitude: newVendor.longitude,
-        landmark: newVendor.landMark,
-        address: newVendor.address,
-        image: newVendor.image,
-        subscription: newVendor.subscription, 
-        subscriptionleft: newVendor.subscriptionleft,
-        subscriptionenddate: newVendor.subscriptionenddate,
-      },
-    });
   } catch (err) {
-    console.error("Error in vendor signup", err);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error in vendor signup:", err.message, err.stack);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
 
