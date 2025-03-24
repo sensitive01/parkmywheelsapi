@@ -192,6 +192,86 @@ const vendorSignup = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const myspacereg = async (req, res) => {
+  try {
+    console.log("req.body", req.body);
+    const {
+      vendorName,
+
+      // contacts,
+      latitude,
+      longitude,
+      address,
+      landmark,
+      placetype,
+      vendorId,
+      parkingEntries
+    } = req.body;
+
+    const imageFile = req.file;
+    let uploadedImageUrl;
+
+    if (imageFile) {
+      uploadedImageUrl = await uploadImage(imageFile.buffer, "image");
+    }
+
+    if (!vendorName || !address || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    let parsedParkingEntries;
+    try {
+      parsedParkingEntries = typeof parkingEntries === 'string' ? JSON.parse(parkingEntries) : parkingEntries;
+    } catch (error) {
+      return res.status(400).json({ message: "Invalid format for parkingEntries" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newVendor = new vendorModel({
+      vendorName,
+      placetype,
+      // contacts: parsedContacts,
+      latitude,
+      vendorId,
+      longitude,
+      landMark: landmark,
+      parkingEntries: parsedParkingEntries,
+      address,
+      subscription: "false",
+      subscriptionleft: "0",
+      subscriptionenddate: "",
+      password: hashedPassword,
+      image: uploadedImageUrl || "",
+    });
+
+    await newVendor.save();
+
+    newVendor.vendorId = newVendor._id.toString();
+
+    await newVendor.save();
+
+    return res.status(201).json({
+      message: "New Space registered successfully",
+      vendorDetails: {
+        vendorId: newVendor.vendorId,
+        vendorName: newVendor.vendorName,
+        contacts: newVendor.contacts,
+        latitude: newVendor.latitude,
+        longitude: newVendor.longitude,
+        landmark: newVendor.landMark,
+        address: newVendor.address,
+        image: newVendor.image,
+        subscription: newVendor.subscription, 
+        subscriptionleft: newVendor.subscriptionleft,
+        subscriptionenddate: newVendor.subscriptionenddate,
+      },
+    });
+  } catch (err) {
+    console.error("Error in vendor signup", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 const updateVendorSubscription = async (req, res) => {
@@ -534,4 +614,5 @@ module.exports = {
   updateParkingEntriesVendorData,
   updateVendorSubscription,
   fetchVendorSubscriptionLeft,
+  myspacereg,
 };
