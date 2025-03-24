@@ -215,7 +215,7 @@ const myspacereg = async (req, res) => {
       uploadedImageUrl = await uploadImage(imageFile.buffer, "image");
     }
 
-    if (!vendorName || !address || !password) {
+    if (!vendorName || !address ) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -225,8 +225,6 @@ const myspacereg = async (req, res) => {
     } catch (error) {
       return res.status(400).json({ message: "Invalid format for parkingEntries" });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newVendor = new vendorModel({
       vendorName,
@@ -241,7 +239,7 @@ const myspacereg = async (req, res) => {
       subscription: "false",
       subscriptionleft: "0",
       subscriptionenddate: "",
-      password: hashedPassword,
+      password: "",
       image: uploadedImageUrl || "",
     });
 
