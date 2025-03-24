@@ -15,7 +15,9 @@ const vendorSchema = new mongoose.Schema(
     longitude: {
       type: String,
     },
-
+    placetype: {
+      type: String,
+    },
     address: {
       type: String,
       required: true,
