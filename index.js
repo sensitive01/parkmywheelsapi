@@ -7,6 +7,7 @@ const { PORT } = require("./config/variables.js");
 const dbConnect = require("./config/dbConnect.js");
 const userRoute = require("./routes/user/userRoute.js");
 const vendorRoute = require("./routes/vendor/vendorRoute.js");
+const adminRoute = require("./routes/admin/adminRoute.js");
 
 const cron = require('node-cron');  // Import node-cron for scheduling jobs
 
@@ -18,7 +19,7 @@ dbConnect();
 app.use(cookieParser()); 
 app.use(express.json());
 
-const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app"];
+const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app",'http://localhost:3000'];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -38,6 +39,7 @@ app.disable("x-powered-by");
 
 app.use("/", userRoute);
 app.use("/vendor", vendorRoute);
+app.use("/admin", adminRoute);
 
 // Cron job definition to decrement subscription days every day at midnight
 cron.schedule('0 0 * * *', async () => {
