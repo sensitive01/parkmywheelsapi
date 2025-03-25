@@ -385,6 +385,35 @@ const fetchVendorData = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+const fetchspacedata = async (req, res) => {
+  try {
+    console.log("Welcome to fetch vendor data");
+    console.log("Request Query Params:", req.query);
+    console.log("Request Body:", req.body);
+
+    let { vendorId } = req.query || req.body;  
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    vendorId = vendorId.trim();  // Fix: Remove any extra spaces or newline characters
+
+    const vendorData = await vendorModel.findOne({ vendorId });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    return res.status(200).json({
+      message: "Vendor data fetched successfully",
+      data: vendorData
+    });
+  } catch (err) {
+    console.error("Error in fetching the vendor details", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
 
 const fetchSlotVendorData = async (req, res) => {
@@ -597,4 +626,5 @@ module.exports = {
   updateVendorSubscription,
   fetchVendorSubscriptionLeft,
   myspacereg,
+  fetchspacedata,
 };
