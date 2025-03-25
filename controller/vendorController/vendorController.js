@@ -414,7 +414,58 @@ const fetchspacedata = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+const updatespacedata = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { vendorName,latitude, longitude, address, landmark, parkingEntries } = req.body;
 
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const existingVendor = await vendorModel.findById(vendorId);
+    if (!existingVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const updateData = {
+      vendorName: vendorName || existingVendor.vendorName,
+      latitude: latitude || existingVendor.latitude,
+      longitude: longitude || existingVendor.longitude,
+      address: address || existingVendor.address,
+      landMark: landmark || existingVendor.landMark,
+   
+      parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+    };
+
+    let uploadedImageUrl;
+    if (req.file) {
+      uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
+      updateData.image = uploadedImageUrl;
+    } else {
+      console.log("No file received in the request");
+    }
+
+    const updatedVendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Failed to update space details" });
+    }
+
+    return res.status(200).json({
+      message: "space data updated successfully",
+      vendorDetails: updatedVendor,
+    });
+
+  } catch (err) {
+    console.error("Error in updating vendor data:", err);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
 
 const fetchSlotVendorData = async (req, res) => {
   try {
@@ -627,4 +678,5 @@ module.exports = {
   fetchVendorSubscriptionLeft,
   myspacereg,
   fetchspacedata,
+  updatespacedata,
 };
