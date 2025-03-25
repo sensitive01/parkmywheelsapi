@@ -92,6 +92,11 @@ vendorRoute.put(
   "/updatevendor/:vendorId",
    upload.single("image"), 
    vendorController.updateVendorData);
+   vendorRoute.put(
+    "/updatespace/:vendorId",
+     upload.single("image"), 
+     vendorController.updatespacedata);
+   
 vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorController.updateParkingEntriesVendorData);
 
 vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscription);
