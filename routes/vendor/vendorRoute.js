@@ -73,7 +73,7 @@ vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBooking
 vendorRoute.get("/vendortotalparking/:id", vehiclefetchController.fetchParkingData);
 
 vendorRoute.post(
-  "/signup",
+  "/spaceregister",
   upload.single("image"),
   vendorController.myspacereg
 );
@@ -82,6 +82,8 @@ vendorRoute.post(
   upload.single("image"),
   vendorController.vendorSignup
 );
+
+vendorRoute.get("/fetchspace", vendorController.fetchspacedata);
 vendorRoute.post("/login", vendorController.vendorLogin);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
