@@ -192,6 +192,68 @@ const vendorSignup = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const myspacereg = async (req, res) => {
+  try {
+    console.log("Received request body:", JSON.stringify(req.body, null, 2));
+
+    const { vendorName, latitude, longitude, address, landmark, password,placetype, vendorId, parkingEntries } = req.body;
+
+    // Validate required fields
+    if (!vendorName || !latitude || !longitude || !address || !vendorId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Parse parkingEntries safely
+    let parsedParkingEntries = [];
+    if (parkingEntries) {
+      try {
+        parsedParkingEntries = typeof parkingEntries === "string" ? JSON.parse(parkingEntries) : parkingEntries;
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid format for parkingEntries" });
+      }
+    }
+
+    // Handle image upload
+    let uploadedImageUrl = "";
+    if (req.file) {
+      try {
+        uploadedImageUrl = await uploadImage(req.file.buffer, "image");
+      } catch (imageError) {
+        console.error("Image upload failed:", imageError);
+        return res.status(500).json({ message: "Image upload failed" });
+      }
+    }
+
+    // Create new vendor object
+    const newVendor = new vendorModel({
+      vendorName,
+      placetype,
+      latitude,
+      vendorId,
+      longitude,
+      landMark: landmark,
+      parkingEntries: parsedParkingEntries,
+      address,
+      subscription: false,
+      subscriptionleft: 0,
+      subscriptionenddate: "",
+      password: password || " ",  // ✅ Use provided password or default
+      image: uploadedImageUrl,
+    });
+    
+
+    // Save to database
+    await newVendor.save();
+    console.log("Space Created successfully");
+
+    return res.status(201).json({ message: "New Space registered successfully", vendorDetails: newVendor });
+
+  } catch (err) {
+    console.error("Error in vendor signup:", err.message);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
+
 
 
 const updateVendorSubscription = async (req, res) => {
@@ -320,6 +382,35 @@ const fetchVendorData = async (req, res) => {
     });
   } catch (err) {
     console.log("Error in fetching the vendor details", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+const fetchspacedata = async (req, res) => {
+  try {
+    console.log("Welcome to fetch vendor data");
+    console.log("Request Query Params:", req.query);
+    console.log("Request Body:", req.body);
+
+    let { vendorId } = req.query || req.body;  
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    vendorId = vendorId.trim();  // Fix: Remove any extra spaces or newline characters
+
+    const vendorData = await vendorModel.findOne({ vendorId });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    return res.status(200).json({
+      message: "Vendor data fetched successfully",
+      data: vendorData
+    });
+  } catch (err) {
+    console.error("Error in fetching the vendor details", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -534,4 +625,6 @@ module.exports = {
   updateParkingEntriesVendorData,
   updateVendorSubscription,
   fetchVendorSubscriptionLeft,
+  myspacereg,
+  fetchspacedata,
 };

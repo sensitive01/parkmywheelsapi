@@ -90,13 +90,14 @@ const userSignUp = async (req, res) => {
     const mobile = parseInt(userMobile);
 
     const existUser = await userModel.findOne({ userMobile });
+    console.log("ExistUser",existUser)
     if (!existUser) {
       const hashedPassword = await bcrypt.hash(userPassword, 10);
       
       const userData = {
         uuid,
         userName,
-        userEmail,
+        userEmail:userEmail||"",
         userMobile: mobile,
         userPassword: hashedPassword,
     
@@ -112,6 +113,7 @@ const userSignUp = async (req, res) => {
       res.status(400).json({ message: "User already registered with the mobile number." });
     }
   } catch (err) {
+    console.log("Error in registration",err)
     res.status(500).json({ message: "Internal server error." });
   }
 };

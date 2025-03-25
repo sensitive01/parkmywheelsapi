@@ -479,9 +479,9 @@ module.exports = {
   getVendorDetails,
   getBookingDetails,
   fetchWallet,
-  deleteUserVehicle,
-  addFavoriteVendor, 
+    addFavoriteVendor, 
   removeFavoriteVendor,// Ensure this is exported
   getFavoriteVendors,
-  getVendors,
+  deleteUserVehicle,
+getVendors,
 };
