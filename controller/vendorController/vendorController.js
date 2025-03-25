@@ -417,47 +417,56 @@ const fetchspacedata = async (req, res) => {
 const updatespacedata = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { vendorName,latitude, longitude, address, landmark, parkingEntries } = req.body;
+    const { vendorName, latitude, longitude, address, landmark, parkingEntries } = req.body;
+    console.log("vendorId:", vendorId);
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
 
-    const existingVendor = await vendorModel.findById(vendorId);
+    // Ensure vendorId is treated as a string
+    const existingVendor = await vendorModel.findOne({ vendorId: String(vendorId) });
+    console.log("Existing Vendor:", existingVendor);
+
     if (!existingVendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
     const updateData = {
-      vendorName: vendorName || existingVendor.vendorName,
-      latitude: latitude || existingVendor.latitude,
-      longitude: longitude || existingVendor.longitude,
-      address: address || existingVendor.address,
-      landMark: landmark || existingVendor.landMark,
-   
-      parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+      vendorName: vendorName ?? existingVendor.vendorName,
+      latitude: latitude ?? existingVendor.latitude,
+      longitude: longitude ?? existingVendor.longitude,
+      address: address ?? existingVendor.address,
+      landMark: landmark ?? existingVendor.landMark,
+      parkingEntries: Array.isArray(parkingEntries) 
+        ? [...existingVendor.parkingEntries, ...parkingEntries] 
+        : existingVendor.parkingEntries,
     };
 
-    let uploadedImageUrl;
+    // Handle image upload if file exists
     if (req.file) {
-      uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
-      updateData.image = uploadedImageUrl;
-    } else {
-      console.log("No file received in the request");
+      try {
+        const uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
+        updateData.image = uploadedImageUrl;
+      } catch (error) {
+        console.error("Image upload failed:", error);
+        return res.status(500).json({ message: "Image upload failed", error: error.message });
+      }
     }
 
-    const updatedVendor = await vendorModel.findByIdAndUpdate(
-      vendorId,
+    // Update vendor using vendorId (not _id)
+    const updatedVendor = await vendorModel.findOneAndUpdate(
+      { vendorId: String(vendorId) }, // Match by vendorId
       { $set: updateData },
       { new: true, runValidators: true }
     );
 
     if (!updatedVendor) {
-      return res.status(404).json({ message: "Failed to update space details" });
+      return res.status(500).json({ message: "Failed to update space details" });
     }
 
     return res.status(200).json({
-      message: "space data updated successfully",
+      message: "Space data updated successfully",
       vendorDetails: updatedVendor,
     });
 
