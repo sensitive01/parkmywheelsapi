@@ -83,6 +83,8 @@ vendorRoute.post(
   vendorController.vendorSignup
 );
 vendorRoute.post("/login", vendorController.vendorLogin);
+
+vendorRoute.get("/fetchspacedata", vendorController.fetchsinglespacedata);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
 vendorRoute.get("/fetch-slot-vendor-data/:id", vendorController.fetchSlotVendorData);
