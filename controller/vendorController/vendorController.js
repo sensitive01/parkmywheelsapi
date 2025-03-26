@@ -226,6 +226,7 @@ const myspacereg = async (req, res) => {
 
 
     const newVendor = new vendorModel({
+      vendorId: vendor._id,
       vendorName,
       spaceid, 
       latitude,
@@ -253,6 +254,32 @@ const myspacereg = async (req, res) => {
   } catch (err) {
     console.error("Error in vendor signup:", err.message);
     return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
+const fetchsinglespacedata = async (req, res) => {
+  try {
+    console.log("Welcome to fetch vendor data");
+
+    const { vendorId } = req.query;
+    console.log("Welcome to fetch vendor data",vendorId);
+    // Check if the ID is provided
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const vendorData = await vendorModel.findOne({ vendorId: vendorId }); // Corrected the variable usage
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    return res.status(200).json({
+      message: "Vendor data fetched successfully",
+      data: vendorData,
+    });
+  } catch (err) {
+    console.error("Error fetching vendor details:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -705,4 +732,5 @@ module.exports = {
   myspacereg,
   fetchspacedata,
   updatespacedata,
+  fetchsinglespacedata,
 };
