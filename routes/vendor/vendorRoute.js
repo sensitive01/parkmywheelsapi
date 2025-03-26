@@ -86,6 +86,7 @@ vendorRoute.post("/login", vendorController.vendorLogin);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
 vendorRoute.get("/fetch-slot-vendor-data/:id", vendorController.fetchSlotVendorData);
+vendorRoute.get("/fetchspace/:spaceid", vendorController.fetchspacedata);
 vendorRoute.put(
   "/updatevendor/:vendorId",
    upload.single("image"), 

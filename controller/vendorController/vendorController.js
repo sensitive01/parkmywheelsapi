@@ -389,11 +389,10 @@ const fetchVendorData = async (req, res) => {
 };
 const fetchspacedata = async (req, res) => {
   try {
-
     console.log("✅ Fetch vendor data API called");
     console.log("📥 Request Params:", req.params);
 
-    let { spaceid } = req.params;  
+    let { spaceid } = req.params;
 
     if (!spaceid || typeof spaceid !== "string") {
       console.log("❌ Invalid space ID:", spaceid);
@@ -403,7 +402,7 @@ const fetchspacedata = async (req, res) => {
     spaceid = spaceid.trim();
     console.log("🔍 Searching for space ID:", spaceid);
 
-    // Use find() instead of findOne() to get multiple results
+    // Fetch vendors by space ID (case-insensitive)
     const vendorData = await vendorModel.find({ spaceid: new RegExp("^" + spaceid + "$", "i") });
 
     if (!vendorData.length) {
@@ -413,34 +412,25 @@ const fetchspacedata = async (req, res) => {
 
     console.log(`✅ Found ${vendorData.length} vendors`);
 
-    console.log("Welcome to fetch vendor data");
-    console.log("Request Query Params:", req.query);
-    console.log("Request Body:", req.body);
+    // Fetch vendor subscription details if needed
+    const vendorSubscriptionData = await vendorModel.findOne({ spaceid });
 
-    let { vendorId } = req.query || req.body;  
-
-    if (!vendorId) {
-      return res.status(400).json({ message: "Vendor ID is required" });
+    if (!vendorSubscriptionData) {
+      return res.status(404).json({ message: "Vendor subscription data not found" });
     }
-
-    vendorId = vendorId.trim();  // Fix: Remove any extra spaces or newline characters
-
-    const vendorSubscriptionData = await vendorModel.findOne({ vendorId });
-
-    if (!vendorData) {
-      return res.status(404).json({ message: "Vendor not found" });
-    }
-
 
     return res.status(200).json({
       message: "Vendor data fetched successfully",
-      data: vendorData
+      data: vendorData,
     });
+
   } catch (err) {
     console.error("🚨 Error fetching vendor details:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+
 const updatespacedata = async (req, res) => {
   try {
     const { spaceid } = req.params;
