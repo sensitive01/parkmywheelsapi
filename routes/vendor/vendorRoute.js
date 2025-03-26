@@ -83,7 +83,7 @@ vendorRoute.post(
   vendorController.vendorSignup
 );
 
-vendorRoute.get("/fetchspace", vendorController.fetchspacedata);
+vendorRoute.get("/fetchspace/:spaceid", vendorController.fetchspacedata);
 vendorRoute.post("/login", vendorController.vendorLogin);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
