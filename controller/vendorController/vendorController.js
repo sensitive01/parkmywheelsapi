@@ -245,7 +245,7 @@ const myspacereg = async (req, res) => {
     // Save to database
     await newVendor.save();
     console.log("Space Created successfully");
-
+    newVendor.vendorId = newVendor._id.toString();
     return res.status(201).json({ 
       message: "New Space registered successfully", 
       vendorDetails: newVendor,
