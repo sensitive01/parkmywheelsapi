@@ -196,14 +196,12 @@ const myspacereg = async (req, res) => {
   try {
     console.log("Received request body:", JSON.stringify(req.body, null, 2));
 
-    const { vendorName, spaceid, latitude, longitude, address, landmark, password, placetype, parkingEntries } = req.body;
+    const { vendorName, spaceid, latitude, longitude, address, landmark, password, parkingEntries } = req.body;
 
-    // Validate required fields
     if (!vendorName || !latitude || !longitude || !address || !spaceid) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Parse parkingEntries safely
     let parsedParkingEntries = [];
     if (parkingEntries) {
       try {
@@ -212,10 +210,7 @@ const myspacereg = async (req, res) => {
         return res.status(400).json({ message: "Invalid format for parkingEntries" });
       }
     }
-    
-    console.log("Parsed parkingEntries:", parsedParkingEntries);
 
-    // Handle image upload
     let uploadedImageUrl = "";
     if (req.file) {
       try {
@@ -226,7 +221,7 @@ const myspacereg = async (req, res) => {
       }
     }
 
-    // ✅ Create new vendor (MongoDB will generate _id)
+    // ✅ Create new vendor
     const newVendor = new vendorModel({
       vendorName,
       spaceid, 
@@ -238,18 +233,25 @@ const myspacereg = async (req, res) => {
       subscription: false,
       subscriptionleft: 0,
       subscriptionenddate: "",
-      password: password || " ",  // ✅ Use provided password or default
+      password: password || " ",  
       image: uploadedImageUrl,
     });
 
-    // Save to database
+    // ✅ First Save (Mongoose will generate _id)
     await newVendor.save();
-    console.log("Space Created successfully");
+
+    // ✅ Assign vendorId after the first save
     newVendor.vendorId = newVendor._id.toString();
+
+    // ✅ Save again to persist vendorId
+    await newVendor.save();
+
+    console.log("Space Created successfully");
+
     return res.status(201).json({ 
       message: "New Space registered successfully", 
       vendorDetails: newVendor,
-      vendorId: newVendor._id  // ✅ Use _id as vendorId
+      vendorId: newVendor.vendorId  // ✅ Return vendorId
     });
 
   } catch (err) {
@@ -257,6 +259,8 @@ const myspacereg = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
+
+
 
 const fetchsinglespacedata = async (req, res) => {
   try {
