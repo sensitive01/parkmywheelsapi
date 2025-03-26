@@ -212,6 +212,8 @@ const myspacereg = async (req, res) => {
         return res.status(400).json({ message: "Invalid format for parkingEntries" });
       }
     }
+    
+    console.log("Parsed parkingEntries:", parsedParkingEntries);
 
     // Handle image upload
     let uploadedImageUrl = "";
@@ -224,9 +226,8 @@ const myspacereg = async (req, res) => {
       }
     }
 
-
+    // ✅ Create new vendor (MongoDB will generate _id)
     const newVendor = new vendorModel({
-      vendorId: vendor._id,
       vendorName,
       spaceid, 
       latitude,
@@ -248,7 +249,7 @@ const myspacereg = async (req, res) => {
     return res.status(201).json({ 
       message: "New Space registered successfully", 
       vendorDetails: newVendor,
-      vendorId: newVendor._id  // ✅ Return vendorId in response
+      vendorId: newVendor._id  // ✅ Use _id as vendorId
     });
 
   } catch (err) {
@@ -256,6 +257,7 @@ const myspacereg = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
+
 const fetchsinglespacedata = async (req, res) => {
   try {
     console.log("Welcome to fetch vendor data");
