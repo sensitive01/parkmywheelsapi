@@ -2,16 +2,14 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
   {
-  vendorName: { type: String, required: true },
-  contacts: [
-    {
-      name: { type: String, required: true },
-      mobile: { type: String, required: true }
-    }
-  ],
-  // contactNo: {
-  //   type: String,
-  // },
+vendorName: { type: String, required: true },
+spaceid: { type: String },
+contacts: [
+  {
+    name: { type: String, required: true },
+    mobile: { type: String, required: true }
+      }
+    ],
     latitude: {
       type: String,
     },
