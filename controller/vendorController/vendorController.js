@@ -196,10 +196,16 @@ const myspacereg = async (req, res) => {
   try {
     console.log("Received request body:", JSON.stringify(req.body, null, 2));
 
+
     const { vendorName, spaceid, latitude, longitude, address, landmark, password, placetype, parkingEntries } = req.body;
 
     // Validate required fields
     if (!vendorName || !latitude || !longitude || !address || !spaceid) {
+
+    const { vendorName, latitude, longitude, address, landmark, password,placetype, vendorId, parkingEntries } = req.body;
+
+    // Validate required fields
+    if (!vendorName || !latitude || !longitude || !address || !vendorId) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -225,10 +231,13 @@ const myspacereg = async (req, res) => {
     }
 
 
+    // Create new vendor object
     const newVendor = new vendorModel({
       vendorName,
-      spaceid, 
+      placetype,
       latitude,
+      vendorId,
+
       longitude,
       landMark: landmark,
       parkingEntries: parsedParkingEntries,
@@ -249,6 +258,8 @@ const myspacereg = async (req, res) => {
       vendorDetails: newVendor,
       vendorId: newVendor._id  // ✅ Return vendorId in response
     });
+    return res.status(201).json({ message: "New Space registered successfully", vendorDetails: newVendor });
+
 
   } catch (err) {
     console.error("Error in vendor signup:", err.message);
@@ -389,6 +400,7 @@ const fetchVendorData = async (req, res) => {
 };
 const fetchspacedata = async (req, res) => {
   try {
+
     console.log("✅ Fetch vendor data API called");
     console.log("📥 Request Params:", req.params);
 
@@ -411,17 +423,42 @@ const fetchspacedata = async (req, res) => {
     }
 
     console.log(`✅ Found ${vendorData.length} vendors`);
+
+    console.log("Welcome to fetch vendor data");
+    console.log("Request Query Params:", req.query);
+    console.log("Request Body:", req.body);
+
+    let { vendorId } = req.query || req.body;  
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    vendorId = vendorId.trim();  // Fix: Remove any extra spaces or newline characters
+
+    const vendorData = await vendorModel.findOne({ vendorId });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+
     return res.status(200).json({
       message: "Vendor data fetched successfully",
       data: vendorData
     });
   } catch (err) {
+<<<<<<< HEAD
     console.error("🚨 Error fetching vendor details:", err);
+=======
+    console.error("Error in fetching the vendor details", err);
+>>>>>>> c399562b985b2dd76f6b671645baaab13fdfa758
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 const updatespacedata = async (req, res) => {
   try {
+<<<<<<< HEAD
     const { spaceid } = req.params;
     const { vendorName, latitude, longitude, address, landmark, parkingEntries } = req.body;
     console.log("spaceid:", spaceid);
@@ -432,6 +469,18 @@ const updatespacedata = async (req, res) => {
 
     // Ensure spaceid is treated as a string
     const existingVendor = await vendorModel.findOne({ spaceid: String(spaceid) });
+=======
+    const { vendorId } = req.params;
+    const { vendorName, latitude, longitude, address, landmark, parkingEntries } = req.body;
+    console.log("vendorId:", vendorId);
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    // Ensure vendorId is treated as a string
+    const existingVendor = await vendorModel.findOne({ vendorId: String(vendorId) });
+>>>>>>> c399562b985b2dd76f6b671645baaab13fdfa758
     console.log("Existing Vendor:", existingVendor);
 
     if (!existingVendor) {
