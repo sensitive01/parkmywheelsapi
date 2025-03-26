@@ -196,10 +196,10 @@ const myspacereg = async (req, res) => {
   try {
     console.log("Received request body:", JSON.stringify(req.body, null, 2));
 
-    const { vendorName, latitude, longitude, address, landmark, password,placetype, vendorId, parkingEntries } = req.body;
+    const { vendorName, spaceid, latitude, longitude, address, landmark, password, placetype, parkingEntries } = req.body;
 
     // Validate required fields
-    if (!vendorName || !latitude || !longitude || !address || !vendorId) {
+    if (!vendorName || !latitude || !longitude || !address || !spaceid) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -224,12 +224,11 @@ const myspacereg = async (req, res) => {
       }
     }
 
-    // Create new vendor object
+
     const newVendor = new vendorModel({
       vendorName,
-      placetype,
+      spaceid, // ✅ Store manually entered spaceid
       latitude,
-      vendorId,
       longitude,
       landMark: landmark,
       parkingEntries: parsedParkingEntries,
@@ -240,13 +239,16 @@ const myspacereg = async (req, res) => {
       password: password || " ",  // ✅ Use provided password or default
       image: uploadedImageUrl,
     });
-    
 
     // Save to database
     await newVendor.save();
     console.log("Space Created successfully");
 
-    return res.status(201).json({ message: "New Space registered successfully", vendorDetails: newVendor });
+    return res.status(201).json({ 
+      message: "New Space registered successfully", 
+      vendorDetails: newVendor,
+      vendorId: newVendor._id  // ✅ Return vendorId in response
+    });
 
   } catch (err) {
     console.error("Error in vendor signup:", err.message);
@@ -387,77 +389,90 @@ const fetchVendorData = async (req, res) => {
 };
 const fetchspacedata = async (req, res) => {
   try {
-    console.log("Welcome to fetch vendor data");
-    console.log("Request Query Params:", req.query);
-    console.log("Request Body:", req.body);
+    console.log("✅ Fetch vendor data API called");
+    console.log("📥 Request Params:", req.params);
 
-    let { vendorId } = req.query || req.body;  
+    let { spaceid } = req.params;  
 
-    if (!vendorId) {
-      return res.status(400).json({ message: "Vendor ID is required" });
+    if (!spaceid || typeof spaceid !== "string") {
+      console.log("❌ Invalid space ID:", spaceid);
+      return res.status(400).json({ message: "Valid space ID is required" });
     }
 
-    vendorId = vendorId.trim();  // Fix: Remove any extra spaces or newline characters
+    spaceid = spaceid.trim();
+    console.log("🔍 Searching for space ID:", spaceid);
 
-    const vendorData = await vendorModel.findOne({ vendorId });
+    // Use find() instead of findOne() to get multiple results
+    const vendorData = await vendorModel.find({ spaceid: new RegExp("^" + spaceid + "$", "i") });
 
-    if (!vendorData) {
-      return res.status(404).json({ message: "Vendor not found" });
+    if (!vendorData.length) {
+      console.log("❌ No vendors found for space ID:", spaceid);
+      return res.status(404).json({ message: `No vendors found with space ID: ${spaceid}` });
     }
 
+    console.log(`✅ Found ${vendorData.length} vendors`);
     return res.status(200).json({
       message: "Vendor data fetched successfully",
       data: vendorData
     });
   } catch (err) {
-    console.error("Error in fetching the vendor details", err);
+    console.error("🚨 Error fetching vendor details:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 const updatespacedata = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    const { vendorName,latitude, longitude, address, landmark, parkingEntries } = req.body;
+    const { spaceid } = req.params;
+    const { vendorName, latitude, longitude, address, landmark, parkingEntries } = req.body;
+    console.log("spaceid:", spaceid);
 
-    if (!vendorId) {
+    if (!spaceid) {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
 
-    const existingVendor = await vendorModel.findById(vendorId);
+    // Ensure spaceid is treated as a string
+    const existingVendor = await vendorModel.findOne({ spaceid: String(spaceid) });
+    console.log("Existing Vendor:", existingVendor);
+
     if (!existingVendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
     const updateData = {
-      vendorName: vendorName || existingVendor.vendorName,
-      latitude: latitude || existingVendor.latitude,
-      longitude: longitude || existingVendor.longitude,
-      address: address || existingVendor.address,
-      landMark: landmark || existingVendor.landMark,
-   
-      parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+      vendorName: vendorName ?? existingVendor.vendorName,
+      latitude: latitude ?? existingVendor.latitude,
+      longitude: longitude ?? existingVendor.longitude,
+      address: address ?? existingVendor.address,
+      landMark: landmark ?? existingVendor.landMark,
+      parkingEntries: Array.isArray(parkingEntries) 
+        ? [...existingVendor.parkingEntries, ...parkingEntries] 
+        : existingVendor.parkingEntries,
     };
 
-    let uploadedImageUrl;
+    // Handle image upload if file exists
     if (req.file) {
-      uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
-      updateData.image = uploadedImageUrl;
-    } else {
-      console.log("No file received in the request");
+      try {
+        const uploadedImageUrl = await uploadImage(req.file.buffer, "vendor_images");
+        updateData.image = uploadedImageUrl;
+      } catch (error) {
+        console.error("Image upload failed:", error);
+        return res.status(500).json({ message: "Image upload failed", error: error.message });
+      }
     }
 
-    const updatedVendor = await vendorModel.findByIdAndUpdate(
-      vendorId,
+    // Update vendor using vendorId (not _id)
+    const updatedVendor = await vendorModel.findOneAndUpdate(
+      { spaceid: String(spaceid) }, // Match by vendorId
       { $set: updateData },
       { new: true, runValidators: true }
     );
 
     if (!updatedVendor) {
-      return res.status(404).json({ message: "Failed to update space details" });
+      return res.status(500).json({ message: "Failed to update space details" });
     }
 
     return res.status(200).json({
-      message: "space data updated successfully",
+      message: "Space data updated successfully",
       vendorDetails: updatedVendor,
     });
 
