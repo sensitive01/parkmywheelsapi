@@ -227,7 +227,7 @@ const myspacereg = async (req, res) => {
 
     const newVendor = new vendorModel({
       vendorName,
-      spaceid, // ✅ Store manually entered spaceid
+      spaceid, 
       latitude,
       longitude,
       landMark: landmark,
