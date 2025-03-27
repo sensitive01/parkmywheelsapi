@@ -466,16 +466,16 @@ const fetchspacedata = async (req, res) => {
 
 const updatespacedata = async (req, res) => {
   try {
-    const { spaceid } = req.params;
+    const { vendorId } = req.params; // Change from spaceid to vendorId
     const { vendorName, latitude, longitude, address, landmark, parkingEntries } = req.body;
-    console.log("spaceid:", spaceid);
+    console.log("vendorId:", vendorId);
 
-    if (!spaceid) {
+    if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
 
-    // Ensure spaceid is treated as a string
-    const existingVendor = await vendorModel.findOne({ spaceid: String(spaceid) });
+    // Ensure vendorId is treated as an ObjectId if stored as one
+    const existingVendor = await vendorModel.findOne({ vendorId: String(vendorId) });
     console.log("Existing Vendor:", existingVendor);
 
     if (!existingVendor) {
@@ -488,8 +488,8 @@ const updatespacedata = async (req, res) => {
       longitude: longitude ?? existingVendor.longitude,
       address: address ?? existingVendor.address,
       landMark: landmark ?? existingVendor.landMark,
-      parkingEntries: Array.isArray(parkingEntries) 
-        ? [...existingVendor.parkingEntries, ...parkingEntries] 
+      parkingEntries: Array.isArray(parkingEntries)
+        ? [...existingVendor.parkingEntries, ...parkingEntries]
         : existingVendor.parkingEntries,
     };
 
@@ -504,9 +504,9 @@ const updatespacedata = async (req, res) => {
       }
     }
 
-    // Update vendor using vendorId (not _id)
+    // Update vendor using vendorId instead of spaceid
     const updatedVendor = await vendorModel.findOneAndUpdate(
-      { spaceid: String(spaceid) }, // Match by vendorId
+      { vendorId: String(vendorId) }, // Match by vendorId
       { $set: updateData },
       { new: true, runValidators: true }
     );
