@@ -2,11 +2,12 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
   {
-    vendorName: { type: String, required: true },
-    contacts: [
-      {
-        name: { type: String, required: true },
-        mobile: { type: String, required: true }
+vendorName: { type: String, },
+spaceid: { type: String },
+contacts: [
+  {
+    name: { type: String, },
+    mobile: { type: String,  }
       }
     ],
     latitude: {
@@ -20,12 +21,12 @@ const vendorSchema = new mongoose.Schema(
     },
     address: {
       type: String,
-      required: true,
+      
       trim: true,
     },
     password: {
       type: String,
-      required: true,
+      
     },
     landMark: {
       type: String,

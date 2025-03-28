@@ -43,6 +43,7 @@ adminRoute.put("/freetrial/:adminId", adminController.updateVendorSubscription);
 
 
 adminRoute.get("/fetchsubscriptionleft/:adminId", adminController.fetchVendorSubscriptionLeft);
+
 adminRoute.post("/createplan",upload.single("image"), planController.addNewPlan);
 adminRoute.get("/getallplan", planController.getAllPlans);
 adminRoute.get("/getplanbyid/:id", planController.getPlanById);
