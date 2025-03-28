@@ -1,22 +1,25 @@
 const mongoose = require('mongoose');
 
+const PaymentDetailsSchema = new mongoose.Schema({
+  cardNumber: { type: String },
+  cardHolderName: { type: String },
+  expiry: { type: String },
+  cvv: { type: String }
+}, { _id: false }); // Prevents automatic _id creation for subdocuments
+
 const SubscriptionSchema = new mongoose.Schema({
   userId: {
     type: String,
     ref: 'User',
-  
   },
   planId: {
     type: String,
-  
   },
   planTitle: {
     type: String,
-  
   },
   price: {
     type: Number,
-  
   },
   autoRenew: {
     type: Boolean,
@@ -24,6 +27,7 @@ const SubscriptionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
+    default: 'active'
   },
   createdAt: {
     type: Date,
@@ -31,15 +35,8 @@ const SubscriptionSchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date,
-  
   },
-  paymentDetails: {
-    cardNumber: String,
-    cardHolderName: String,
-    expiry: String,
-    cvv: String
-  }
+  paymentDetails: PaymentDetailsSchema
 });
 
 module.exports = mongoose.model('Subscription', SubscriptionSchema);
- 
