@@ -23,15 +23,14 @@ exports.createBooking = async (req, res) => {
       status,
       sts,
       exitvehicledate,
-      exitvehicletime, 
+      exitvehicletime,
+      approvedDate = null,  // Allow input or default to null
+      approvedTime = null,  // Allow input or default to null
     } = req.body;
-    const approvedDate = null;
-    const approvedTime = null;
 
     const cancelledDate = null;
     const cancelledTime = null;
-
-    const parkedDate = null; 
+    const parkedDate = null;
     const parkedTime = null;
 
     const newBooking = new Booking({
@@ -60,17 +59,20 @@ exports.createBooking = async (req, res) => {
       parkedDate,
       parkedTime,
       exitvehicledate,
-      exitvehicletime, 
+      exitvehicletime,
     });
 
     await newBooking.save();
 
-    res.status(200).json({ message: "Booking created successfully",  bookingId: newBooking._id, booking: newBooking });
+    res.status(200).json({
+      message: "Booking created successfully",
+      bookingId: newBooking._id,
+      booking: newBooking,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
 exports.getBookingsByStatus = async (req, res) => {
   try {
     const { status } = req.params;
