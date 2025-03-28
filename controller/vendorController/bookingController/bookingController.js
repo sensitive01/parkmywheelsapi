@@ -26,13 +26,14 @@ exports.createBooking = async (req, res) => {
       exitvehicletime,
       approvedDate = null,  // Allow input or default to null
       approvedTime = null,  // Allow input or default to null
+      parkedDate = null,  // Allow input or default to null
+      parkedTime = null, 
     } = req.body;
     console.log("Booking data:", req.body);
 
     const cancelledDate = null;
     const cancelledTime = null;
-    const parkedDate = null;
-    const parkedTime = null;
+ 
 
     const newBooking = new Booking({
       userid,
