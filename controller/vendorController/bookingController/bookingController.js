@@ -27,6 +27,7 @@ exports.createBooking = async (req, res) => {
       approvedDate = null,  // Allow input or default to null
       approvedTime = null,  // Allow input or default to null
     } = req.body;
+    console.log("Booking data:", req.body);
 
     const cancelledDate = null;
     const cancelledTime = null;
@@ -115,10 +116,12 @@ exports.userupdateCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.updateApproveBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID", req.params);
+    console.log("BOOKING ID:", req.params);
     const { id } = req.params;
+
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
@@ -128,18 +131,24 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    const approvedDate = moment().format("DD-MM-YYYY");
-    const approvedTime = moment().format("hh:mm A");
-    console.log("approvedDate",approvedDate, "approvedTime", approvedTime)
+    // Format date and time as per Flutter's expected format
+    const approvedDate = moment().format("DD-MM-YYYY"); // "dd-MM-yyyy" in Flutter
+    const approvedTime = moment().format("hh:mm A");    // "hh:mm a" in Flutter
+
+    console.log("Approved Date:", approvedDate, "Approved Time:", approvedTime);
+
+    // Update booking
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
-        status: "Approved", 
+        status: "APPROVED", // Ensure consistent casing
         approvedDate, 
         approvedTime 
       },
       { new: true }
     );
+
+    console.log("Updated Booking:", updatedBooking); // Debug stored values
 
     res.status(200).json({
       success: true,
@@ -147,10 +156,11 @@ exports.updateApproveBooking = async (req, res) => {
       data: updatedBooking,
     });
   } catch (error) {
-    console.log("err", error);
+    console.error("Error approving booking:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 
 exports.updateCancelBooking = async (req, res) => {
