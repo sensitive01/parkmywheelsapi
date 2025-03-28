@@ -23,15 +23,15 @@ exports.createBooking = async (req, res) => {
       status,
       sts,
       exitvehicledate,
-      exitvehicletime, 
+      exitvehicletime,
+      approvedDate = null,  // Allow input or default to null
+      approvedTime = null,  // Allow input or default to null
     } = req.body;
-    const approvedDate = null;
-    const approvedTime = null;
+    console.log("Booking data:", req.body);
 
     const cancelledDate = null;
     const cancelledTime = null;
-
-    const parkedDate = null; 
+    const parkedDate = null;
     const parkedTime = null;
 
     const newBooking = new Booking({
@@ -60,17 +60,20 @@ exports.createBooking = async (req, res) => {
       parkedDate,
       parkedTime,
       exitvehicledate,
-      exitvehicletime, 
+      exitvehicletime,
     });
 
     await newBooking.save();
 
-    res.status(200).json({ message: "Booking created successfully",  bookingId: newBooking._id, booking: newBooking });
+    res.status(200).json({
+      message: "Booking created successfully",
+      bookingId: newBooking._id,
+      booking: newBooking,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
 exports.getBookingsByStatus = async (req, res) => {
   try {
     const { status } = req.params;
@@ -117,6 +120,12 @@ exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
+    const { approvedDate, approvedTime } = req.body; // Get manual values from request
+
+    if (!approvedDate || !approvedTime) {
+      return res.status(400).json({ success: false, message: "Approved date and time are required" });
+    }
+
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
@@ -126,9 +135,7 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    const approvedDate = moment().format("DD-MM-YYYY");
-    const approvedTime = moment().format("hh:mm A");
-    console.log("approvedDate",approvedDate, "approvedTime", approvedTime)
+    console.log("approvedDate", approvedDate, "approvedTime", approvedTime);
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -149,6 +156,7 @@ exports.updateApproveBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 
 exports.updateCancelBooking = async (req, res) => {
