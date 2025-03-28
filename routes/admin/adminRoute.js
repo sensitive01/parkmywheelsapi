@@ -3,6 +3,7 @@ const multer = require("multer");
 const adminRoute = express.Router();
 const adminController = require("../../controller/adminController/adminController");
 const planController = require("../../controller/adminController/planController");
+const subscriptionController = require('../../controller/adminController/subscriptionController');
 
 const agenda = require("../../config/agenda");
 
@@ -49,5 +50,11 @@ adminRoute.get("/getallplan", planController.getAllPlans);
 adminRoute.get("/getplanbyid/:id", planController.getPlanById);
 adminRoute.put("/updateplan/:id",upload.single("image"), planController.updatePlan);
 adminRoute.delete("/deleteplan/:id", planController.deletePlan);
+
+adminRoute.post('/subscription', subscriptionController.createSubscription);
+adminRoute.get('/subscriptionbyid/:userId', subscriptionController.getUserSubscription);
+adminRoute.put('/subscriptioncancel/:userId', subscriptionController.cancelSubscription);
+adminRoute.get('/subscriptionall', subscriptionController.getAllSubscriptions);
+adminRoute.put('/subscriptionupdate/:userId', subscriptionController.updateSubscription);
 
 module.exports = adminRoute;
