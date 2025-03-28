@@ -116,12 +116,10 @@ exports.userupdateCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 exports.updateApproveBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID:", req.params);
+    console.log("BOOKING ID", req.params);
     const { id } = req.params;
-
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
@@ -131,24 +129,18 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    // Format date and time as per Flutter's expected format
-    const approvedDate = moment().format("DD-MM-YYYY"); // "dd-MM-yyyy" in Flutter
-    const approvedTime = moment().format("hh:mm A");    // "hh:mm a" in Flutter
-
-    console.log("Approved Date:", approvedDate, "Approved Time:", approvedTime);
-
-    // Update booking
+    const approvedDate = moment().format("DD-MM-YYYY");
+    const approvedTime = moment().format("hh:mm A");
+    console.log("approvedDate",approvedDate, "approvedTime", approvedTime)
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
-        status: "APPROVED", // Ensure consistent casing
+        status: "Approved", 
         approvedDate, 
         approvedTime 
       },
       { new: true }
     );
-
-    console.log("Updated Booking:", updatedBooking); // Debug stored values
 
     res.status(200).json({
       success: true,
@@ -156,11 +148,10 @@ exports.updateApproveBooking = async (req, res) => {
       data: updatedBooking,
     });
   } catch (error) {
-    console.error("Error approving booking:", error);
+    console.log("err", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 
 exports.updateCancelBooking = async (req, res) => {
