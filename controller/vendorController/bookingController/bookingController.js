@@ -239,23 +239,33 @@ exports.allowParking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
+    const { parkedDate, parkedTime } = req.body; // Get date and time from frontend
+
+    // Validate if date and time are provided
+    if (!parkedDate || !parkedTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Parked date and parked time are required",
+      });
+    }
+
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
+
     if (booking.status !== "Approved") {
       return res.status(400).json({ success: false, message: "Only Approved bookings are allowed for parking" });
     }
-    const parkedDate = moment().format("DD-MM-YYYY");
-    const parkedTime = moment().format("hh:mm A");
+
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { 
-        status: "PARKED", 
-        parkedDate, 
-        parkedTime 
+      {
+        status: "PARKED",
+        parkedDate,
+        parkedTime,
       },
-      { new: true } 
+      { new: true }
     );
 
     res.status(200).json({
@@ -264,11 +274,10 @@ exports.allowParking = async (req, res) => {
       data: updatedBooking,
     });
   } catch (error) {
-    console.log("err", error);
+    console.error("Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 
 exports.getBookingsByVendorId = async (req, res) => {
