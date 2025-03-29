@@ -185,6 +185,23 @@ const userChangePassword = async (req, res) => {
 };
 
 
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await userModel.find({}, '-userPassword'); // Exclude password from response
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "No users found." });
+    }
+
+    res.status(200).json({
+      message: "Users fetched successfully",
+      users,
+    });
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 
@@ -194,5 +211,6 @@ module.exports = {
   userVerification,
   userForgotPassword,
   verifyOTP,
-  userChangePassword
+  userChangePassword,
+  getAllUsers
 };
