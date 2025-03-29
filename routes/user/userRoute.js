@@ -66,5 +66,6 @@ userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts
 userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
 
 userRoute.get("/getfavlist", getVendors.getVendors);
+userRoute.get("/allusers", userController.getAllUsers);
 
 module.exports = userRoute;
