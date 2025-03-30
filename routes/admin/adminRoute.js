@@ -5,6 +5,7 @@ const adminController = require("../../controller/adminController/adminControlle
 const planController = require("../../controller/adminController/planController");
 const subscriptionController = require('../../controller/adminController/subscriptionController');
 const CommercialController = require('../../controller/adminController/commercialController');
+const CorporateController = require('../../controller/adminController/corporateController');
 
 const agenda = require("../../config/agenda");
 
@@ -63,5 +64,11 @@ adminRoute.get('/getallCommercial', CommercialController.getAllServices);
 adminRoute.get('/getbyCommercial/:id', CommercialController.getServiceById);
 adminRoute.put('/updateCommercial/:id', CommercialController.updateService);
 adminRoute.delete('/deleteCommercial/:id', CommercialController.deleteService);
+
+adminRoute.post('/createcorporate', CorporateController.createService);
+adminRoute.get('/getallcorporate', CorporateController.getAllServices);
+adminRoute.get('/getbycorporate/:id', CorporateController.getServiceById);
+adminRoute.put('/updatecorporate/:id', CorporateController.updateService);
+adminRoute.delete('/deletecorporate/:id', CorporateController.deleteService);
 
 module.exports = adminRoute;
