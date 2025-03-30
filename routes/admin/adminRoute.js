@@ -4,6 +4,7 @@ const adminRoute = express.Router();
 const adminController = require("../../controller/adminController/adminController");
 const planController = require("../../controller/adminController/planController");
 const subscriptionController = require('../../controller/adminController/subscriptionController');
+const CommercialController = require('../../controller/adminController/commercialController');
 
 const agenda = require("../../config/agenda");
 
@@ -56,5 +57,11 @@ adminRoute.get('/subscriptionbyid/:userId', subscriptionController.getUserSubscr
 adminRoute.put('/subscriptioncancel/:userId', subscriptionController.cancelSubscription);
 adminRoute.get('/subscriptionall', subscriptionController.getAllSubscriptions);
 adminRoute.put('/subscriptionupdate/:userId', subscriptionController.updateSubscription);
+
+adminRoute.post('/createCommercial', CommercialController.createService);
+adminRoute.get('/getallCommercial', CommercialController.getAllServices);
+adminRoute.get('/getbyCommercial/:id', CommercialController.getServiceById);
+adminRoute.put('/updateCommercial/:id', CommercialController.updateService);
+adminRoute.delete('/deleteCommercial/:id', CommercialController.deleteService);
 
 module.exports = adminRoute;
