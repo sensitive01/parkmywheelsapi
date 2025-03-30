@@ -65,10 +65,10 @@ adminRoute.get('/getbyCommercial/:id', CommercialController.getServiceById);
 adminRoute.put('/updateCommercial/:id', CommercialController.updateService);
 adminRoute.delete('/deleteCommercial/:id', CommercialController.deleteService);
 
-adminRoute.post('/createcorporate', CorporateController.createService);
-adminRoute.get('/getallcorporate', CorporateController.getAllServices);
-adminRoute.get('/getbycorporate/:id', CorporateController.getServiceById);
-adminRoute.put('/updatecorporate/:id', CorporateController.updateService);
-adminRoute.delete('/deletecorporate/:id', CorporateController.deleteService);
+adminRoute.post('/createcorporate', CorporateController.createCorporate);
+adminRoute.get('/getallcorporate', CorporateController.getAllCorporates);
+adminRoute.get('/getbycorporate/:id', CorporateController.getCorporateById);
+adminRoute.put('/updatecorporate/:id', CorporateController.updateCorporate);
+adminRoute.delete('/deletecorporate/:id', CorporateController.deleteCorporate);
 
 module.exports = adminRoute;
