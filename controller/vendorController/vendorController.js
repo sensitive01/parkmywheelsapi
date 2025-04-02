@@ -562,21 +562,21 @@ const fetchSlotVendorData = async (req, res) => {
 };
 
 
-const fetchAllVendorData = async (req,res) => {
+const fetchAllVendorData = async (req, res) => {
   try {
-    const vendorData = await vendorModel.find({}, { password: 0 });
+    // Fetch only vendors with status 'approved' and exclude the password field
+    const vendorData = await vendorModel.find({ status: 'approved' }, { password: 0 });
 
     if (vendorData.length === 0) {
-      return res.status(404).json({ message: "No vendors found" });
+      return res.status(404).json({ message: "No approved vendors found" });
     }
 
-  
     return res.status(200).json({
-      message: "All vendor data fetched successfully",
+      message: "All approved vendor data fetched successfully",
       data: vendorData
     });
   } catch (err) {
-    console.log("Error in fetching all vendors", err);
+    console.log("Error in fetching all approved vendors", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
