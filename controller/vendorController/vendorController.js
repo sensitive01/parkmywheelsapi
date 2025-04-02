@@ -223,7 +223,6 @@ const myspacereg = async (req, res) => {
       }
     }
 
-    // ✅ Create new vendor
     const newVendor = new vendorModel({
       vendorName,
       spaceid, 
