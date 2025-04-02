@@ -235,6 +235,7 @@ const myspacereg = async (req, res) => {
       subscription: false,
       subscriptionleft: 0,
       subscriptionenddate: "",
+      status: "pending",
       password: password || " ",  
       image: uploadedImageUrl,
     });
