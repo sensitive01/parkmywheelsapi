@@ -162,6 +162,8 @@ const vendorSignup = async (req, res) => {
       subscriptionleft: "0",
       subscriptionenddate: "",
       password: hashedPassword,
+      status: "pending", // Explicitly set status to pending
+      platformfee: "",
       image: uploadedImageUrl || "",
     });
 
