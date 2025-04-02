@@ -43,6 +43,8 @@ contacts: [
       type: String,
       unique: true
     },
+    status: { type: String, default: "pending" },
+    platformfee: { type: String, default: "" },
     parkingEntries: [{
       type: {
         type: String,
