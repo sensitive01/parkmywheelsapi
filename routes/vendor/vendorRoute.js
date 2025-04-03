@@ -101,6 +101,9 @@ vendorRoute.put(
 vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorController.updateParkingEntriesVendorData);
 
 vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscription);
+vendorRoute.get("/all-vendors", vendorController.fetchAllVendorDetails);
+vendorRoute.put("/approve/:vendorId", vendorController.updateVendorStatus);
+
 
 
 vendorRoute.post("/createkyc",  upload.fields([
