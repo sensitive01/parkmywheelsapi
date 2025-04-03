@@ -115,9 +115,39 @@ const getallKycData = async (req, res) => {
   }
 };
 
+const verifyKycStatus = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const kycDetails = await KycDetails.findOne({ vendorId });
+
+    if (!kycDetails) {
+      return res.status(404).json({ message: 'KYC details not found' });
+    }
+
+    // Check if KYC is already verified
+    if (kycDetails.status === 'Verified') {
+      return res.status(400).json({ message: 'KYC is already verified' });
+    }
+
+    // Update status to Verified
+    kycDetails.status = 'Verified';
+    await kycDetails.save();
+
+    res.status(200).json({ message: 'KYC verified successfully', data: kycDetails });
+  } catch (error) {
+    console.error('Error verifying KYC:', error.message);
+    res.status(500).json({ message: 'Error verifying KYC', error: error.message });
+  }
+};
+
+
+
 module.exports = {
   createKycData,
   getKycData,
   updateKycData,
   getallKycData,
+  verifyKycStatus,
 };
+

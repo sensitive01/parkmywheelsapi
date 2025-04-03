@@ -116,7 +116,8 @@ vendorRoute.put(
   ]),
   kycController.updateKycData
 );
-vendorRoute.get("/getallkyc", kycController.getallKycData)
+vendorRoute.get("/getallkyc", kycController.getallKycData);
+vendorRoute.put('/verifykyc/:vendorId', kycController.verifyKycStatus);
 
 
 
