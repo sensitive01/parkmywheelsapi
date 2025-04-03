@@ -699,20 +699,19 @@ const fetchVendorSubscription = async (req, res) => {
 
 const fetchVendorSubscriptionLeft = async (req, res) => {
   try {
-    const { vendorId } = req.params; // Get vendorId from the request parameters
+    const { vendorId } = req.params;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required." });
     }
 
-    // Find the vendor by vendorId
+
     const vendor = await vendorModel.findOne({ vendorId });
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found." });
     }
 
-    // Respond with the subscriptionleft data
     return res.status(200).json({
       subscriptionleft: vendor.subscriptionleft,
     });
@@ -721,6 +720,62 @@ const fetchVendorSubscriptionLeft = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+const fetchAllVendorDetails = async (req, res) => {
+  try {
+    console.log("Fetching all vendor details");
+    const allVendors = await vendorModel.find({}, { password: 0 });
+    
+    if (!allVendors || allVendors.length === 0) {
+      return res.status(404).json({ 
+        message: "No vendors found in the database" 
+      });
+    }
+    return res.status(200).json({
+      message: "All vendor details fetched successfully",
+      count: allVendors.length,
+      data: allVendors
+    });
+  } catch (err) {
+    console.error("Error fetching all vendor details:", err);
+    return res.status(500).json({ 
+      message: "Internal server error", 
+      error: err.message 
+    });
+  }
+};
+
+const updateVendorStatus = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.status = "approved";
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Vendor status updated to approved",
+      vendorDetails: {
+        vendorId: vendor.vendorId,
+        status: vendor.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating vendor status", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
 
 
 module.exports = {
@@ -741,4 +796,6 @@ module.exports = {
   fetchspacedata,
   updatespacedata,
   fetchsinglespacedata,
+  fetchAllVendorDetails,
+  updateVendorStatus,
 };
