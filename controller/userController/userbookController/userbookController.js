@@ -44,10 +44,10 @@ exports.getUserBookingCounts = async (req, res) => {
 exports.updateBookingById = async (req, res) => {
   try {
       const { id } = req.params; 
-      const { vendorName, vehicleNumber, bookingDate, bookingTime, parkingDate, parkingTime } = req.body;
+      const { vendorName, vehicleNumber, bookingDate, bookingTime,status, parkingDate, parkingTime } = req.body;
       const updatedBooking = await Booking.findByIdAndUpdate(
           id, 
-          { vendorName, vehicleNumber, bookingDate, bookingTime, parkingDate, parkingTime },
+          { vendorName, vehicleNumber, bookingDate, bookingTime, parkingDate,status, parkingTime },
           { new: true, runValidators: true }
       );
 
