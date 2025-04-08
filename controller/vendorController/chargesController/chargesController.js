@@ -1,5 +1,5 @@
 const Parking = require('../../../models/chargesSchema');
-
+const vendorModel = require('../../../models/vendorModel'); // Corrected path for vendorModel
 const parkingCharges = async (req, res) => {
   const { vendorid, charges } = req.body;
 
@@ -7,7 +7,37 @@ const parkingCharges = async (req, res) => {
     if (!vendorid || !charges || !Array.isArray(charges)) {
       return res.status(400).json({ message: "Invalid input data" });
     }
+
     const existingVendor = await Parking.findOne({ vendorid });
+
+    // Fetch the vendor's parking entries to check counts
+    const vendorData = await vendorModel.findOne({ _id: vendorid }, { parkingEntries: 1 });
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim();
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+
+    // Check counts before adding charges
+    const carCount = parkingEntries["Cars"] || 0;
+    const bikeCount = parkingEntries["Bikes"] || 0;
+    const otherCount = parkingEntries["Others"] || 0;
+
+    for (const newCharge of charges) {
+      if (newCharge.category === "Car" && carCount === 0) {
+        return res.status(400).json({ message: "Cannot add charges for Cars as count is 0" });
+      }
+      if (newCharge.category === "Bike" && bikeCount === 0) {
+        return res.status(400).json({ message: "Cannot add charges for Bikes as count is 0" });
+      }
+      if (newCharge.category === "Others" && otherCount === 0) {
+        return res.status(400).json({ message: "Cannot add charges for Others as count is 0" });
+      }
+    }
 
     if (existingVendor) {
       charges.forEach((newCharge) => {
@@ -29,6 +59,7 @@ const parkingCharges = async (req, res) => {
         vendor: existingVendor,
       });
     }
+
     const newVendor = new Parking({ vendorid, charges });
     await newVendor.save();
 
@@ -245,7 +276,7 @@ const transformCharges = (charges) => {
   }).filter(charge => charge !== null); // Filter out null values
 };
 
-// const updateParkingChargesCategory = async (req, res) => {
+
 //   const { vendorid, charges } = req.body;
 
 //   if (!vendorid || !charges || !Array.isArray(charges)) {
