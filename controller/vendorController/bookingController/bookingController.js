@@ -24,16 +24,78 @@ exports.createBooking = async (req, res) => {
       sts,
       exitvehicledate,
       exitvehicletime,
-      approvedDate = null,  // Allow input or default to null
-      approvedTime = null,  // Allow input or default to null
-      parkedDate = null,  // Allow input or default to null
-      parkedTime = null, 
+      approvedDate = null,
+      approvedTime = null,
+      parkedDate = null,
+      parkedTime = null,
     } = req.body;
+
     console.log("Booking data:", req.body);
 
-    const cancelledDate = null;
-    const cancelledTime = null;
- 
+    // Check available slots before creating a booking
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1 });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim();
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+
+    const totalAvailableSlots = {
+      Cars: parkingEntries["Cars"] || 0,
+      Bikes: parkingEntries["Bikes"] || 0,
+      Others: parkingEntries["Others"] || 0
+    };
+
+    const aggregationResult = await Booking.aggregate([
+      {
+        $match: {
+          vendorId: vendorId,
+          status: "PENDING"
+        }
+      },
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    let bookedSlots = {
+      Cars: 0,
+      Bikes: 0,
+      Others: 0
+    };
+
+    aggregationResult.forEach(({ _id, count }) => {
+      if (_id === "Car") {
+        bookedSlots.Cars = count;
+      } else if (_id === "Bike") {
+        bookedSlots.Bikes = count;
+      } else {
+        bookedSlots.Others = count;
+      }
+    });
+
+    const availableSlots = {
+      Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
+      Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
+      Others: totalAvailableSlots.Others - bookedSlots.Others
+    };
+
+    // Check if there are available slots for the requested vehicle type
+    if (vehicleType === "Car" && availableSlots.Cars <= 0) {
+      return res.status(400).json({ message: "No available slots for Cars" });
+    } else if (vehicleType === "Bike" && availableSlots.Bikes <= 0) {
+      return res.status(400).json({ message: "No available slots for Bikes" });
+    } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
+      return res.status(400).json({ message: "No available slots for Others" });
+    }
 
     const newBooking = new Booking({
       userid,
@@ -56,8 +118,8 @@ exports.createBooking = async (req, res) => {
       sts,
       approvedDate,
       approvedTime,
-      cancelledDate,
-      cancelledTime,
+      cancelledDate: null,
+      cancelledTime: null,
       parkedDate,
       parkedTime,
       exitvehicledate,
@@ -72,6 +134,7 @@ exports.createBooking = async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
+    console.error("Error creating booking:", error);
     res.status(500).json({ error: error.message });
   }
 };
