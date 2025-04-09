@@ -3,7 +3,7 @@ const { uploadImage } = require("../../config/cloudinary");
 
 const addNewPlan = async (req, res) => {
     try {
-      const { planName, validity, amount, features, status } = req.body;
+      const { planName, role, validity, amount, features, status } = req.body;
   
       // Check if image is provided
       if (!req.file) {
@@ -23,6 +23,7 @@ const addNewPlan = async (req, res) => {
       // Create new plan
       const newPlan = new planModel({
         planName,
+        role,
         validity: Number(validity),
         amount: Number(amount),
         features: parsedFeatures,
@@ -71,7 +72,57 @@ const addNewPlan = async (req, res) => {
     }
   };
   
+  const getUserPlan = async (req, res) => {
+    try {
+        console.log("User Role:", req.user?.role);
 
+        // Always query for plans with role "user" and status "enable"
+        const query = { status: "enable", role: "user" };
+        console.log("Query:", query);
+
+        const plans = await planModel.find(query).sort({ createdAt: -1 });
+        console.log("Retrieved Plans:", plans);
+
+        res.status(200).json({
+            message: "Plans retrieved successfully",
+            plans,
+        });
+    } catch (err) {
+        console.error("Error in retrieving plans", err);
+        res.status(500).json({
+            message: "Error in retrieving plans",
+            error: err.message,
+        });
+    }
+};
+  
+const getvendorplan = async (req, res) => {
+  try {
+      console.log("User Role:", req.user?.role);
+
+      // Always query for plans with role "user" and status "enable"
+      const query = { status: "enable", role: "vendor" };
+      console.log("Query:", query);
+
+      const plans = await planModel.find(query).sort({ createdAt: -1 });
+      console.log("Retrieved Plans:", plans);
+
+      res.status(200).json({
+          message: "Plans retrieved successfully",
+          plans,
+      });
+  } catch (err) {
+      console.error("Error in retrieving plans", err);
+      res.status(500).json({
+          message: "Error in retrieving plans",
+          error: err.message,
+      });
+  }
+};
+ 
+
+  
+  
 const getPlanById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -100,11 +151,12 @@ const getPlanById = async (req, res) => {
 const updatePlan = async (req, res) => {
     try {
       const { id } = req.params;
-      const { planName, validity, amount, features, status } = req.body;
+      const { planName, role, validity, amount, features, status } = req.body;
   
       // Prepare update object
       const updateData = {
         planName,
+        role,
         validity: Number(validity),
         amount: Number(amount),
         status: status || "disable",
@@ -179,5 +231,7 @@ module.exports = {
   getAllPlans,
   getPlanById,
   updatePlan,
+  getUserPlan,
+  getvendorplan,
   deletePlan
 };
