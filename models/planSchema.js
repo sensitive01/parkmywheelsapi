@@ -4,6 +4,9 @@ const PlanSchema = new mongoose.Schema({
   planName: {
     type: String,
   },
+  role: {
+    type: String,
+  },
   validity: {
     type: String,
   },
