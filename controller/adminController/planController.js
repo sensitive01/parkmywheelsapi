@@ -3,7 +3,7 @@ const { uploadImage } = require("../../config/cloudinary");
 
 const addNewPlan = async (req, res) => {
     try {
-      const { planName, validity, amount, features, status } = req.body;
+      const { planName, role, validity, amount, features, status } = req.body;
   
       // Check if image is provided
       if (!req.file) {
@@ -23,6 +23,7 @@ const addNewPlan = async (req, res) => {
       // Create new plan
       const newPlan = new planModel({
         planName,
+        role,
         validity: Number(validity),
         amount: Number(amount),
         features: parsedFeatures,
@@ -100,11 +101,12 @@ const getPlanById = async (req, res) => {
 const updatePlan = async (req, res) => {
     try {
       const { id } = req.params;
-      const { planName, validity, amount, features, status } = req.body;
+      const { planName, role, validity, amount, features, status } = req.body;
   
       // Prepare update object
       const updateData = {
         planName,
+        role,
         validity: Number(validity),
         amount: Number(amount),
         status: status || "disable",
