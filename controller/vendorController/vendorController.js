@@ -362,9 +362,84 @@ const updateVendorSubscription = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const getVendorTrialStatus = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
 
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
 
+    const vendor = await vendorModel.findById(vendorId);
 
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    return res.status(200).json({
+      vendorId: vendor._id,
+      vendorName: vendor.vendorName,
+      trial: vendor.trial, // "true" means trial is completed, "false" means still in trial
+    
+    });
+  } catch (err) {
+    console.error("Error fetching vendor trial status", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const addExtraDaysToSubscription = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { extraDays } = req.body; // Number of extra days to add
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    if (!extraDays || isNaN(extraDays)) {
+      return res.status(400).json({ message: "Valid number of extra days is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Update subscription left
+    const currentDaysLeft = parseInt(vendor.subscriptionleft);
+    const newDaysLeft = currentDaysLeft + parseInt(extraDays);
+    vendor.subscriptionleft = newDaysLeft.toString(); // Update subscription left
+
+    // Update subscription end date
+    const today = new Date();
+    let subscriptionEndDate;
+
+    if (!vendor.subscriptionenddate) {
+      subscriptionEndDate = new Date(today.setDate(today.getDate() + newDaysLeft)); // Add new days to current date
+    } else {
+      subscriptionEndDate = new Date(vendor.subscriptionenddate);
+      subscriptionEndDate.setDate(subscriptionEndDate.getDate() + parseInt(extraDays)); // Add extra days to existing end date
+    }
+
+    vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Extra days added to vendor subscription successfully",
+      vendorDetails: {
+        vendorId: vendor._id,
+        vendorName: vendor.vendorName,
+        subscriptionleft: vendor.subscriptionleft, // Return updated subscription left
+        subscriptionenddate: vendor.subscriptionenddate, // Return updated subscription end date
+      },
+    });
+  } catch (err) {
+    console.error("Error adding extra days to vendor subscription", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 const vendorLogin = async (req, res) => {
   try {
     const { mobile, password } = req.body;
@@ -794,8 +869,10 @@ module.exports = {
   fetchVendorSubscriptionLeft,
   myspacereg,
   fetchspacedata,
+  getVendorTrialStatus,
   updatespacedata,
   fetchsinglespacedata,
   fetchAllVendorDetails,
   updateVendorStatus,
+  addExtraDaysToSubscription,
 };
