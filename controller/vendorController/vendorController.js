@@ -339,6 +339,11 @@ const updateVendorSubscription = async (req, res) => {
       vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
     }
 
+    // Set trial to true once activated
+    if (vendor.trial !== "true") {
+      vendor.trial = "true"; // Activate trial
+    }
+
     await vendor.save();
 
     return res.status(200).json({
@@ -355,6 +360,7 @@ const updateVendorSubscription = async (req, res) => {
         subscription: vendor.subscription,          // Explicitly return subscription
         subscriptionleft: vendor.subscriptionleft,  // Explicitly return subscriptionleft
         subscriptionenddate: vendor.subscriptionenddate, // Explicitly return subscriptionenddate
+        trial: vendor.trial, // Return trial status
       },
     });
   } catch (err) {
@@ -362,6 +368,7 @@ const updateVendorSubscription = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 const getVendorTrialStatus = async (req, res) => {
   try {
     const { vendorId } = req.params;

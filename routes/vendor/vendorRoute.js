@@ -14,6 +14,7 @@ const kycController = require("../../controller/vendorController/kycController/k
 const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
 const bankdetailsConroller = require("../../controller/vendorController/bankdetailsController/bankdetailsController");
 const agenda = require("../../config/agenda");
+const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -103,7 +104,10 @@ vendorRoute.get('/fetchtrial/:vendorId', vendorController.getVendorTrialStatus);
 vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscription);
 vendorRoute.get("/all-vendors", vendorController.fetchAllVendorDetails);
 vendorRoute.put("/approve/:vendorId", vendorController.updateVendorStatus);
+vendorRoute.post('/sucesspay/:vendorId', verifyPaymentResponse.verifyPaymentResponse);
+vendorRoute.post('/log/:vendorId', verifyPaymentResponse.logpay);
 
+// vendorRoute.post('/verify-payment', verifyPaymentResponse);
 
 
 vendorRoute.post("/createkyc",  upload.fields([
