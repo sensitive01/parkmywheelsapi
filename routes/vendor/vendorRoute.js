@@ -97,9 +97,9 @@ vendorRoute.put(
     "/updatespace/:vendorId",
      upload.single("image"), 
      vendorController.updatespacedata);
-   
+vendorRoute.post("/addExtraDays/:vendorId", vendorController.addExtraDaysToSubscription);
 vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorController.updateParkingEntriesVendorData);
-
+vendorRoute.get('/fetchtrial/:vendorId', vendorController.getVendorTrialStatus);
 vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscription);
 vendorRoute.get("/all-vendors", vendorController.fetchAllVendorDetails);
 vendorRoute.put("/approve/:vendorId", vendorController.updateVendorStatus);

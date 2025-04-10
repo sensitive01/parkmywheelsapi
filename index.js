@@ -43,28 +43,51 @@ app.use("/vendor", vendorRoute);
 app.use("/admin", adminRoute);
 
 // Cron job definition to decrement subscription days every day at midnight
-cron.schedule('0 0 * * *', async () => {
-  console.log('Running subscription decrement job...');
+cron.schedule("0 0 * * *", async () => {
+  console.log("⏰ Running daily vendor trial + subscription check...");
 
   try {
-    const vendors = await Vendor.find({ subscription: 'true', subscriptionleft: { $gt: 0 } });
+    const today = new Date();
 
-    for (const vendor of vendors) {
-      vendor.subscriptionleft = (parseInt(vendor.subscriptionleft) - 1).toString();
+    // 1. TRIAL CHECK: Vendors still in trial mode
+    const trialVendors = await Vendor.find({ trial: "false", trialstartdate: { $exists: true } });
 
-      if (parseInt(vendor.subscriptionleft) === 0) {
-        vendor.subscription = 'false';
+    for (const vendor of trialVendors) {
+      const trialStart = new Date(vendor.trialstartdate);
+      const diffDays = Math.floor((today - trialStart) / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 30) {
+        vendor.trial = "true"; // trial completed
+        vendor.subscription = "false";
+        vendor.subscriptionleft = "0";
+        console.log(`✅ Trial ended for vendor: ${vendor.vendorName}`);
+        await vendor.save();
+      }
+    }
+
+    // 2. SUBSCRIPTION DECREMENT: Active subscriptions
+    const activeVendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: "0" } });
+
+    for (const vendor of activeVendors) {
+      let left = parseInt(vendor.subscriptionleft);
+      left -= 1;
+      vendor.subscriptionleft = left.toString();
+
+      if (left === 0) {
+        vendor.subscription = "false";
+        console.log(`🚫 Subscription expired for vendor: ${vendor.vendorName}`);
+      } else {
+        console.log(`📉 Decremented subscription for: ${vendor.vendorName} (${left} days left)`);
       }
 
       await vendor.save();
     }
 
-    console.log('Subscription days updated successfully.');
+    console.log("✅ Daily vendor subscription & trial check completed.");
   } catch (error) {
-    console.error('Error updating subscription days:', error);
+    console.error("❌ Error in cron job:", error);
   }
 });
-
 console.log('Cron job scheduled.'); // To confirm that the job is scheduled
 
 app.listen(PORT, () => {

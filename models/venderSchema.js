@@ -35,6 +35,7 @@ contacts: [
     subscriptionleft: { type: String, default: "0" },
     platformfee: { type: String, },
     subscription: { type: String, default: "false" },
+    trial : { type: String, default: "false" },
     subscriptionenddate: { type: String, },
     image: {
       type: String,
