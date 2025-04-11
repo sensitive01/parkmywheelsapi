@@ -2,14 +2,14 @@ const mongoose = require('mongoose');
 
 // Define the Payment Schema
 const paymentSchema = new mongoose.Schema({
-  paymentId: { type: String, required: true },
-  orderId: { type: String, required: true },
-  signature: { type: String, required: true },
-  vendorId: { type: String, required: true },
-  planId: { type: String, required: true },
-  transactionName: { type: String, required: true },
-  paymentStatus: { type: String, required: true },
-  amount: { type: Number, required: true },
+  paymentId: { type: String, },
+  orderId: { type: String, },
+  signature: { type: String,  },
+  vendorId: { type: String,  },
+  planId: { type: String,  },
+  transactionName: { type: String,  },
+  paymentStatus: { type: String, },
+  amount: { type: String,  },
   createdAt: { type: Date, default: Date.now },
 });
 
