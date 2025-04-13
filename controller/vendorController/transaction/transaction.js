@@ -110,8 +110,6 @@ const userlogpay = async (req, res) => {
     const {
       payment_id,
       order_id,
-      signature,
-      plan_id,
       amount,
       transaction_name,
       payment_status,
@@ -122,10 +120,8 @@ const userlogpay = async (req, res) => {
     const payment = new Payment({
       paymentId: payment_id,
       orderId: order_id,
-      signature: signature,
       userid: userid,
       vendorId: vendor_id,
-      planId: plan_id,
       transactionName: transaction_name,
       paymentStatus: payment_status,
       amount: amount,
