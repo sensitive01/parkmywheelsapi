@@ -6,6 +6,7 @@ const paymentSchema = new mongoose.Schema({
   orderId: { type: String, },
   signature: { type: String,  },
   vendorId: { type: String,  },
+  userid: { type: String,  },
   planId: { type: String,  },
   transactionName: { type: String,  },
   paymentStatus: { type: String, },
