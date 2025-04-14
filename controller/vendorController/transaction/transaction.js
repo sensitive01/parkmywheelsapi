@@ -105,7 +105,7 @@ const userverifyPaymentResponse = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-const getPaymentsByUserId = async (req, res) => {
+const getPaymentsUserId = async (req, res) => {
   try {
     const userid = req.params.userid;
 
@@ -161,5 +161,5 @@ module.exports = {
   logpay,
   userverifyPaymentResponse,
   userlogpay,
-  getPaymentsByUserId,
+  getPaymentsUserId,
 };
