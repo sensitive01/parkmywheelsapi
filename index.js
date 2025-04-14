@@ -20,8 +20,7 @@ dbConnect();
 app.use(cookieParser()); 
 app.use(express.json());
 
-const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app",'http://localhost:3000','http://localhost:3001','https://parmywheels-admin-ui.vercel.app'];
-
+const allowedOrigins = ["http://localhost:5173","http://127.0.0.1:5500","http://localhost:4000/","http://localhost:56222","http://localhost:56966","https://parkmywheel.netlify.app",'http://localhost:3000','http://localhost:3001','https://parmywheels-admin-ui.vercel.app','https://parmywheels-vendor-ui.vercel.app'];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
