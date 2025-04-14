@@ -79,6 +79,7 @@ const userverifyPaymentResponse = async (req, res) => {
       amount,
       transaction_name,
       payment_status,
+      vendorid // ← FIX: get this from body
     } = req.body;
 
     const userid = req.params.userid;
@@ -88,7 +89,7 @@ const userverifyPaymentResponse = async (req, res) => {
       orderId: order_id,
       signature: signature,
       userid: userid,
-      vendorId: vendor_id,
+      vendorId: vendorid, // ← FIX: use the correct variable
       planId: plan_id,
       transactionName: transaction_name,
       paymentStatus: payment_status,
