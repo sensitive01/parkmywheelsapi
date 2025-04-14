@@ -105,7 +105,11 @@ vendorRoute.put("/freetrial/:vendorId", vendorController.updateVendorSubscriptio
 vendorRoute.get("/all-vendors", vendorController.fetchAllVendorDetails);
 vendorRoute.put("/approve/:vendorId", vendorController.updateVendorStatus);
 vendorRoute.post('/sucesspay/:vendorId', verifyPaymentResponse.verifyPaymentResponse);
+
 vendorRoute.post('/log/:vendorId', verifyPaymentResponse.logpay);
+vendorRoute.post('/usersucesspay/:userid', verifyPaymentResponse.userverifyPaymentResponse);
+vendorRoute.post('/userlog/:userid', verifyPaymentResponse.userlogpay);
+vendorRoute.get('/fetchpay/:userid', verifyPaymentResponse.getPaymentsUserId);
 
 // vendorRoute.post('/verify-payment', verifyPaymentResponse);
 
