@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 // Define the Payment Schema
 const paymentSchema = new mongoose.Schema({
   paymentId: { type: String, },
+  vendorname: { type: String, },
   orderId: { type: String, },
   signature: { type: String,  },
   vendorId: { type: String,  },
