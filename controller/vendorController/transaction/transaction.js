@@ -105,6 +105,25 @@ const userverifyPaymentResponse = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const getPaymentsByUserId = async (req, res) => {
+  try {
+    const userid = req.params.userid;
+
+    // Fetch payments for the user
+    const payments = await Payment.find({ userid: userid });
+
+    if (payments.length === 0) {
+      return res.status(404).json({ message: "No payments found for this user." });
+    }
+
+    console.log(`Payments fetched for user ${userid}:`, payments);
+
+    return res.status(200).json({ payments });
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 const userlogpay = async (req, res) => {
   try {
@@ -142,4 +161,5 @@ module.exports = {
   logpay,
   userverifyPaymentResponse,
   userlogpay,
+  getPaymentsByUserId,
 };
