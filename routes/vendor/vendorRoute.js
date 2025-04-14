@@ -109,7 +109,7 @@ vendorRoute.post('/sucesspay/:vendorId', verifyPaymentResponse.verifyPaymentResp
 vendorRoute.post('/log/:vendorId', verifyPaymentResponse.logpay);
 vendorRoute.post('/usersucesspay/:userid', verifyPaymentResponse.userverifyPaymentResponse);
 vendorRoute.post('/userlog/:userid', verifyPaymentResponse.userlogpay);
-router.get('/fetchpay/:userid', getPaymentsByUserId);
+vendorRoute.get('/fetchpay/:userid', getPaymentsByUserId);
 
 // vendorRoute.post('/verify-payment', verifyPaymentResponse);
 
