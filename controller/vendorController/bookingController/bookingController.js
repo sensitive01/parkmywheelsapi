@@ -127,6 +127,22 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
+    const fcmToken = vendorData.fcmToken;
+    if (fcmToken) {
+      const payload = {
+        notification: {
+          title: "New Booking Alert",
+          body: `${personName} has booked a ${vehicleType}.`,
+        },
+        data: {
+          bookingId: newBooking._id.toString(),
+          vehicleType,
+        },
+        token: fcmToken,
+      };
+
+      await admin.messaging().send(payload);
+    }
 
     res.status(200).json({
       message: "Booking created successfully",

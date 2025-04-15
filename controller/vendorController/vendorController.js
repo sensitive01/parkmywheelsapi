@@ -449,7 +449,7 @@ const addExtraDaysToSubscription = async (req, res) => {
 };
 const vendorLogin = async (req, res) => {
   try {
-    const { mobile, password } = req.body;
+    const { mobile, password, fcmToken } = req.body;
 
     if (!mobile || !password) {
       return res
@@ -466,7 +466,10 @@ const vendorLogin = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Incorrect password" });
     }
-
+    if (fcmToken && !vendor.fcmTokens.includes(fcmToken)) {
+      vendor.fcmTokens.push(fcmToken); // Add the new FCM token if it doesn't exist
+      await vendor.save();
+    }
     return res.status(200).json({
       message: "Login successful",
       vendorId: vendor._id,

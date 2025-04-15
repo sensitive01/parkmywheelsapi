@@ -44,6 +44,7 @@ contacts: [
       type: String,
       unique: true
     },
+    fcmTokens: { type: [String], default: [] },
     status: { type: String, default: "pending" },
     platformfee: { type: String, default: "" },
     parkingEntries: [{
