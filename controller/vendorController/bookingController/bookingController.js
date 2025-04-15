@@ -127,8 +127,8 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    const fcmToken = vendorData.fcmToken;
-    if (fcmToken) {
+    const fcmTokens = vendorData.fcmTokens; // Assuming fcmTokens is an array
+    if (fcmTokens.length > 0) {
       const payload = {
         notification: {
           title: "New Booking Alert",
@@ -138,10 +138,11 @@ exports.createBooking = async (req, res) => {
           bookingId: newBooking._id.toString(),
           vehicleType,
         },
-        token: fcmToken,
       };
 
-      await admin.messaging().send(payload);
+      // Send notification to all FCM tokens
+      const promises = fcmTokens.map(token => admin.messaging().sendToDevice(token, payload));
+      await Promise.all(promises);
     }
 
     res.status(200).json({
