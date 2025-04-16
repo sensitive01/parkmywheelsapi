@@ -2,7 +2,7 @@ const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
 const moment = require("moment");
 const admin = require("../../../config/firebaseAdmin"); // Use the singleton
-
+const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -129,6 +129,22 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Save booking notification in database
+    const newNotification = new Notification({
+      vendorId,
+      userId: userid,
+      bookingId: newBooking._id,
+      title: "New Booking Alert",
+      message: `${personName} has booked a ${vehicleType}.`,
+      vehicleType: vehicleType,
+      vehicleNumber: vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+    });
+
+    await newNotification.save();
+
     const fcmTokens = vendorData.fcmTokens || [];
 
     console.log("Firebase Project ID:", admin.app().options.credential.projectId);
@@ -183,6 +199,31 @@ exports.createBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getNotificationsByVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const notifications = await Notification.find({ vendorId }).sort({ createdAt: -1 });
+
+    if (!notifications || notifications.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No notifications found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: notifications.length,
+      notifications,
+    });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.getBookingsByStatus = async (req, res) => {
   try {
     const { status } = req.params;

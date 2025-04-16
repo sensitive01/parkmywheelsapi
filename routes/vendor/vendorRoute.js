@@ -16,9 +16,12 @@ const bankdetailsConroller = require("../../controller/vendorController/bankdeta
 const agenda = require("../../config/agenda");
 const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
 
+
+
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+vendorRoute.get("/fetchnotification/:vendorId", bookingController.getNotificationsByVendor);
 
 vendorRoute.post("/forgotpassword", vendorController.vendorForgotPassword);
 vendorRoute.post("/verify-otp", vendorController.verifyOTP);
