@@ -35,7 +35,11 @@ exports.createBooking = async (req, res) => {
     console.log("Booking data:", req.body);
 
     // Check available slots before creating a booking
+<<<<<<< HEAD
     const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
+=======
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1 });
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
@@ -50,28 +54,47 @@ exports.createBooking = async (req, res) => {
     const totalAvailableSlots = {
       Cars: parkingEntries["Cars"] || 0,
       Bikes: parkingEntries["Bikes"] || 0,
+<<<<<<< HEAD
       Others: parkingEntries["Others"] || 0,
+=======
+      Others: parkingEntries["Others"] || 0
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
     };
 
     const aggregationResult = await Booking.aggregate([
       {
         $match: {
           vendorId: vendorId,
+<<<<<<< HEAD
           status: "PENDING",
         },
+=======
+          status: "PENDING"
+        }
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
       },
       {
         $group: {
           _id: "$vehicleType",
+<<<<<<< HEAD
           count: { $sum: 1 },
         },
       },
+=======
+          count: { $sum: 1 }
+        }
+      }
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
     ]);
 
     let bookedSlots = {
       Cars: 0,
       Bikes: 0,
+<<<<<<< HEAD
       Others: 0,
+=======
+      Others: 0
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
     };
 
     aggregationResult.forEach(({ _id, count }) => {
@@ -87,7 +110,11 @@ exports.createBooking = async (req, res) => {
     const availableSlots = {
       Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
+<<<<<<< HEAD
       Others: totalAvailableSlots.Others - bookedSlots.Others,
+=======
+      Others: totalAvailableSlots.Others - bookedSlots.Others
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
     };
 
     // Check if there are available slots for the requested vehicle type
@@ -129,6 +156,7 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
+<<<<<<< HEAD
     const fcmTokens = vendorData.fcmTokens || [];
 
     console.log("Firebase Project ID:", admin.app().options.credential.projectId);
@@ -171,6 +199,24 @@ exports.createBooking = async (req, res) => {
       }
     } else {
       console.warn("No FCM tokens available for this vendor.");
+=======
+    const fcmTokens = vendorData.fcmTokens; // Assuming fcmTokens is an array
+    if (fcmTokens.length > 0) {
+      const payload = {
+        notification: {
+          title: "New Booking Alert",
+          body: `${personName} has booked a ${vehicleType}.`,
+        },
+        data: {
+          bookingId: newBooking._id.toString(),
+          vehicleType,
+        },
+      };
+
+      // Send notification to all FCM tokens
+      const promises = fcmTokens.map(token => admin.messaging().sendToDevice(token, payload));
+      await Promise.all(promises);
+>>>>>>> 1d3e47016bf2a2cae077846a27e75a4fd244b3f2
     }
 
     res.status(200).json({
