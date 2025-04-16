@@ -136,7 +136,8 @@ exports.createBooking = async (req, res) => {
       userId: userid,
       bookingId: newBooking._id,
       title: "New Booking Alert",
-      message: `${personName} has booked a ${vehicleType}.`,
+      message: `${vehicleNumber} (${vehicleType}) booking received. Status: ${sts}.`,
+
       vehicleType: vehicleType,
       vehicleNumber: vehicleNumber,
       sts:sts,
