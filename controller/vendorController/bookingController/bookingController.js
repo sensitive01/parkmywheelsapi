@@ -1,6 +1,8 @@
 const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
-const moment = require("moment"); 
+const moment = require("moment");
+const admin = require("../../../config/firebaseAdmin"); // Use the singleton
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -33,7 +35,7 @@ exports.createBooking = async (req, res) => {
     console.log("Booking data:", req.body);
 
     // Check available slots before creating a booking
-    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1 });
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
@@ -48,28 +50,28 @@ exports.createBooking = async (req, res) => {
     const totalAvailableSlots = {
       Cars: parkingEntries["Cars"] || 0,
       Bikes: parkingEntries["Bikes"] || 0,
-      Others: parkingEntries["Others"] || 0
+      Others: parkingEntries["Others"] || 0,
     };
 
     const aggregationResult = await Booking.aggregate([
       {
         $match: {
           vendorId: vendorId,
-          status: "PENDING"
-        }
+          status: "PENDING",
+        },
       },
       {
         $group: {
           _id: "$vehicleType",
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     let bookedSlots = {
       Cars: 0,
       Bikes: 0,
-      Others: 0
+      Others: 0,
     };
 
     aggregationResult.forEach(({ _id, count }) => {
@@ -85,7 +87,7 @@ exports.createBooking = async (req, res) => {
     const availableSlots = {
       Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
-      Others: totalAvailableSlots.Others - bookedSlots.Others
+      Others: totalAvailableSlots.Others - bookedSlots.Others,
     };
 
     // Check if there are available slots for the requested vehicle type
@@ -127,22 +129,48 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    const fcmTokens = vendorData.fcmTokens; // Assuming fcmTokens is an array
-    if (fcmTokens.length > 0) {
-      const payload = {
-        notification: {
-          title: "New Booking Alert",
-          body: `${personName} has booked a ${vehicleType}.`,
-        },
-        data: {
-          bookingId: newBooking._id.toString(),
-          vehicleType,
-        },
-      };
+    const fcmTokens = vendorData.fcmTokens || [];
 
-      // Send notification to all FCM tokens
-      const promises = fcmTokens.map(token => admin.messaging().sendToDevice(token, payload));
+    console.log("Firebase Project ID:", admin.app().options.credential.projectId);
+    console.log("FCM Token being used:", fcmTokens);
+
+    if (fcmTokens.length > 0) {
+      const invalidTokens = []; // Track invalid tokens
+
+      const promises = fcmTokens.map(async (token) => {
+        try {
+          const response = await admin.messaging().send({
+            token: token,
+            notification: {
+              title: "New Booking Alert",
+              body: `${personName} has booked a ${vehicleType}.`,
+            },
+            data: {
+              bookingId: newBooking._id.toString(),
+              vehicleType,
+            },
+          });
+          console.log(`Notification sent to token: ${token}`, response);
+        } catch (error) {
+          console.error(`Error sending notification to token: ${token}`, error);
+          if (error.errorInfo && error.errorInfo.code === "messaging/registration-token-not-registered") {
+            invalidTokens.push(token); // Add invalid token to the list
+          }
+        }
+      });
+
       await Promise.all(promises);
+
+      // Remove invalid tokens from the database
+      if (invalidTokens.length > 0) {
+        await vendorModel.updateOne(
+          { _id: vendorId },
+          { $pull: { fcmTokens: { $in: invalidTokens } } }
+        );
+        console.log("Removed invalid FCM tokens:", invalidTokens);
+      }
+    } else {
+      console.warn("No FCM tokens available for this vendor.");
     }
 
     res.status(200).json({
