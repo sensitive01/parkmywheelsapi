@@ -139,6 +139,7 @@ exports.createBooking = async (req, res) => {
       message: `${personName} has booked a ${vehicleType}.`,
       vehicleType: vehicleType,
       vehicleNumber: vehicleNumber,
+      sts:sts,
       createdAt: new Date(),
       read: false,
     });
