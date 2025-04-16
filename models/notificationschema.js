@@ -2,7 +2,10 @@ const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  userId: {
+    type: String, // 👈 changed from ObjectId to String
+    required: true
+  },
   bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
   title: String,
   message: String,
