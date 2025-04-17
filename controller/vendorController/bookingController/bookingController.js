@@ -2,7 +2,7 @@ const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
 const moment = require("moment");
 const admin = require("../../../config/firebaseAdmin"); // Use the singleton
-const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -129,35 +129,16 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
-
-    // Save booking notification in database
-    const newNotification = new Notification({
-      vendorId,
-      userId: userid,
-      bookingId: newBooking._id,
-      title: "New Booking Alert",
-      message: `${vehicleNumber} (${vehicleType}) booking received. Status: ${sts}.`,
-
-      vehicleType: vehicleType,
-      vehicleNumber: vehicleNumber,
-      sts:sts,
-      createdAt: new Date(),
-      read: false,
-    });
-
-    await newNotification.save();
-
+    
     const fcmTokens = vendorData.fcmTokens || [];
-
-    console.log("Firebase Project ID:", admin.app().options.credential.projectId);
-    console.log("FCM Token being used:", fcmTokens);
+    console.log("FCM Tokens being used:", fcmTokens);
 
     if (fcmTokens.length > 0) {
-      const invalidTokens = []; // Track invalid tokens
+      const invalidTokens = [];
 
       const promises = fcmTokens.map(async (token) => {
         try {
-          const response = await admin.messaging().send({
+          const message = {
             token: token,
             notification: {
               title: "New Booking Alert",
@@ -167,19 +148,35 @@ exports.createBooking = async (req, res) => {
               bookingId: newBooking._id.toString(),
               vehicleType,
             },
-          });
+            android: {
+              notification: {
+                sound: 'default', // Optional: set sound
+                priority: 'high',
+              },
+            },
+            apns: {
+              payload: {
+                aps: {
+                  sound: 'default',
+                  badge: 1,
+                },
+              },
+            },
+          };
+      
+          const response = await admin.messaging().send(message);
           console.log(`Notification sent to token: ${token}`, response);
         } catch (error) {
           console.error(`Error sending notification to token: ${token}`, error);
           if (error.errorInfo && error.errorInfo.code === "messaging/registration-token-not-registered") {
-            invalidTokens.push(token); // Add invalid token to the list
+            invalidTokens.push(token);
           }
         }
       });
-
+      
       await Promise.all(promises);
-
-      // Remove invalid tokens from the database
+      
+      // Handle invalid tokens
       if (invalidTokens.length > 0) {
         await vendorModel.updateOne(
           { _id: vendorId },
@@ -187,10 +184,11 @@ exports.createBooking = async (req, res) => {
         );
         console.log("Removed invalid FCM tokens:", invalidTokens);
       }
+      
+     
     } else {
       console.warn("No FCM tokens available for this vendor.");
     }
-
     res.status(200).json({
       message: "Booking created successfully",
       bookingId: newBooking._id,
@@ -199,30 +197,6 @@ exports.createBooking = async (req, res) => {
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ error: error.message });
-  }
-};
-
-exports.getNotificationsByVendor = async (req, res) => {
-  try {
-    const { vendorId } = req.params;
-
-    const notifications = await Notification.find({ vendorId }).sort({ createdAt: -1 });
-
-    if (!notifications || notifications.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No notifications found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      count: notifications.length,
-      notifications,
-    });
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
-    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -235,7 +209,7 @@ exports.getBookingsByStatus = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
-
+//sndjdn
 exports.userupdateCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
@@ -257,7 +231,66 @@ exports.userupdateCancelBooking = async (req, res) => {
       },
       { new: true } 
     );
+const newNotificationForVendor = new Notification({
+        vendorId: existingBooking.vendorId, // Use the vendorId from the existing booking
+        userId: null, // No specific user for vendor notification
+        bookingId: updatedBooking._id,
+        title: "Booking Cancel Alert",
+        message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been Cancelled.`,
+        vehicleType: updatedBooking.vehicleType,
+        vehicleNumber: updatedBooking.vehicleNumber,
+        sts: updatedBooking.sts,
+        createdAt: new Date(),
+        read: false,
+      });
+      
+      await newNotificationForVendor.save();
 
+      // Send notification to vendor via FCM
+      const vendorData = await vendorModel.findById(existingBooking.vendorId, { fcmTokens: 1 });
+      const fcmTokens = vendorData.fcmTokens || [];
+
+      console.log("Firebase Project ID:", admin.app().options.credential.projectId);
+      console.log("FCM Token being used:", fcmTokens);
+
+      if (fcmTokens.length > 0) {
+        const invalidTokens = []; // Track invalid tokens
+
+        const promises = fcmTokens.map(async (token) => {
+          try {
+            const response = await admin.messaging().send({
+              token: token,
+              notification: {
+                title: "Booking Cancelled Alert",
+                body: `The booking for ${updatedBooking.vehicleNumber} has been Cancelled.`,
+              },
+              data: {
+                bookingId: updatedBooking._id.toString(),
+                vehicleType: updatedBooking.vehicleType,
+              },
+            });
+            console.log(`Notification sent to token: ${token}`, response);
+          } catch (error) {
+            console.error(`Error sending notification to token: ${token}`, error);
+            if (error.errorInfo && error.errorInfo.code === "messaging/registration-token-not-registered") {
+              invalidTokens.push(token); // Add invalid token to the list
+            }
+          }
+        });
+
+        await Promise.all(promises);
+
+        // Remove invalid tokens from the database
+        if (invalidTokens.length > 0) {
+          await vendorModel.updateOne(
+            { _id: existingBooking.vendorId },
+            { $pull: { fcmTokens: { $in: invalidTokens } } }
+          );
+          console.log("Removed invalid FCM tokens:", invalidTokens);
+        }
+      } else {
+        console.warn("No FCM tokens available for this vendor.");
+      }
     res.status(200).json({
       success: true,
       message: "Booking cancelled successfully",
@@ -268,6 +301,7 @@ exports.userupdateCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
@@ -309,8 +343,6 @@ exports.updateApproveBooking = async (req, res) => {
   }
 };
 
-
-
 exports.updateCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
@@ -349,7 +381,6 @@ exports.updateCancelBooking = async (req, res) => {
   }
 };
 
-
 exports.updateApprovedCancelBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
@@ -384,7 +415,6 @@ exports.updateApprovedCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 exports.allowParking = async (req, res) => {
   try {
@@ -429,7 +459,6 @@ exports.allowParking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 exports.getBookingsByVendorId = async (req, res) => {
   try {
@@ -566,39 +595,6 @@ exports.updateBooking = async (req, res) => {
   }
 };
 
-// exports.updateBookingAmountAndHour = async (req, res) => {
-//   try {
-//     const { amount, hour } = req.body;
-
-//     if (amount === undefined || hour === undefined) {
-//       return res.status(400).json({ error: "Amount and hour are required" });
-//     }
-
-//     const booking = await Booking.findById(req.params.id);
-
-//     if (!booking) {
-//       return res.status(404).json({ error: "Booking not found" });
-//     }
-
-//     booking.amount = amount;
-//     booking.hour = hour;
-//     booking.status = "COMPLETED"; 
-
-//     const updatedBooking = await booking.save();
-
-//     res.status(200).json({
-//       message: "Booking updated successfully",
-//       booking: {
-//         amount: updatedBooking.amount,
-//         hour: updatedBooking.hour,
-//         status: updatedBooking.status
-//       }
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
-
 exports.updateBookingAmountAndHour = async (req, res) => {
   try {
     const { amount, hour } = req.body;
@@ -692,7 +688,6 @@ exports.getParkedVehicleCount = async (req, res) => {
   }
 };
 
-
 exports.getAvailableSlotCount = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -774,8 +769,6 @@ exports.getAvailableSlotCount = async (req, res) => {
   }
 };
 
-
-
 exports.getReceivableAmount = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -831,7 +824,6 @@ exports.getReceivableAmount = async (req, res) => {
   }
 };
 
-
 exports.getUserCancelledCount = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -861,45 +853,3 @@ exports.getUserCancelledCount = async (req, res) => {
     });
   }
 };
-
-
-
-
-// const bookParkingSlot = async (req, res) => {
-//   try {
-//     console.log("Welcome to the booking vehicle");
-//     const { id } = req.query;
-//     const { place, vehicleNumber, bookingDate, time, vendorId } = req.body;
-
-//     if (!id || !place || !vehicleNumber || !bookingDate || !time) {
-//       return res.status(400).json({ message: "All fields are required" });
-//     }
-
-   
-//     const [day, month, year] = bookingDate.split("-");
-//     const formattedDate = new Date(`${year}-${month}-${day}`);
-
-//     if (isNaN(formattedDate.getTime())) {
-//       return res.status(400).json({ message: "Invalid date format for bookingDate" });
-//     }
-
-//     const newBooking = new ParkingBooking({
-//       place,
-//       vehicleNumber,
-//       time,
-//       bookingDate: formattedDate, 
-//       userId: id,
-//       vendorId,
-//     });
-
-//     await newBooking.save();
-
-//     res.status(201).json({
-//       message: "Parking slot booked successfully",
-//       booking: newBooking,
-//     });
-//   } catch (err) {
-//     console.error("Error in booking the slot:", err);
-//     res.status(500).json({ message: "Error in booking the slot" });
-//   }
-// };
