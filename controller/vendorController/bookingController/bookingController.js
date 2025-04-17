@@ -2,6 +2,7 @@ const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
 const moment = require("moment");
 const admin = require("../../../config/firebaseAdmin"); // Use the singleton
+const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
 
 exports.createBooking = async (req, res) => {
   try {
@@ -377,6 +378,29 @@ exports.updateCancelBooking = async (req, res) => {
     });
   } catch (error) {
     console.log("err", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+exports.getNotificationsByVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const notifications = await Notification.find({ vendorId }).sort({ createdAt: -1 });
+
+    if (!notifications || notifications.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No notifications found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: notifications.length,
+      notifications,
+    });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
