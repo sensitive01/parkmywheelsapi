@@ -31,7 +31,16 @@ contacts: [
     landMark: {
       type: String,
     },
-
+    businessHours: [
+      {
+        day: String,
+        openTime: String,
+        closeTime: String,
+        is24Hours: Boolean,
+        isClosed: Boolean,
+      },
+    ],
+    
     subscriptionleft: { type: String, default: "0" },
     platformfee: { type: String, },
     subscription: { type: String, default: "false" },

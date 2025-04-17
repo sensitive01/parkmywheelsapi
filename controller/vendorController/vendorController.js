@@ -859,11 +859,40 @@ const updateVendorStatus = async (req, res) => {
   }
 };
 
+// Get business hours
+const fetchhours = async (req, res) => {
+  try {
+    const vendor = await Vendor.findOne({ vendorId: req.params.vendorId });
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+    res.json({ businessHours: vendor.businessHours });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-
-
+// Update business hours
+const updatehours = async (req, res) => {
+  try {
+    const { businessHours } = req.body;
+    const vendor = await Vendor.findOneAndUpdate(
+      { vendorId: req.params.vendorId },
+      { $set: { businessHours: businessHours } },
+      { new: true }
+    );
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+    res.json({ message: "Business hours updated", vendor });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = {
+  fetchhours,
+  updatehours,
   vendorSignup,
   vendorLogin,
   vendorForgotPassword,
