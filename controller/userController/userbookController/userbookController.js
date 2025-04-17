@@ -1,4 +1,7 @@
 const Booking = require("../../../models/bookingSchema");
+const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
+const vendorModel = require("../../../models/venderSchema");
+const admin = require("../../../config/firebaseAdmin"); // Use the singleton
 
 exports.getUserBookingCounts = async (req, res) => {
   try {
@@ -64,8 +67,8 @@ exports.updateBookingById = async (req, res) => {
         vendorId: existingBooking.vendorId, // Use the vendorId from the existing booking
         userId: null, // No specific user for vendor notification
         bookingId: updatedBooking._id,
-        title: "Booking Updated Alert",
-        message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been updated.`,
+        title: "Booking Reschedule Alert",
+        message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been Rescheduled.`,
         vehicleType: updatedBooking.vehicleType,
         vehicleNumber: updatedBooking.vehicleNumber,
         sts: updatedBooking.sts,
