@@ -878,3 +878,57 @@ exports.getUserCancelledCount = async (req, res) => {
     });
   }
 };
+// GET /api/parking/vendors/summary
+exports.getVendorParkingSummaryByType = async (req, res) => {
+  try {
+    const { vendorId, vehicleType } = req.query; // or use req.body for POST
+
+    if (!vendorId || !vehicleType) {
+      return res.status(400).json({ error: "vendorId and vehicleType are required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId, { _id: 1, vendorName: 1, parkingEntries: 1 });
+
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    const parkingEntries = vendor.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim();
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+
+    const bookings = await Booking.aggregate([
+      {
+        $match: {
+          vendorId: vendorId,
+          status: "PENDING",
+          vehicleType: vehicleType,
+        },
+      },
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const bookedCount = bookings.length > 0 ? bookings[0].count : 0;
+    const totalSlots = parkingEntries[vehicleType + "s"] || 0; // e.g., "Cars", "Bikes"
+    const availableSlots = totalSlots - bookedCount;
+
+    res.status(200).json({
+      // vendorId: vendor._id,
+      // vendorName: vendor.vendorName,
+      // vehicleType: vehicleType,
+      // totalSlots,
+      // bookedSlots: bookedCount,
+      availableSlots,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

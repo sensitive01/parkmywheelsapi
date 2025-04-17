@@ -44,7 +44,7 @@ vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour
 vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
 vendorRoute.get("/bookedslots/:vendorId", bookingController.getParkedVehicleCount);
 vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotCount);
-
+vendorRoute.get("/bookavailability", bookingController.getVendorParkingSummaryByType);
 
 vendorRoute.post("/addparkingcharges", chargesController.parkingCharges);
 vendorRoute.get("/getchargesdata/:id", chargesController.getChargesbyId);
