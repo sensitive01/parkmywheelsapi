@@ -859,23 +859,9 @@ const updateVendorStatus = async (req, res) => {
   }
 };
 
-// Get business hours
 const fetchhours = async (req, res) => {
   try {
-    const vendor = await Vendor.findOne({ vendorId: req.params.vendorId });
-    if (!vendor) {
-      return res.status(404).json({ message: "Vendor not found" });
-    }
-    res.json({ businessHours: vendor.businessHours });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Update business hours
-const updatehours = async (req, res) => {
-  try {
-    const { businessHours } = req.body;
+    const { businessHours } = req.body;  // Expecting business hours data in the body
     const vendor = await Vendor.findOneAndUpdate(
       { vendorId: req.params.vendorId },
       { $set: { businessHours: businessHours } },
@@ -884,15 +870,42 @@ const updatehours = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
-    res.json({ message: "Business hours updated", vendor });
+    res.json(vendor);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+const updateVendorHours = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { businessHours } = req.body;
+
+    if (!vendorId || !businessHours) {
+      return res.status(400).json({ message: "Vendor ID and business hours are required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.businessHours = businessHours;
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Business hours updated successfully",
+      businessHours: vendor.businessHours,
+    });
+  } catch (error) {
+    console.error("Error updating business hours", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   fetchhours,
-  updatehours,
+  updateVendorHours ,
   vendorSignup,
   vendorLogin,
   vendorForgotPassword,
