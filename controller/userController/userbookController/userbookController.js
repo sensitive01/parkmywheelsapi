@@ -54,7 +54,65 @@ exports.updateBookingById = async (req, res) => {
       if (!updatedBooking) {
           return res.status(404).json({ message: "Booking not found" });
       }
-
+      const newNotificationForVendor = new Notification({
+        vendorId: updatedBooking.vendorId, // Use the vendorId from the updated booking
+        userId: null, // No specific user for vendor notification
+        bookingId: updatedBooking._id,
+        title: "Booking Updated Alert",
+        message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been updated.`,
+        vehicleType: updatedBooking.vehicleType,
+        vehicleNumber: updatedBooking.vehicleNumber,
+        sts: updatedBooking.sts,
+        createdAt: new Date(),
+        read: false,
+      });
+      
+      await newNotificationForVendor.save();
+      
+          const fcmTokens = vendorData.fcmTokens || [];
+      
+          console.log("Firebase Project ID:", admin.app().options.credential.projectId);
+          console.log("FCM Token being used:", fcmTokens);
+      
+          if (fcmTokens.length > 0) {
+            const invalidTokens = []; // Track invalid tokens
+      
+            const promises = fcmTokens.map(async (token) => {
+              try {
+                const response = await admin.messaging().send({
+                  token: token,
+                  notification: {
+                    title: "New Booking Alert",
+                    body: `${personName} has booked a ${vehicleType}.`,
+                  },
+                  data: {
+                    bookingId: newBooking._id.toString(),
+                    vehicleType,
+                  },
+                });
+                console.log(`Notification sent to token: ${token}`, response);
+              } catch (error) {
+                console.error(`Error sending notification to token: ${token}`, error);
+                if (error.errorInfo && error.errorInfo.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token); // Add invalid token to the list
+                }
+              }
+            });
+      
+            await Promise.all(promises);
+      
+            // Remove invalid tokens from the database
+            if (invalidTokens.length > 0) {
+              await vendorModel.updateOne(
+                { _id: vendorId },
+                { $pull: { fcmTokens: { $in: invalidTokens } } }
+              );
+              console.log("Removed invalid FCM tokens:", invalidTokens);
+            }
+          } else {
+            console.warn("No FCM tokens available for this vendor.");
+          }
+      
       res.status(200).json({ message: "Booking updated successfully", updatedBooking });
   } catch (error) {
       res.status(500).json({ message: "Server error", error: error.message });
