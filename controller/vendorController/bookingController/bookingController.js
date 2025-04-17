@@ -213,8 +213,9 @@ exports.getBookingsByStatus = async (req, res) => {
 //sndjdn
 exports.userupdateCancelBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID", req.params);
     const { id } = req.params;
+    console.log("BOOKING ID", id);
+
     const booking = await Booking.findById(id);
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
@@ -222,76 +223,76 @@ exports.userupdateCancelBooking = async (req, res) => {
 
     const cancelledDate = moment().format("DD-MM-YYYY");
     const cancelledTime = moment().format("hh:mm A");
+
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { 
-        status: "Cancelled", 
-        cancelledStatus: "NoShow", 
-        cancelledDate, 
-        cancelledTime 
+      {
+        status: "Cancelled",
+        cancelledStatus: "NoShow",
+        cancelledDate,
+        cancelledTime
       },
-      { new: true } 
+      { new: true }
     );
-const newNotificationForVendor = new Notification({
-        vendorId: existingBooking.vendorId, // Use the vendorId from the existing booking
-        userId: null, // No specific user for vendor notification
-        bookingId: updatedBooking._id,
-        title: "Booking Cancel Alert",
-        message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been Cancelled.`,
-        vehicleType: updatedBooking.vehicleType,
-        vehicleNumber: updatedBooking.vehicleNumber,
-        sts: updatedBooking.sts,
-        createdAt: new Date(),
-        read: false,
-      });
-      
-      await newNotificationForVendor.save();
 
-      // Send notification to vendor via FCM
-      const vendorData = await vendorModel.findById(existingBooking.vendorId, { fcmTokens: 1 });
-      const fcmTokens = vendorData.fcmTokens || [];
+    // Create a new notification for the vendor
+    const newNotificationForVendor = new Notification({
+      vendorId: booking.vendorId, // Corrected from 'existingBooking' to 'booking'
+      userId: null,
+      bookingId: updatedBooking._id,
+      title: "Booking Cancel Alert",
+      message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been Cancelled.`,
+      vehicleType: updatedBooking.vehicleType,
+      vehicleNumber: updatedBooking.vehicleNumber,
+      sts: updatedBooking.sts,
+      createdAt: new Date(),
+      read: false,
+    });
 
-      console.log("Firebase Project ID:", admin.app().options.credential.projectId);
-      console.log("FCM Token being used:", fcmTokens);
+    await newNotificationForVendor.save();
 
-      if (fcmTokens.length > 0) {
-        const invalidTokens = []; // Track invalid tokens
+    // Send notification to vendor via FCM
+    const vendorData = await vendorModel.findById(booking.vendorId, { fcmTokens: 1 });
+    const fcmTokens = vendorData?.fcmTokens || [];
 
-        const promises = fcmTokens.map(async (token) => {
-          try {
-            const response = await admin.messaging().send({
-              token: token,
-              notification: {
-                title: "Booking Cancelled Alert",
-                body: `The booking for ${updatedBooking.vehicleNumber} has been Cancelled.`,
-              },
-              data: {
-                bookingId: updatedBooking._id.toString(),
-                vehicleType: updatedBooking.vehicleType,
-              },
-            });
-            console.log(`Notification sent to token: ${token}`, response);
-          } catch (error) {
-            console.error(`Error sending notification to token: ${token}`, error);
-            if (error.errorInfo && error.errorInfo.code === "messaging/registration-token-not-registered") {
-              invalidTokens.push(token); // Add invalid token to the list
-            }
+    if (fcmTokens.length > 0) {
+      const invalidTokens = [];
+
+      const promises = fcmTokens.map(async (token) => {
+        try {
+          const response = await admin.messaging().send({
+            token: token,
+            notification: {
+              title: "Booking Cancelled Alert",
+              body: `The booking for ${updatedBooking.vehicleNumber} has been Cancelled.`,
+            },
+            data: {
+              bookingId: updatedBooking._id.toString(),
+              vehicleType: updatedBooking.vehicleType,
+            },
+          });
+          console.log(`Notification sent to token: ${token}`, response);
+        } catch (error) {
+          console.error(`Error sending notification to token: ${token}`, error);
+          if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+            invalidTokens.push(token);
           }
-        });
-
-        await Promise.all(promises);
-
-        // Remove invalid tokens from the database
-        if (invalidTokens.length > 0) {
-          await vendorModel.updateOne(
-            { _id: existingBooking.vendorId },
-            { $pull: { fcmTokens: { $in: invalidTokens } } }
-          );
-          console.log("Removed invalid FCM tokens:", invalidTokens);
         }
-      } else {
-        console.warn("No FCM tokens available for this vendor.");
+      });
+
+      await Promise.all(promises);
+
+      if (invalidTokens.length > 0) {
+        await vendorModel.updateOne(
+          { _id: booking.vendorId },
+          { $pull: { fcmTokens: { $in: invalidTokens } } }
+        );
+        console.log("Removed invalid FCM tokens:", invalidTokens);
       }
+    } else {
+      console.warn("No FCM tokens available for this vendor.");
+    }
+
     res.status(200).json({
       success: true,
       message: "Booking cancelled successfully",
