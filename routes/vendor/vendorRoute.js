@@ -28,7 +28,10 @@ vendorRoute.post("/verify-otp", vendorController.verifyOTP);
 vendorRoute.post("/resend-otp", vendorController.vendorForgotPassword);
 vendorRoute.post("/change-password", vendorController.vendorChangePassword);
 vendorRoute.get("/fetchsubscription/:vendorId", vendorController.fetchVendorSubscription);
-vendorRoute.get("/fetchbusinesshours", vendorController.fetchhours);
+vendorRoute.get("/fetchbusinesshours/:vendorId", vendorController.fetchhours);
+
+
+
 vendorRoute.put("/updatehours/:vendorId", vendorController.updateVendorHours);
 
 

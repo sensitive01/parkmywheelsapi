@@ -861,15 +861,26 @@ const updateVendorStatus = async (req, res) => {
 
 const fetchhours = async (req, res) => {
   try {
-    const vendor = await Vendor.findOne({ vendorId: req.params.vendorId });  // Find vendor by vendorId
+    const vendorId = req.params.vendorId; // use params, not query
+    console.log("Received vendorId:", vendorId);
+
+    const vendor = await vendorModel.findOne({ vendorId });
+
     if (!vendor) {
+      console.error("Vendor not found with vendorId:", vendorId);
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    console.log("Vendor found:", vendor.vendorName);
     res.json({ businessHours: vendor.businessHours });
   } catch (error) {
+    console.error("Error in fetchhours:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
+
+
 const updateVendorHours = async (req, res) => {
   try {
     const { vendorId } = req.params;
