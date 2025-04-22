@@ -172,6 +172,34 @@ const updateExtraParkingDataOthers = async (req, res) => {
     });
   }
 };
+const getFullDayModes = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendor = await Parking.findOne({ vendorid: vendorId });
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: "Fetched full day modes",
+      data: {
+        fulldaycar: vendor.fulldaycar,
+        fulldaybike: vendor.fulldaybike,
+        fulldayothers: vendor.fulldayothers
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching full day modes:", error);
+    res.status(500).json({
+      message: "Error fetching full day modes",
+      error: error.message
+    });
+  }
+};
+
 
 
 
@@ -604,4 +632,4 @@ const bookmonth = (charges) => {
     return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
-module.exports = {updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+module.exports = {getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};

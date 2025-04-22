@@ -59,7 +59,7 @@ vendorRoute.get("/explorecharge/:id", chargesController.Explorecharge);
 vendorRoute.put("/upadatefulldaycar/:vendorId",chargesController.updateExtraParkingDataCar)
 vendorRoute.put("/upadatefulldaybike/:vendorId",chargesController.updateExtraParkingDataBike)
 vendorRoute.put("/upadatefulldayothers/:vendorId",chargesController.updateExtraParkingDataOthers)
-
+vendorRoute.get("/getfullday/:vendorId",chargesController.getFullDayModes)
 
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
