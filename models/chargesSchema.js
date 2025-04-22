@@ -16,7 +16,9 @@ const parkingCharges = new mongoose.Schema({
 const vendorchargeSchema = new mongoose.Schema({
   vendorid: { type: String, }, 
   charges: { type: [parkingCharges], }, 
-  fulldaycar: { type: String, }
+  fulldaycar: { type: String, },
+  fulldaybike: { type: String,  }, 
+  fulldayothers: { type: String,  }, 
 });
 
 module.exports = mongoose.model("Parkingcharges", vendorchargeSchema);
