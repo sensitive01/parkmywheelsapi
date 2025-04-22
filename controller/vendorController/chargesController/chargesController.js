@@ -73,6 +73,107 @@ const parkingCharges = async (req, res) => {
   }
 };
 
+const updateExtraParkingDataCar = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { fulldaycar } = req.body;
+
+    if (!vendorId || fulldaycar === undefined) {
+      return res.status(400).json({ message: "Missing required fields: vendorId or fulldayCar" });
+    }
+
+    const updatedVendor = await Parking.findOneAndUpdate(
+      { vendorid: vendorId },
+      { $set: { fulldaycar: fulldaycar } },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: "Full day car data updated successfully",
+      data: updatedVendor
+    });
+
+  } catch (error) {
+    console.error("Error in updateExtraParkingDataCar:", error);
+    res.status(500).json({
+      message: "Error updating extra parking data",
+      error: error.message
+    });
+  }
+};
+
+const updateExtraParkingDataBike = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { fulldaybike } = req.body;
+
+    if (!vendorId || fulldaybike === undefined) {
+      return res.status(400).json({ message: "Missing required fields: vendorId or fulldaybike" });
+    }
+
+    const updatedVendor = await Parking.findOneAndUpdate(
+      { vendorid: vendorId },
+      { $set: { fulldaybike: fulldaybike } },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: "Full day car data updated successfully",
+      data: updatedVendor
+    });
+
+  } catch (error) {
+    console.error("Error in updateExtraParkingDatabike:", error);
+    res.status(500).json({
+      message: "Error updating extra parking data",
+      error: error.message
+    });
+  }
+};
+
+
+const updateExtraParkingDataOthers = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { fulldayothers } = req.body;
+
+    if (!vendorId || fulldayothers === undefined) {
+      return res.status(400).json({ message: "Missing required fields: vendorId or fulldayothers" });
+    }
+
+    const updatedVendor = await Parking.findOneAndUpdate(
+      { vendorid: vendorId },
+      { $set: { fulldayothers: fulldayothers } },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: "Full day car data updated successfully",
+      data: updatedVendor
+    });
+
+  } catch (error) {
+    console.error("Error in updateExtraParkingDataCar:", error);
+    res.status(500).json({
+      message: "Error updating extra parking data",
+      error: error.message
+    });
+  }
+};
+
+
 
 const getChargesbyId = async (req, res) => {
   const { id } = req.params;
@@ -503,4 +604,4 @@ const bookmonth = (charges) => {
     return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
-module.exports = { parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+module.exports = {updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};

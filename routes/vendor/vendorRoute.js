@@ -56,6 +56,11 @@ vendorRoute.get("/getchargesdata/:id", chargesController.getChargesbyId);
 vendorRoute.get("/getchargesbycategoryandtype/:vendorid/:category/:chargeid", chargesController.getChargesByCategoryAndType );
 vendorRoute.get("/explorecharge/:id", chargesController.Explorecharge);
 
+vendorRoute.put("/upadatefulldaycar/:vendorId",chargesController.updateExtraParkingDataCar)
+vendorRoute.put("/upadatefulldaybike/:vendorId",chargesController.updateExtraParkingDataBike)
+vendorRoute.put("/upadatefulldayothers/:vendorId",chargesController.updateExtraParkingDataOthers)
+
+
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
 
