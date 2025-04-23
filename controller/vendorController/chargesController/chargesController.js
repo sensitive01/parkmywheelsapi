@@ -172,12 +172,40 @@ const updateExtraParkingDataOthers = async (req, res) => {
     });
   }
 };
+// PUT /vendor/updateenable/:vendorId
 const updateEnabledVehicles = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { carEnabled, bikeEnabled, othersEnabled } = req.body;
+    const {
+      carEnabled,
+      bikeEnabled,
+      othersEnabled,
+      carTemporary,
+      bikeTemporary,
+      othersTemporary,
+      carFullDay,
+      bikeFullDay,
+      othersFullDay,
+      carMonthly,
+      bikeMonthly,
+      othersMonthly,
+    } = req.body;
 
-    if (!vendorId || carEnabled === undefined || bikeEnabled === undefined || othersEnabled === undefined) {
+    if (
+      !vendorId ||
+      carEnabled === undefined ||
+      bikeEnabled === undefined ||
+      othersEnabled === undefined ||
+      carTemporary === undefined ||
+      bikeTemporary === undefined ||
+      othersTemporary === undefined ||
+      carFullDay === undefined ||
+      bikeFullDay === undefined ||
+      othersFullDay === undefined ||
+      carMonthly === undefined ||
+      bikeMonthly === undefined ||
+      othersMonthly === undefined
+    ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -188,9 +216,84 @@ const updateEnabledVehicles = async (req, res) => {
           carenable: carEnabled.toString(),
           bikeenable: bikeEnabled.toString(),
           othersenable: othersEnabled.toString(),
-        }
+
+          cartemp: carTemporary.toString(),
+          biketemp: bikeTemporary.toString(),
+          otherstemp: othersTemporary.toString(),
+
+          carfullday: carFullDay.toString(),
+          bikefullday: bikeFullDay.toString(),
+          othersfullday: othersFullDay.toString(),
+
+          carmonthly: carMonthly.toString(),
+          bikemonthly: bikeMonthly.toString(),
+          othersmonthly: othersMonthly.toString(),
+        },
       },
-      { new: true } // Return the updated document
+      { new: true }
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: "Enabled vehicles and parking options updated successfully",
+      data: updatedVendor,
+    });
+  } catch (error) {
+    console.error("Error updating enabled vehicles:", error);
+    res.status(500).json({ message: "Error updating enabled vehicles", error: error.message });
+  }
+};
+
+const updatelistv = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const {
+      carTemporary,
+      bikeTemporary,
+      othersTemporary,
+      carFullDay,
+      bikeFullDay,
+      othersFullDay,
+      carMonthly,
+      bikeMonthly,
+      othersMonthly,
+    } = req.body;
+
+    // Check required fields
+    if (
+      !vendorId ||
+      carTemporary === undefined ||
+      bikeTemporary === undefined ||
+      othersTemporary === undefined ||
+      carFullDay === undefined ||
+      bikeFullDay === undefined ||
+      othersFullDay === undefined ||
+      carMonthly === undefined ||
+      bikeMonthly === undefined ||
+      othersMonthly === undefined // 🔥 Removed trailing ||
+    ) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const updatedVendor = await Parking.findOneAndUpdate(
+      { vendorid: vendorId },
+      {
+        $set: {
+          carTemporary: carTemporary.toString(),
+          bikeTemporary: bikeTemporary.toString(),
+          othersTemporary: othersTemporary.toString(),
+          carFullDay: carFullDay.toString(),
+          bikeFullDay: bikeFullDay.toString(),
+          othersFullDay: othersFullDay.toString(),
+          carMonthly: carMonthly.toString(),
+          bikeMonthly: bikeMonthly.toString(),
+          othersMonthly: othersMonthly.toString(),
+        },
+      },
+      { new: true }
     );
 
     if (!updatedVendor) {
@@ -199,20 +302,24 @@ const updateEnabledVehicles = async (req, res) => {
 
     res.status(200).json({
       message: "Enabled vehicles updated successfully",
-      data: updatedVendor
+      data: updatedVendor,
     });
   } catch (error) {
     console.error("Error updating enabled vehicles:", error);
     res.status(500).json({
       message: "Error updating enabled vehicles",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
+// GET /vendor/fetchenable/:vendorId
 const getEnabledVehicles = async (req, res) => {
   try {
     const { vendorId } = req.params;
+    if (!vendorId) {
+      return res.status(400).json({ message: "vendorId is required" });
+    }
 
     const vendorData = await Parking.findOne({ vendorid: vendorId });
 
@@ -220,26 +327,25 @@ const getEnabledVehicles = async (req, res) => {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    const enabledVehicles = {
-      carEnabled: vendorData.carenable === 'true',
-      bikeEnabled: vendorData.bikeenable === 'true',
-      othersEnabled: vendorData.othersenable === 'true',
-    };
-
     res.status(200).json({
-      message: "Enabled vehicle data fetched successfully",
-      data: enabledVehicles
+      carEnabled: vendorData.carenable === "true",
+      bikeEnabled: vendorData.bikeenable === "true",
+      othersEnabled: vendorData.othersenable === "true",
+      carTemporary: vendorData.cartemp === "true",
+      bikeTemporary: vendorData.biketemp === "true",
+      othersTemporary: vendorData.otherstemp === "true",
+      carFullDay: vendorData.carfullday === "true",
+      bikeFullDay: vendorData.bikefullday === "true",
+      othersFullDay: vendorData.othersfullday === "true",
+      carMonthly: vendorData.carmonthly === "true",
+      bikeMonthly: vendorData.bikemonthly === "true",
+      othersMonthly: vendorData.othersmonthly === "true",
     });
-
   } catch (error) {
     console.error("Error fetching enabled vehicles:", error);
-    res.status(500).json({
-      message: "Error fetching enabled vehicles",
-      error: error.message
-    });
+    res.status(500).json({ message: "Error fetching enabled vehicles", error: error.message });
   }
 };
-
 
 
 
@@ -710,4 +816,4 @@ const bookmonth = (charges) => {
     return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
-module.exports = {getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+module.exports = {updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};

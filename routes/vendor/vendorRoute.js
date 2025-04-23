@@ -64,6 +64,8 @@ vendorRoute.get('/fetchenable/:vendorId',chargesController. getEnabledVehicles);
 
 // Update carenable flag
 vendorRoute.put('/updateenable/:vendorId',chargesController. updateEnabledVehicles);
+vendorRoute.put('/updatebottom/:vendorId',chargesController. updatelistv);
+
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
 
