@@ -497,67 +497,46 @@ const fetchC = async (req, res) => {
 
 // Function to transform charges into the desired format
 const fetchexit = async (req, res) => {
-  const vendorid = req.params.id; // Extract vendorid from the URL parameter
-  const vehicleType = req.params.vehicleType; // Extract vehicle type from the URL parameter
+  const vendorid = req.params.id;
+  const vehicleType = req.params.vehicleType;
 
-  // Define charge IDs based on vehicle type
-  let chargeIds;
-  let fullDayChargeField;
-  switch (vehicleType) {
-    case 'Car':
-      chargeIds = ["A", "B", "C", "D"];
-      fullDayChargeField = 'fulldaycar'; // Field for full day charge for cars
-      break;
-    case 'Bike':
-      chargeIds = ["E", "F", "G", "H"];
-      fullDayChargeField = 'fulldaybike'; // Field for full day charge for bikes
-      break;
-    case 'Others':
-      chargeIds = ["I", "J", "K", "L"];
-      fullDayChargeField = 'fulldayothers'; // Field for full day charge for others
-      break;
-    default:
-      return res.status(400).json({ message: "Invalid vehicle type." });
+  const chargeConfig = {
+    Car: { chargeIds: ["A", "B", "C", "D"], fullDayChargeField: 'fulldaycar' },
+    Bike: { chargeIds: ["E", "F", "G", "H"], fullDayChargeField: 'fulldaybike' },
+    Others: { chargeIds: ["I", "J", "K", "L"], fullDayChargeField: 'fulldayothers' },
+  };
+
+  const config = chargeConfig[vehicleType];
+  if (!config) {
+    return res.status(400).json({ message: "Invalid vehicle type." });
   }
 
   try {
-    // Query the database for the vendor's charges based on vehicle type
-    const result = await Parking.findOne(
-      { 
-        vendorid: vendorid, 
-        "charges.category": vehicleType, // Use vehicleType to filter charges
-        "charges.chargeid": { $in: chargeIds } // Use the defined charge IDs based on vehicle type
-      }
-    );
+    const result = await Parking.findOne({
+      vendorid: vendorid,
+      "charges.category": vehicleType,
+      "charges.chargeid": { $in: config.chargeIds }
+    });
 
-    // Check if the result is found and has charges
     if (!result || !result.charges || result.charges.length === 0) {
       console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
       return res.status(404).json({ message: "No matching charges found." });
     }
 
-    // Filter the charges to only include those that match the vehicleType
     const filteredCharges = result.charges.filter(charge => charge.category === vehicleType);
-
-    // Check if any charges were found after filtering
     if (filteredCharges.length === 0) {
       return res.status(404).json({ message: "No matching charges found." });
     }
 
-    // Transform the charges into the desired format
     const transformedData = transformCharges(filteredCharges);
+    const fullDayCharge = result[config.fullDayChargeField];
 
-    // Include full day charge in the response
-    const fullDayCharge = result[fullDayChargeField];
-
-    // Respond with the transformed data and full day charge as JSON
     return res.json({ transformedData, fullDayCharge });
   } catch (error) {
-    console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
+    console.error("Error fetching charges:", error);
     return res.status(500).json({ message: "Error fetching charges." });
   }
 };
-
 // Function to transform charges into the desired format
 const transformCharges = (charges) => {
   return charges.map(charge => {
