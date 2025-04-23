@@ -60,7 +60,10 @@ vendorRoute.put("/upadatefulldaycar/:vendorId",chargesController.updateExtraPark
 vendorRoute.put("/upadatefulldaybike/:vendorId",chargesController.updateExtraParkingDataBike)
 vendorRoute.put("/upadatefulldayothers/:vendorId",chargesController.updateExtraParkingDataOthers)
 vendorRoute.get("/getfullday/:vendorId",chargesController.getFullDayModes)
+vendorRoute.get('/fetchenable/:vendorId',chargesController. getEnabledVehicles);
 
+// Update carenable flag
+vendorRoute.put('/updateenable/:vendorId',chargesController. updateEnabledVehicles);
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
 

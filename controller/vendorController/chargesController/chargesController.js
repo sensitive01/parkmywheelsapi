@@ -172,6 +172,79 @@ const updateExtraParkingDataOthers = async (req, res) => {
     });
   }
 };
+const updateEnabledVehicles = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { carEnabled, bikeEnabled, othersEnabled } = req.body;
+
+    if (!vendorId || carEnabled === undefined || bikeEnabled === undefined || othersEnabled === undefined) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const updatedVendor = await Parking.findOneAndUpdate(
+      { vendorid: vendorId },
+      {
+        $set: {
+          carenable: carEnabled.toString(),
+          bikeenable: bikeEnabled.toString(),
+          othersenable: othersEnabled.toString(),
+        }
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: "Enabled vehicles updated successfully",
+      data: updatedVendor
+    });
+  } catch (error) {
+    console.error("Error updating enabled vehicles:", error);
+    res.status(500).json({
+      message: "Error updating enabled vehicles",
+      error: error.message
+    });
+  }
+};
+
+const getEnabledVehicles = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendorData = await Parking.findOne({ vendorid: vendorId });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const enabledVehicles = {
+      carEnabled: vendorData.carenable === 'true',
+      bikeEnabled: vendorData.bikeenable === 'true',
+      othersEnabled: vendorData.othersenable === 'true',
+    };
+
+    res.status(200).json({
+      message: "Enabled vehicle data fetched successfully",
+      data: enabledVehicles
+    });
+
+  } catch (error) {
+    console.error("Error fetching enabled vehicles:", error);
+    res.status(500).json({
+      message: "Error fetching enabled vehicles",
+      error: error.message
+    });
+  }
+};
+
+
+
+
+
+
 const getFullDayModes = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -323,15 +396,19 @@ const fetchexit = async (req, res) => {
 
   // Define charge IDs based on vehicle type
   let chargeIds;
+  let fullDayChargeField;
   switch (vehicleType) {
     case 'Car':
       chargeIds = ["A", "B", "C", "D"];
+      fullDayChargeField = 'fulldaycar'; // Field for full day charge for cars
       break;
     case 'Bike':
       chargeIds = ["E", "F", "G", "H"];
+      fullDayChargeField = 'fulldaybike'; // Field for full day charge for bikes
       break;
     case 'Others':
       chargeIds = ["I", "J", "K", "L"];
+      fullDayChargeField = 'fulldayothers'; // Field for full day charge for others
       break;
     default:
       return res.status(400).json({ message: "Invalid vehicle type." });
@@ -350,7 +427,6 @@ const fetchexit = async (req, res) => {
     // Check if the result is found and has charges
     if (!result || !result.charges || result.charges.length === 0) {
       console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
-
       return res.status(404).json({ message: "No matching charges found." });
     }
 
@@ -359,17 +435,19 @@ const fetchexit = async (req, res) => {
 
     // Check if any charges were found after filtering
     if (filteredCharges.length === 0) {
-      // console.log(No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.);
       return res.status(404).json({ message: "No matching charges found." });
     }
 
     // Transform the charges into the desired format
     const transformedData = transformCharges(filteredCharges);
 
-    // Respond with the transformed data as JSON
-    return res.json(transformedData);
+    // Include full day charge in the response
+    const fullDayCharge = result[fullDayChargeField];
+
+    // Respond with the transformed data and full day charge as JSON
+    return res.json({ transformedData, fullDayCharge });
   } catch (error) {
-    // console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
+    console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
     return res.status(500).json({ message: "Error fetching charges." });
   }
 };
@@ -632,4 +710,4 @@ const bookmonth = (charges) => {
     return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
-module.exports = {getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+module.exports = {getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
