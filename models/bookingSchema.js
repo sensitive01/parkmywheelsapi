@@ -7,6 +7,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
      
     },
+    bookType: {
+      type: String,
+     
+    },
+    
     vendorId: {
       type: String,
     },

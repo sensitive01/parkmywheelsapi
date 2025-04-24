@@ -31,6 +31,7 @@ exports.createBooking = async (req, res) => {
       approvedTime = null,
       parkedDate = null,
       parkedTime = null,
+      bookType,
     } = req.body;
 
     console.log("Booking data:", req.body);
@@ -127,6 +128,7 @@ exports.createBooking = async (req, res) => {
       parkedTime,
       exitvehicledate,
       exitvehicletime,
+      bookType,
     });
 
     await newBooking.save();
