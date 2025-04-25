@@ -984,6 +984,7 @@ function calculateFullDay(charges, startDate, endDate, bookType) {
 
 // const { DateTime } = require('luxon');
 
+
 const fetchtestAmount = async (req, res) => {
   try {
     // Step 1: Retrieve booking information
@@ -1008,7 +1009,7 @@ const fetchtestAmount = async (req, res) => {
       'dd-MM-yyyy hh:mm a',
       { zone: 'Asia/Kolkata' }
     );
-    
+
     if (!parkedDateTimeLuxon.isValid) {
       return res.status(400).json({ error: 'Invalid parked date/time format' });
     }
@@ -1016,17 +1017,23 @@ const fetchtestAmount = async (req, res) => {
     const parkedDateTime = parkedDateTimeLuxon.toJSDate();
     const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
 
-    console.log('Parsed parkedDateTime:', parkedDateTime);
-    console.log('Current exitDateTime:', exitDateTime);
+    // Debug: Output parsed times
+    console.log('Parsed parkedDateTime (ISO):', parkedDateTime.toISOString());
+    console.log('ExitDateTime (ISO):', exitDateTime.toISOString());
+    console.log('Timestamp difference (exit - parked):', exitDateTime - parkedDateTime);
 
     // Validate exit time is after parked time
     if (exitDateTime < parkedDateTime) {
+      console.warn('⚠️ Server thinks exit is earlier than parked!');
+      console.warn('parked:', parkedDateTime);
+      console.warn('exit:', exitDateTime);
       return res.status(400).json({ error: 'Exit time cannot be before parked time' });
     }
 
     const durationMs = exitDateTime - parkedDateTime;
     const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
+    // Debug: Output calculated duration
     console.log('Duration (ms):', durationMs);
     console.log('Duration (hours):', durationHours);
 
