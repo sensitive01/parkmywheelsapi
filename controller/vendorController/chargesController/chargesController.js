@@ -2,6 +2,7 @@ const Parking = require('../../../models/chargesSchema');
 const vendorModel = require('../../../models/vendorModel');
 const Booking = require("../../../models/bookingSchema");
 const Parkingcharges = require("../../../models/chargesSchema");
+const { DateTime } = require('luxon');
 
 
 // Corrected path for vendorModel
@@ -996,8 +997,14 @@ const fetchtestAmount = async (req, res) => {
     }
 
     // Parse dates correctly considering time zones
-    const parkedDateTime = parseDateTime(booking.parkedDate, booking.parkedTime);
-    const exitDateTime = new Date();
+    const parkedDateTime = DateTime.fromFormat(
+      `${booking.parkedDate} ${booking.parkedTime}`, 
+      'yyyy-MM-dd HH:mm', 
+      { zone: 'Asia/Kolkata' } // change this if your data uses a different zone
+    ).toJSDate();
+    
+    const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
+    
 
     // Validate exit time is after parked time
     if (exitDateTime < parkedDateTime) {
