@@ -982,6 +982,8 @@ function calculateFullDay(charges, startDate, endDate, bookType) {
   return days * parseFloat(fullDayCharge.amount);
 }
 
+// const { DateTime } = require('luxon');
+
 const fetchtestAmount = async (req, res) => {
   try {
     // Step 1: Retrieve booking information
@@ -996,15 +998,26 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Parse dates correctly considering time zones
-    const parkedDateTime = DateTime.fromFormat(
-      `${booking.parkedDate} ${booking.parkedTime}`, 
-      'yyyy-MM-dd HH:mm', 
-      { zone: 'Asia/Kolkata' } // change this if your data uses a different zone
-    ).toJSDate();
+    // Log raw parked date/time for debugging
+    console.log('Raw parkedDate:', booking.parkedDate);
+    console.log('Raw parkedTime:', booking.parkedTime);
+
+    // Parse parked datetime using Luxon with timezone
+    const parkedDateTimeLuxon = DateTime.fromFormat(
+      `${booking.parkedDate} ${booking.parkedTime}`,
+      'dd-MM-yyyy hh:mm a',
+      { zone: 'Asia/Kolkata' }
+    );
     
+    if (!parkedDateTimeLuxon.isValid) {
+      return res.status(400).json({ error: 'Invalid parked date/time format' });
+    }
+
+    const parkedDateTime = parkedDateTimeLuxon.toJSDate();
     const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
-    
+
+    console.log('Parsed parkedDateTime:', parkedDateTime);
+    console.log('Current exitDateTime:', exitDateTime);
 
     // Validate exit time is after parked time
     if (exitDateTime < parkedDateTime) {
@@ -1014,9 +1027,12 @@ const fetchtestAmount = async (req, res) => {
     const durationMs = exitDateTime - parkedDateTime;
     const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
-    // Retrieve charges
-    const charges = await Parkingcharges.findOne({ 
-      vendorid: booking.vendorId, 
+    console.log('Duration (ms):', durationMs);
+    console.log('Duration (hours):', durationHours);
+
+    // Retrieve charges for vehicle type
+    const charges = await Parkingcharges.findOne({
+      vendorid: booking.vendorId,
       "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
     });
 
@@ -1035,18 +1051,19 @@ const fetchtestAmount = async (req, res) => {
 
     return res.json({
       success: true,
-      payableAmount: amount.toFixed(2),
+      payableAmount: amount?.toFixed(2) ?? '0.00',
       durationHours
     });
 
   } catch (error) {
     console.error('Error occurred:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       error: error.message
     });
   }
 };
+
 
 // Include the helper functions: getFullDayTypeForVehicle, parseDateTime, calculateHourly, calculateFullDay
 // (These remain unchanged from your original code)
