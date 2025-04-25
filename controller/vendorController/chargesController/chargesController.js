@@ -1,5 +1,10 @@
 const Parking = require('../../../models/chargesSchema');
-const vendorModel = require('../../../models/vendorModel'); // Corrected path for vendorModel
+const vendorModel = require('../../../models/vendorModel');
+const Booking = require("../../../models/bookingSchema");
+const Parkingcharges = require("../../../models/chargesSchema");
+
+
+// Corrected path for vendorModel
 const parkingCharges = async (req, res) => {
   const { vendorid, charges } = req.body;
 
@@ -795,4 +800,203 @@ const bookmonth = (charges) => {
     return transformedCharge; // Return the transformed charge
   }).filter(charge => charge !== null); // Filter out null values
 };
-module.exports = {updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+
+
+const tested = async (req, res) => { 
+  try {
+    // Step 1: Retrieve booking information by booking ID
+    const booking = await Booking.findById(req.params.id)
+      .populate('vendorId', 'parkingCharges');
+
+    // Step 2: Check if booking exists
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Step 3: Ensure vehicle is in PARKED state
+    if (booking.status !== 'PARKED') {
+      return res.status(400).json({ error: 'Vehicle not in parked state' });
+    }
+
+    // Step 4: Calculate parking duration
+    const parkedDateTime = parseDateTime(booking.parkedDate, booking.parkedTime);
+    const exitDateTime = new Date();
+    const durationMs = exitDateTime - parkedDateTime;
+    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
+
+    console.log(`Parked Duration: ${durationHours} hours`);
+
+    // Step 5: Get charges for this vendor and vehicle type
+    const charges = await Parkingcharges.findOne({ 
+      vendorid: booking.vendorId, 
+      "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
+    });
+
+    console.log('Charges Query:', {
+      vendorid: booking.vendorId,
+      category: new RegExp(`^${booking.vehicleType}$`, 'i')
+    });
+
+    if (!charges) {
+      console.warn(`No charges found for vendor ${booking.vendorId} and vehicle type ${booking.vehicleType}`);
+      return res.status(400).json({ error: 'No charges found for this vehicle type' });
+    }
+
+    console.log('Retrieved Charges:', charges);
+
+    // Step 6: Calculate amount based on booking type
+    let amount = 0;
+    if (booking.bookType.toLowerCase() === 'hourly') {
+      amount = calculateHourly(charges, durationHours);
+    } else {
+      const fullDayType = getFullDayTypeForVehicle(charges, booking.vehicleType); // dynamically get type
+      amount = calculateFullDay(charges, parkedDateTime, exitDateTime, fullDayType);
+    }
+
+    // Step 7: Update booking
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      {
+        exitvehicledate: formatDate(exitDateTime),
+        exitvehicletime: formatTime(exitDateTime),
+        amount: amount.toFixed(2),
+        hour: durationHours.toString(),
+        status: 'PARKED'
+      },
+      { new: true }
+    );
+
+    // Step 8: Return response
+    return res.json({
+      success: true,
+      booking: updatedBooking,
+      payableAmount: amount.toFixed(2),
+      durationHours
+    });
+
+  } catch (error) {
+    console.error('Error occurred:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+function getFullDayTypeForVehicle(charges, vehicleType) {
+  const lowerType = vehicleType.toLowerCase();
+  switch (lowerType) {
+    case 'car':
+      return charges.fulldaycar || 'fullDayCharge';
+    case 'bike':
+      return charges.fulldaybike || 'fullDayCharge';
+    case 'others':
+      return charges.fulldayothers || 'fullDayCharge';
+    default:
+      throw new Error(`Unknown vehicle type: ${vehicleType}`);
+  }
+}
+
+// Helper functions
+function parseDateTime(dateStr, timeStr) {
+  const [day, month, year] = dateStr.split('-');
+  const [time, period] = timeStr.split(' ');
+  let [hours, minutes] = time.split(':');
+  
+  hours = parseInt(hours);
+  if (period === 'PM' && hours < 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+  return new Date(year, month-1, day, hours, minutes);
+}
+
+function calculateHourly(charges, durationHours) {
+  let amount = 0;
+  const initialCharge = charges.charges.find(c => c.chargeid === 'A');
+  
+  if (initialCharge) {
+    amount += parseFloat(initialCharge.amount);
+    const remaining = durationHours - 1;
+    
+    if (remaining > 0) {
+      const additionalCharge = charges.charges.find(c => 
+        c.type.startsWith('Additional')
+      );
+      
+      if (additionalCharge) {
+        const hoursPerBlock = parseInt(additionalCharge.type.match(/\d+/)[0]);
+        const blocks = Math.ceil(remaining / hoursPerBlock);
+        amount += blocks * parseFloat(additionalCharge.amount);
+      }
+    }
+  }
+  
+  return amount;
+}
+
+function calculateFullDay(charges, startDate, endDate, bookType) {
+  const typeKey = bookType.toLowerCase();
+
+  // Find the charge by exact type match
+  const fullDayCharge = charges.charges.find(c => 
+    c.type.toLowerCase() === 'full day'
+  );
+
+  if (!fullDayCharge) {
+    throw new Error(`Full day charge not found for type: ${bookType}`);
+  }
+
+  let days = 1;
+
+  // Calculate based on fullday type
+  if (typeKey === 'full day') {
+    // Count unique calendar days (midnight to midnight)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Reset time to midnight for date comparison
+    const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+    // Calculate days by finding the difference in days
+    const msPerDay = 1000 * 60 * 60 * 24;
+    days = Math.ceil((endMidnight - startMidnight) / msPerDay) + 1;
+
+    // If end time is exactly midnight, reduce by 1 day
+    if (end.getHours() === 0 && end.getMinutes() === 0) {
+      days--;
+    }
+
+    // Ensure at least 1 day
+    days = Math.max(1, days);
+  } else if (typeKey === '24 hours') {
+    // Count 24-hour periods
+    const durationMs = endDate - startDate;
+    const durationHours = durationMs / (1000 * 60 * 60);
+    days = Math.ceil(durationHours / 24);
+  } else {
+    throw new Error(`Unsupported charge type: ${bookType}`);
+  }
+
+  return days * parseFloat(fullDayCharge.amount);
+}
+
+
+
+function formatDate(date) {
+  return `${date.getDate().toString().padStart(2, '0')}-${
+    (date.getMonth() + 1).toString().padStart(2, '0')}-${
+    date.getFullYear()}`;
+}
+
+function formatTime(date) {
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${period}`;
+}
+
+
+
+module.exports = {tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};

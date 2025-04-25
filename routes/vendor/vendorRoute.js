@@ -156,6 +156,8 @@ vendorRoute.post("/sendchat/:helpRequestId", upload.single("image"), helpfeedbac
 vendorRoute.get("/fetchchat/:helpRequestId", helpfeedbackController.fetchchathistory);
 vendorRoute.get("/charge/:id", chargesController.fetchC);
 vendorRoute.get("/fetchbookcharge/:id/:vehicleType", chargesController.fetchbookamout);
+vendorRoute.put('/book/:id/', chargesController.tested);
+
 
 vendorRoute.get("/charges/:id/:vehicleType", chargesController.fetchexit);
 vendorRoute.get("/run-agenda-job", async (req, res) => {
