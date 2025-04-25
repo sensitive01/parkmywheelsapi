@@ -983,27 +983,31 @@ function calculateFullDay(charges, startDate, endDate, bookType) {
 
 const fetchtestAmount = async (req, res) => {
   try {
-    // Step 1: Retrieve booking information by booking ID
+    // Step 1: Retrieve booking information
     const booking = await Booking.findById(req.params.id)
       .populate('vendorId', 'parkingCharges');
 
-    // Step 2: Check if booking exists
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    // Step 3: Ensure vehicle is in PARKED state
     if (booking.status !== 'PARKED') {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Step 4: Calculate parking duration
+    // Parse dates correctly considering time zones
     const parkedDateTime = parseDateTime(booking.parkedDate, booking.parkedTime);
     const exitDateTime = new Date();
-    const durationMs = exitDateTime - parkedDateTime;
-    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
 
-    // Step 5: Get charges for this vendor and vehicle type
+    // Validate exit time is after parked time
+    if (exitDateTime < parkedDateTime) {
+      return res.status(400).json({ error: 'Exit time cannot be before parked time' });
+    }
+
+    const durationMs = exitDateTime - parkedDateTime;
+    const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
+
+    // Retrieve charges
     const charges = await Parkingcharges.findOne({ 
       vendorid: booking.vendorId, 
       "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
@@ -1013,7 +1017,7 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'No charges found for this vehicle type' });
     }
 
-    // Step 6: Calculate amount based on booking type
+    // Calculate amount
     let amount = 0;
     if (booking.bookType.toLowerCase() === 'hourly') {
       amount = calculateHourly(charges, durationHours);
@@ -1022,7 +1026,6 @@ const fetchtestAmount = async (req, res) => {
       amount = calculateFullDay(charges, parkedDateTime, exitDateTime, fullDayType);
     }
 
-    // Step 7: Return response with amount only
     return res.json({
       success: true,
       payableAmount: amount.toFixed(2),
