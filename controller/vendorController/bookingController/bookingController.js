@@ -145,7 +145,7 @@ exports.createBooking = async (req, res) => {
             token: token,
             notification: {
               title: "New Booking Alert",
-              body: `${personName} has booked a ${vehicleType}.`,
+              body: `${vehicleNumber} has booked a ${vehicleType}.`,
             },
             data: {
               bookingId: newBooking._id.toString(),
