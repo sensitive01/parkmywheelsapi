@@ -857,11 +857,11 @@ const tested = async (req, res) => {
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       {
-        exitvehicledate: formatDate(exitDateTime),
-        exitvehicletime: formatTime(exitDateTime),
+        // exitvehicledate: formatDate(exitDateTime),
+        // exitvehicletime: formatTime(exitDateTime),
         amount: amount.toFixed(2),
-        hour: durationHours.toString(),
-        status: 'PARKED'
+        // hour: durationHours.toString(),
+        // status: 'PARKED'
       },
       { new: true }
     );
@@ -981,7 +981,65 @@ function calculateFullDay(charges, startDate, endDate, bookType) {
   return days * parseFloat(fullDayCharge.amount);
 }
 
+const fetchtestAmount = async (req, res) => {
+  try {
+    // Step 1: Retrieve booking information by booking ID
+    const booking = await Booking.findById(req.params.id)
+      .populate('vendorId', 'parkingCharges');
 
+    // Step 2: Check if booking exists
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Step 3: Ensure vehicle is in PARKED state
+    if (booking.status !== 'PARKED') {
+      return res.status(400).json({ error: 'Vehicle not in parked state' });
+    }
+
+    // Step 4: Calculate parking duration
+    const parkedDateTime = parseDateTime(booking.parkedDate, booking.parkedTime);
+    const exitDateTime = new Date();
+    const durationMs = exitDateTime - parkedDateTime;
+    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
+
+    // Step 5: Get charges for this vendor and vehicle type
+    const charges = await Parkingcharges.findOne({ 
+      vendorid: booking.vendorId, 
+      "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
+    });
+
+    if (!charges) {
+      return res.status(400).json({ error: 'No charges found for this vehicle type' });
+    }
+
+    // Step 6: Calculate amount based on booking type
+    let amount = 0;
+    if (booking.bookType.toLowerCase() === 'hourly') {
+      amount = calculateHourly(charges, durationHours);
+    } else {
+      const fullDayType = getFullDayTypeForVehicle(charges, booking.vehicleType);
+      amount = calculateFullDay(charges, parkedDateTime, exitDateTime, fullDayType);
+    }
+
+    // Step 7: Return response with amount only
+    return res.json({
+      success: true,
+      payableAmount: amount.toFixed(2),
+      durationHours
+    });
+
+  } catch (error) {
+    console.error('Error occurred:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Include the helper functions: getFullDayTypeForVehicle, parseDateTime, calculateHourly, calculateFullDay
+// (These remain unchanged from your original code)
 
 function formatDate(date) {
   return `${date.getDate().toString().padStart(2, '0')}-${
@@ -999,4 +1057,4 @@ function formatTime(date) {
 
 
 
-module.exports = {tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+module.exports = {fetchtestAmount,tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
