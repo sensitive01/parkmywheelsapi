@@ -187,7 +187,7 @@ const userChangePassword = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await userModel.find({}, '-userPassword'); // Exclude password from response
+    const users = await userModel.find({}, '-userPassword'); 
 
     if (users.length === 0) {
       return res.status(404).json({ message: "No users found." });
@@ -203,6 +203,63 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const updateUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { userName, userEmail, userMobile, vehicleNo } = req.body;
+
+    const updatedUser = await userModel.findOneAndUpdate(
+      { uuid: userId },
+      {
+        $set: {
+          userName,
+          userEmail,
+          userMobile: parseInt(userMobile),
+          vehicleNo,
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User updated successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("Error updating user:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await userModel.findOne(
+      { uuid: userId },
+      '-userPassword'
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User fetched successfully",
+      user,
+    });
+  } catch (err) {
+    console.error("Error fetching user:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
 
 
 
@@ -212,5 +269,7 @@ module.exports = {
   userForgotPassword,
   verifyOTP,
   userChangePassword,
-  getAllUsers
+  getAllUsers,
+  updateUserById,
+  getUserById,
 };

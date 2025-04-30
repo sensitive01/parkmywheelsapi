@@ -67,5 +67,8 @@ userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
 
 userRoute.get("/getfavlist", getVendors.getVendors);
 userRoute.get("/allusers", userController.getAllUsers);
+userRoute.put("/userupdate/:id", userController.updateUserById);
+userRoute.get("/fetchuser/:id", userController.getUserById);
+
 
 module.exports = userRoute;
