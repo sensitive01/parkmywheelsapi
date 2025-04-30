@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const adminModel = require("../../models/adminSchema");
+const vendorModel = require("../../models/venderSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
@@ -659,7 +660,22 @@ const fetchVendorSubscriptionLeft = async (req, res) => {
     }
 };
 
-
+const deleteVendor = async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+  
+      const deletedVendor = await vendorModel.findOneAndDelete({ vendorId });
+  
+      if (!deletedVendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+  
+      return res.status(200).json({ message: "Vendor deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  };
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -676,4 +692,5 @@ module.exports = {
     fetchVendorSubscriptionLeft,
     myspacereg,
     fetchspacedata,
+    deleteVendor,
 };

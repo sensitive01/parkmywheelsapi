@@ -72,5 +72,7 @@ adminRoute.get('/getallcorporate', CorporateController.getAllCorporates);
 adminRoute.get('/getbycorporate/:id', CorporateController.getCorporateById);
 adminRoute.put('/updatecorporate/:id', CorporateController.updateCorporate);
 adminRoute.delete('/deletecorporate/:id', CorporateController.deleteCorporate);
+adminRoute.delete("/deletevendor/:vendorId", adminController.deleteVendor);
+
 
 module.exports = adminRoute;
