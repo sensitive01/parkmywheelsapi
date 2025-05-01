@@ -91,7 +91,8 @@ exports.createBooking = async (req, res) => {
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
       Others: totalAvailableSlots.Others - bookedSlots.Others,
     };
-
+    console.log("Available slots:", availableSlots);
+    console.log("Booked slots:", bookedSlots);
     // Check if there are available slots for the requested vehicle type
     if (vehicleType === "Car" && availableSlots.Cars <= 0) {
       return res.status(400).json({ message: "No available slots for Cars" });
@@ -100,6 +101,7 @@ exports.createBooking = async (req, res) => {
     } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
       return res.status(400).json({ message: "No available slots for Others" });
     }
+    const otp = Math.floor(100000 + Math.random() * 900000);
 
     const newBooking = new Booking({
       userid,
@@ -120,6 +122,7 @@ exports.createBooking = async (req, res) => {
       subsctiptiontype,
       status,
       sts,
+      otp,
       approvedDate,
       approvedTime,
       cancelledDate: null,

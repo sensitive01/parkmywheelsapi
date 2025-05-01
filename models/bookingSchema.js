@@ -44,6 +44,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       
     },
+    otp: {
+      type: String,
+      required: true
+    },
+    
 
     parkingDate:{
       type: String,
