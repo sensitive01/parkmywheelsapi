@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const adminModel = require("../../models/adminSchema");
 const vendorModel = require("../../models/venderSchema");
+const userModel = require("../../models/userModel");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
@@ -676,6 +677,27 @@ const deleteVendor = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
   };
+
+  const deleteUserById = async (req, res) => {
+    try {
+      const userId = req.params.id;
+  
+      const deletedUser = await userModel.findOneAndDelete({ uuid: userId });
+  
+      if (!deletedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      res.status(200).json({
+        message: "User deleted successfully",
+        user: deletedUser,
+      });
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+  
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -693,4 +715,5 @@ module.exports = {
     myspacereg,
     fetchspacedata,
     deleteVendor,
+    deleteUserById,
 };
