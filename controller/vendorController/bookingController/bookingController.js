@@ -199,6 +199,7 @@ exports.createBooking = async (req, res) => {
       message: "Booking created successfully",
       bookingId: newBooking._id,
       booking: newBooking,
+      otp: otp,
     });
   } catch (error) {
     console.error("Error creating booking:", error);
