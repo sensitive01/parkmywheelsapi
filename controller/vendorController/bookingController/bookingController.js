@@ -201,6 +201,8 @@ exports.createBooking = async (req, res) => {
       booking: newBooking,
       otp: otp,
       bookType: bookType,
+      sts:sts,
+      //
     });
   } catch (error) {
     console.error("Error creating booking:", error);
