@@ -759,6 +759,67 @@ const fetchsinglespacedata = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await userModel.find({}, '-userPassword'); 
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "No users found." });
+    }
+
+    res.status(200).json({
+      message: "Users fetched successfully",
+      users,
+    });
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const fetchspacedatabyuser = async (req, res) => {
+  try {
+    console.log("✅ Fetch vendor data API called");
+    console.log("📥 Request Params:", req.params);
+
+    let { spaceid } = req.params;
+
+    if (!spaceid || typeof spaceid !== "string") {
+      console.log("❌ Invalid space ID:", spaceid);
+      return res.status(400).json({ message: "Valid space ID is required" });
+    }
+
+    spaceid = spaceid.trim();
+    console.log("🔍 Searching for space ID:", spaceid);
+
+    // Fetch vendors by space ID (case-insensitive)
+    const vendorData = await vendorModel.find({ spaceid: new RegExp("^" + spaceid + "$", "i") });
+
+    if (!vendorData.length) {
+      console.log("❌ No vendors found for space ID:", spaceid);
+      return res.status(404).json({ message: `No vendors found with space ID: ${spaceid}` });
+    }
+
+    console.log(`✅ Found ${vendorData.length} vendors`);
+
+    // Fetch vendor subscription details if needed
+    const vendorSubscriptionData = await vendorModel.findOne({ spaceid });
+
+    if (!vendorSubscriptionData) {
+      return res.status(404).json({ message: "Vendor subscription data not found" });
+    }
+
+    return res.status(200).json({
+      message: "Vendor data fetched successfully",
+      data: vendorData,
+    });
+
+  } catch (err) {
+    console.error("🚨 Error fetching vendor details:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -779,4 +840,6 @@ module.exports = {
     deleteUserById,
     getAllSpaces,
     fetchsinglespacedata,
+    getAllUsers,
+    fetchspacedatabyuser
 };

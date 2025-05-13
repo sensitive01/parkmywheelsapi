@@ -76,6 +76,8 @@ adminRoute.delete("/deletevendor/:vendorId", adminController.deleteVendor);
 adminRoute.delete("/deleteuser/:id", adminController.deleteUserById);
 adminRoute.get("/getallspaces", adminController.getAllSpaces);
 adminRoute.get("/fetchspacebyvendor", adminController.fetchsinglespacedata);
+adminRoute.get("/allusers", adminController.getAllUsers);
+adminRoute.get("/fetchspace/:spaceid", adminController.fetchspacedatabyuser);
 
 
 
