@@ -74,6 +74,10 @@ adminRoute.put('/updatecorporate/:id', CorporateController.updateCorporate);
 adminRoute.delete('/deletecorporate/:id', CorporateController.deleteCorporate);
 adminRoute.delete("/deletevendor/:vendorId", adminController.deleteVendor);
 adminRoute.delete("/deleteuser/:id", adminController.deleteUserById);
+adminRoute.get("/getallspaces", adminController.getAllSpaces);
+adminRoute.get("/fetchspacebyvendor", adminController.fetchsinglespacedata);
+
+
 
 
 module.exports = adminRoute;
