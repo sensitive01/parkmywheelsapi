@@ -698,27 +698,30 @@ const deleteVendor = async (req, res) => {
     }
   };
 
-  const getAllSpaces = async (req, res) => {
+const getAllSpaces = async (req, res) => {
   try {
-    const vendors = await vendorModel.find({}, {
-      vendorId: 1,
-      vendorName: 1,
-      spaceid: 1,
-      address: 1,
-      latitude: 1,
-      longitude: 1,
-      landMark: 1,
-      image: 1,
-      parkingEntries: 1,
-      subscription: 1,
-      subscriptionleft: 1,
-      subscriptionenddate: 1,
-      status: 1,
-      _id: 0  // optional: exclude _id if vendorId is sufficient
-    });
+    const vendors = await vendorModel.find(
+      { spaceid: { $exists: true, $ne: "" } }, // filter vendors with a non-empty spaceid
+      {
+        vendorId: 1,
+        vendorName: 1,
+        spaceid: 1,
+        address: 1,
+        latitude: 1,
+        longitude: 1,
+        landMark: 1,
+        image: 1,
+        parkingEntries: 1,
+        subscription: 1,
+        subscriptionleft: 1,
+        subscriptionenddate: 1,
+        status: 1,
+        _id: 0
+      }
+    );
 
     return res.status(200).json({
-      message: "Fetched all vendor spaces successfully",
+      message: "Fetched vendor spaces with spaceid successfully",
       total: vendors.length,
       vendorSpaces: vendors
     });
@@ -728,6 +731,7 @@ const deleteVendor = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
+
 
 const fetchsinglespacedata = async (req, res) => {
   try {
