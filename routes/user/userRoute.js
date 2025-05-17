@@ -11,7 +11,7 @@ const addFavoriteVendor =require("../../controller/userController/userProfileCon
 const removeFavoriteVendor =require("../../controller/userController/userProfileController");
 const getFavoriteVendors =require("../../controller/userController/userProfileController");
 const getVendors =require("../../controller/userController/userProfileController");
-
+const DeletedAccount = require("../../models/deletionSchema");
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
 
@@ -69,6 +69,34 @@ userRoute.get("/getfavlist", getVendors.getVendors);
 userRoute.get("/allusers", userController.getAllUsers);
 userRoute.put("/userupdate/:id", userController.updateUserById);
 userRoute.get("/fetchuser/:id", userController.getUserById);
+userRoute.post('/delete-account', async (req, res) => {
+  try {
+    const { userId, reason } = req.body;
 
+    // 1. Create minimal deletion record
+    const deletedAccount = new DeletedAccount({
+      userId: userId,
+      deletionReason: reason || 'No reason provided',
+      deletedAt: new Date()
+    });
+
+    await deletedAccount.save();
+
+    // 2. Delete user from main collection (optional - remove if you want to keep users)
+    // await User.findByIdAndDelete(userId);
+
+    res.json({ 
+      success: true, 
+      message: 'Account deletion recorded successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error recording account deletion:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
 
 module.exports = userRoute;
