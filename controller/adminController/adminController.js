@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const adminModel = require("../../models/adminSchema");
 const vendorModel = require("../../models/venderSchema");
 const userModel = require("../../models/userModel");
+const KycDetails = require('../../models/kycSchema');
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
@@ -820,6 +821,23 @@ const fetchspacedatabyuser = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+const deleteKycData = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedKyc = await KycDetails.findByIdAndDelete(id);
+
+    if (!deletedKyc) {
+      return res.status(404).json({ message: "KYC record not found" });
+    }
+
+    res.status(200).json({ message: "KYC record deleted successfully", data: deletedKyc });
+  } catch (error) {
+    console.error("Error deleting KYC:", error);
+    res.status(500).json({ message: "Error deleting KYC", error: error.message });
+  }
+};
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -841,5 +859,6 @@ module.exports = {
     getAllSpaces,
     fetchsinglespacedata,
     getAllUsers,
-    fetchspacedatabyuser
+    fetchspacedatabyuser,
+    deleteKycData
 };

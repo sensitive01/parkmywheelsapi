@@ -79,6 +79,9 @@ adminRoute.get("/fetchspacebyvendor", adminController.fetchsinglespacedata);
 adminRoute.get("/allusers", adminController.getAllUsers);
 adminRoute.get("/fetchspace/:spaceid", adminController.fetchspacedatabyuser);
 
+adminRoute.delete("/delete/:id", adminController.deleteKycData);
+
+
 
 
 
