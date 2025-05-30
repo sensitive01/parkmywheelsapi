@@ -16,9 +16,9 @@ const addNewVehicle = async (req, res) => {
     const { category, type, make, model, color, vehicleNo } = req.body;
 
     // Validate required fields
-    if (!id || !category || !type || !make || !model || !color || !vehicleNo) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+    // if (!id || !category || !type || !make || !model || !color || !vehicleNo) {
+    //   return res.status(400).json({ message: "All fields are required" });
+    // }
 
     if (!req.files || !req.files.image) {
       return res.status(400).json({ message: "No image provided" });
