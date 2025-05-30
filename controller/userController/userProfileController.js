@@ -59,7 +59,9 @@ const addNewVehicle = async (req, res) => {
         .toBuffer();
     } catch (compressErr) {
       console.error('Image processing error:', compressErr);
+      console.log('Image processing error:', compressErr.message);
       return res.status(500).json({ 
+        
         message: 'Error processing image',
         error: compressErr.message 
       });
