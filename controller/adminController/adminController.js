@@ -3,6 +3,7 @@ const adminModel = require("../../models/adminSchema");
 const vendorModel = require("../../models/venderSchema");
 const userModel = require("../../models/userModel");
 const KycDetails = require('../../models/kycSchema');
+const Booking = require("../../models/bookingSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
@@ -838,6 +839,62 @@ const deleteKycData = async (req, res) => {
     res.status(500).json({ message: "Error deleting KYC", error: error.message });
   }
 };
+
+const getAllVendorsTransaction = async (req, res) => {
+  try {
+    const vendors = await vendorModel.find({});
+    
+    if (!vendors || vendors.length === 0) {
+      return res.status(404).json({ success: false, message: "No vendors found" });
+    }
+
+    const results = await Promise.all(
+      vendors.map(async (vendor) => {
+        const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+        const completedBookings = await Booking.find({ 
+          vendorId: vendor._id, 
+          status: "COMPLETED" 
+        });
+
+        const totals = completedBookings.reduce((acc, booking) => {
+          const amount = parseFloat(booking.amount);
+          const platformfee = (amount * platformFeePercentage) / 100;
+          acc.totalAmount += amount;
+          acc.totalReceivable += (amount - platformfee);
+          return acc;
+        }, { totalAmount: 0, totalReceivable: 0 });
+
+        return {
+          vendorId: vendor._id,
+          vendorName: vendor.vendorName,
+          platformFeePercentage,
+          totalAmount: totals.totalAmount.toFixed(2),
+          totalReceivable: totals.totalReceivable.toFixed(2),
+          bookingCount: completedBookings.length
+        };
+      })
+    );
+
+    const grandTotals = results.reduce((acc, vendor) => {
+      acc.grandTotalAmount += parseFloat(vendor.totalAmount);
+      acc.grandTotalReceivable += parseFloat(vendor.totalReceivable);
+      return acc;
+    }, { grandTotalAmount: 0, grandTotalReceivable: 0 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        grandTotalAmount: grandTotals.grandTotalAmount.toFixed(2),
+        grandTotalReceivable: grandTotals.grandTotalReceivable.toFixed(2),
+        vendors: results
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching vendors' summary:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -860,5 +917,6 @@ module.exports = {
     fetchsinglespacedata,
     getAllUsers,
     fetchspacedatabyuser,
-    deleteKycData
+    deleteKycData,
+    getAllVendorsTransaction
 };
