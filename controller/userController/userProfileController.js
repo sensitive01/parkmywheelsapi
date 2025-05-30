@@ -6,19 +6,10 @@ const { uploadImage } = require("../../config/cloudinary");
 const venderSchema = require("../../models/venderSchema");
 const Favorite = require("../../models/favouritesSchema"); // Ensure this path is correct
 const Vendor = require("../../models/venderSchema"); // Ensure this path is correct
-
-
-const sharp = require('sharp');
-
 const addNewVehicle = async (req, res) => {
   try {
     const { id } = req.query;
     const { category, type, make, model, color, vehicleNo } = req.body;
-
-    // Validate required fields
-    // if (!id || !category || !type || !make || !model || !color || !vehicleNo) {
-    //   return res.status(400).json({ message: "All fields are required" });
-    // }
 
     if (!req.files || !req.files.image) {
       return res.status(400).json({ message: "No image provided" });
@@ -26,48 +17,7 @@ const addNewVehicle = async (req, res) => {
 
     const imageFile = req.files.image[0];
 
-    // Validate file size (10MB limit)
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (imageFile.size > MAX_FILE_SIZE) {
-      return res.status(400).json({ 
-        message: `Image too large. Maximum size is ${MAX_FILE_SIZE/1024/1024}MB`
-      });
-    }
-
-    // Validate file type
-    const validMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validMimeTypes.includes(imageFile.mimetype)) {
-      return res.status(400).json({ 
-        message: 'Invalid file type. Only JPEG, PNG, and WebP are allowed'
-      });
-    }
-
-    // Process image (compress and resize)
-    let processedImage;
-    try {
-      processedImage = await sharp(imageFile.buffer)
-        .resize({ 
-          width: 1920, 
-          height: 1080, 
-          fit: 'inside', 
-          withoutEnlargement: true 
-        })
-        .jpeg({ 
-          quality: 80, 
-          mozjpeg: true 
-        })
-        .toBuffer();
-    } catch (compressErr) {
-      console.error('Image processing error:', compressErr);
-      console.log('Image processing error:', compressErr.message);
-      return res.status(500).json({ 
-        
-        message: 'Error processing image',
-        error: compressErr.message 
-      });
-    }
-
-    const imageUrl = await uploadImage(processedImage, "vehicles");
+    const imageUrl = await uploadImage(imageFile.buffer, "vehicles");
 
     const newVehicle = new vehicleModel({
       image: imageUrl,
@@ -88,22 +38,12 @@ const addNewVehicle = async (req, res) => {
     });
   } catch (err) {
     console.error("Error in adding vehicle", err);
-    
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({
-        message: "Validation error",
-        error: err.message,
-      });
-    }
-    
     res.status(500).json({
       message: "Error in adding vehicle",
       error: err.message,
     });
   }
 };
-
-
 
 const getUserDataHome = async (req, res) => {
   try {

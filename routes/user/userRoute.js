@@ -13,11 +13,8 @@ const getFavoriteVendors =require("../../controller/userController/userProfileCo
 const getVendors =require("../../controller/userController/userProfileController");
 const DeletedAccount = require("../../models/deletionSchema");
 const storage = multer.memoryStorage(); 
-const upload = multer({
-  limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
-  }
-});
+const upload = multer({ storage: storage });
+
 userRoute.post("/forgotpassword",userController.userForgotPassword)
 userRoute.post("/verify-otp",userController.verifyOTP)
 userRoute.post("/resend-otp",userController.userForgotPassword)
@@ -43,6 +40,7 @@ userRoute.get("/get-vehicle", userProfileController.getUserVehicleData);
 userRoute.delete("/deletevehicle", userProfileController.deleteUserVehicle);
 
 userRoute.post("/add-vehicle", upload.fields([{ name: 'image' }]), userProfileController.addNewVehicle);
+
 userRoute.get("/get-slot-details-vendor",userProfileController.getVendorDetails)
 
 userRoute.get("/get-vehicle-slot", userProfileController.getUserVehicleData);
