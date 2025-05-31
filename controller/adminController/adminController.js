@@ -4,6 +4,7 @@ const vendorModel = require("../../models/venderSchema");
 const userModel = require("../../models/userModel");
 const KycDetails = require('../../models/kycSchema');
 const Booking = require("../../models/bookingSchema");
+const VendorHelpSupport = require("../../models/userhelp");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
@@ -895,6 +896,39 @@ const getAllVendorsTransaction = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
+
+
+const closeChat = async (req, res) => {
+  try {
+    const { helpRequestId } = req.params;
+    const { adminId } = req.body;
+
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({ message: "Help request not found." });
+    }   
+
+    // Update status to "Completed"
+    helpRequest.status = "Completed";
+    helpRequest.closedAt = new Date();
+    helpRequest.closedBy = adminId;
+
+    await helpRequest.save();
+
+    res.status(200).json({ 
+      message: "Chat closed successfully.", 
+      status: helpRequest.status
+    });
+  } catch (error) {
+    console.error("Error in closeChat:", error);
+    res.status(500).json({ message: "Error closing chat", error: error.message });
+  }
+};
+
+
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -918,5 +952,6 @@ module.exports = {
     getAllUsers,
     fetchspacedatabyuser,
     deleteKycData,
-    getAllVendorsTransaction
+    getAllVendorsTransaction,
+    closeChat,
 };

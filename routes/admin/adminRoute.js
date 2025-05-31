@@ -85,4 +85,8 @@ adminRoute.get("/fetchallbookingtransactions", adminController.getAllVendorsTran
 
 
 
+adminRoute.patch("/adminclosechat/:helpRequestId", adminController.closeChat);
+
+
+
 module.exports = adminRoute;
