@@ -87,6 +87,13 @@ adminRoute.get("/fetchallbookingtransactions", adminController.getAllVendorsTran
 
 adminRoute.patch("/adminclosechat/:helpRequestId", adminController.closeChat);
 
+// Dashboard route for admin
+adminRoute.get("/vendor-count", adminController.getVendorCount);
+adminRoute.get("/booking-count", adminController.getBookingSummary);
+adminRoute.get("/user-summary", adminController.getUserSummary);
+adminRoute.get("/space-summary", adminController.getVendorSpaceSummary);
+adminRoute.get('/kyc-summary', adminController.getKycSummary);
+
 
 
 module.exports = adminRoute;

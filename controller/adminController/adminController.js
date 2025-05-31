@@ -928,6 +928,163 @@ const closeChat = async (req, res) => {
   }
 };
 
+const getVendorCount = async (req, res) => {
+  try {
+    const count = await vendorModel.countDocuments();
+    
+    return res.status(200).json({
+      message: "Vendor count fetched successfully",
+      count: count
+    });
+  } catch (err) {
+    console.error("Error fetching vendor count:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+};
+
+
+const getBookingSummary = async (req, res) => {
+  try {
+    const count = await Booking.countDocuments();
+
+    const bookings = await Booking.find({}, { createdAt: 1 });
+
+    // Create a Set to store unique "YYYY-MM" strings
+    const uniqueMonths = new Set();
+
+    bookings.forEach((booking) => {
+      if (booking.createdAt) {
+        const date = new Date(booking.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    res.status(200).json({
+      message: "Booking summary fetched successfully",
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (error) {
+    console.error("Error fetching booking summary:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getUserSummary = async (req, res) => {
+  try {
+    const count = await userModel.countDocuments();
+
+    const users = await userModel.find({}, { createdAt: 1 });
+
+    const uniqueMonths = new Set();
+
+    users.forEach((user) => {
+      if (user.createdAt) {
+        const date = new Date(user.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    res.status(200).json({
+      message: "User summary fetched successfully",
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (error) {
+    console.error("Error fetching user summary:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getVendorSpaceSummary = async (req, res) => {
+  try {
+    // Filter only vendors with non-empty spaceid
+    const vendors = await vendorModel.find(
+      { spaceid: { $exists: true, $ne: "" } },
+      { createdAt: 1 }
+    );
+
+    const count = vendors.length;
+
+    const uniqueMonths = new Set();
+
+    vendors.forEach((vendor) => {
+      if (vendor.createdAt) {
+        const date = new Date(vendor.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    return res.status(200).json({
+      message: "Vendor space summary fetched successfully",
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (err) {
+    console.error("Error fetching vendor space summary:", err.message);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+};
+
+
+const getKycSummary = async (req, res) => {
+  try {
+    const kycDetails = await KycDetails.find({}, { createdAt: 1 });
+
+    if (!kycDetails || kycDetails.length === 0) {
+      return res.status(404).json({ message: 'No KYC details found' });
+    }
+
+    const count = kycDetails.length;
+
+    const uniqueMonths = new Set();
+
+    kycDetails.forEach(detail => {
+      if (detail.createdAt) {
+        const date = new Date(detail.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    return res.status(200).json({
+      message: 'KYC summary fetched successfully',
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+
+
+
+
 
 module.exports = {
     vendorSignup,
@@ -954,4 +1111,9 @@ module.exports = {
     deleteKycData,
     getAllVendorsTransaction,
     closeChat,
+    getVendorCount,
+    getBookingSummary,
+    getUserSummary,
+    getVendorSpaceSummary,
+    getKycSummary,
 };
