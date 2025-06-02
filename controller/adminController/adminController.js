@@ -1083,6 +1083,200 @@ const getKycSummary = async (req, res) => {
 
 
 
+const getTransactionSummary = async (req, res) => {
+  try {
+    const completedBookings = await Booking.find({ status: "COMPLETED" });
+
+    if (!completedBookings || completedBookings.length === 0) {
+      return res.status(404).json({ success: false, message: "No completed bookings found" });
+    }
+
+    const uniqueMonths = new Set();
+    let totalAmount = 0;
+    let totalAmountThisMonth = 0;
+
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-11
+    const currentYear = now.getFullYear();
+
+    completedBookings.forEach((booking) => {
+      const amount = parseFloat(booking.amount || 0);
+      totalAmount += amount;
+
+      if (booking.createdAt) {
+        const bookingDate = new Date(booking.createdAt);
+        const monthKey = `${bookingDate.getFullYear()}-${(bookingDate.getMonth() + 1).toString().padStart(2, "0")}`;
+        uniqueMonths.add(monthKey);
+
+        // Check if this booking is from current month
+        if (
+          bookingDate.getMonth() === currentMonth &&
+          bookingDate.getFullYear() === currentYear
+        ) {
+          totalAmountThisMonth += amount;
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Booking summary fetched successfully",
+      totalCompletedBookings: completedBookings.length,
+      totalMonths: uniqueMonths.size,
+      totalAmount: totalAmount.toFixed(2),
+      totalAmountThisMonth: totalAmountThisMonth.toFixed(2)
+    });
+  } catch (error) {
+    console.error("Error fetching booking summary:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+
+const getVendorsByTransactionStatus = async (req, res) => {
+  try {
+    const vendors = await vendorModel.find({});
+
+    const active = [];
+    const zero = [];
+
+    for (const vendor of vendors) {
+      const completedCount = await Booking.countDocuments({
+        vendorId: vendor._id,
+        status: "COMPLETED"
+      });
+
+      const vendorData = {
+        vendorId: vendor._id,
+        vendorName: vendor.vendorName,
+        bookingCount: completedCount
+      };
+
+      if (completedCount > 0) {
+        active.push(vendorData);
+      } else {
+        zero.push(vendorData);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      activeTransactions: active,
+      zeroTransactions: zero,
+      activeCount: active.length,
+      zeroCount: zero.length
+    });
+
+  } catch (error) {
+    console.error("Error fetching transaction status list:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+const getVendorStatusStats = async (req, res) => {
+  try {
+    const approvedData = await vendorModel.aggregate([
+      { $match: { status: "approved" } },
+      {
+        $group: {
+          _id: null,
+          totalApproved: { $sum: 1 },
+          latestApprovedMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    const pendingData = await vendorModel.aggregate([
+      { $match: { status: "pending" } },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: 1 },
+          latestPendingMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    const approved = approvedData[0] || { totalApproved: 0, latestApprovedMonth: null };
+    const pending = pendingData[0] || { totalPending: 0, latestPendingMonth: null };
+
+    return res.status(200).json({
+      message: "Vendor summary fetched successfully",
+      data: {
+        totalApproved: approved.totalApproved,
+        latestApprovedMonth: approved.latestApprovedMonth
+          ? new Date(approved.latestApprovedMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null,
+        totalPending: pending.totalPending,
+        latestPendingMonth: pending.latestPendingMonth
+          ? new Date(pending.latestPendingMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching vendor summary:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getSpacesStatus = async (req, res) => {
+  try {
+    // Approved vendors with spaceid
+    const approvedData = await vendorModel.aggregate([
+      { $match: { spaceid: { $exists: true, $ne: "" }, status: "approved" } },
+      {
+        $group: {
+          _id: null,
+          totalApproved: { $sum: 1 },
+          latestApprovedMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    // Pending vendors with spaceid
+    const pendingData = await vendorModel.aggregate([
+      { $match: { spaceid: { $exists: true, $ne: "" }, status: "pending" } },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: 1 },
+          latestPendingMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    const approved = approvedData[0] || { totalApproved: 0, latestApprovedMonth: null };
+    const pending = pendingData[0] || { totalPending: 0, latestPendingMonth: null };
+
+    return res.status(200).json({
+      message: "Vendor summary fetched successfully",
+      data: {
+        totalApproved: approved.totalApproved,
+        latestApprovedMonth: approved.latestApprovedMonth
+          ? new Date(approved.latestApprovedMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null,
+        totalPending: pending.totalPending,
+        latestPendingMonth: pending.latestPendingMonth
+          ? new Date(pending.latestPendingMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null
+      }
+    });
+
+  } catch (err) {
+    console.error("Error fetching vendor summary:", err.message);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
+
 
 
 
@@ -1116,4 +1310,8 @@ module.exports = {
     getUserSummary,
     getVendorSpaceSummary,
     getKycSummary,
+    getTransactionSummary,
+    getVendorsByTransactionStatus,
+    getVendorStatusStats,
+    getSpacesStatus,
 };

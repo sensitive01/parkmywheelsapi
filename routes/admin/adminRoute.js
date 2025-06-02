@@ -93,6 +93,10 @@ adminRoute.get("/booking-count", adminController.getBookingSummary);
 adminRoute.get("/user-summary", adminController.getUserSummary);
 adminRoute.get("/space-summary", adminController.getVendorSpaceSummary);
 adminRoute.get('/kyc-summary', adminController.getKycSummary);
+adminRoute.get("/transaction-summary", adminController.getTransactionSummary);
+adminRoute.get("/transaction-status-list", adminController.getVendorsByTransactionStatus);
+adminRoute.get("/vendor-status-stats", adminController.getVendorStatusStats);
+adminRoute.get("/space-status-stats", adminController.getSpacesStatus);
 
 
 
