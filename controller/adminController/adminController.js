@@ -1277,9 +1277,60 @@ const getSpacesStatus = async (req, res) => {
   }
 };
 
+const updateVendorDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminName, contacts, address } = req.body;
 
+    // Find and update the vendor in one operation
+    const updatedVendor = await adminModel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          ...(adminName && { adminName }),
+          ...(address && { address }),
+          ...(contacts && { contacts: typeof contacts === 'string' ? JSON.parse(contacts) : contacts })
+        }
+      },
+      { new: true }
+    );
 
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
 
+    res.status(200).json({ 
+      message: "Vendor updated successfully",
+      data: {
+        adminName: updatedVendor.adminName,
+        contacts: updatedVendor.contacts,
+        address: updatedVendor.address
+      }
+    });
+  } catch (error) {
+    console.error("Error updating vendor:", error);
+    res.status(500).json({ 
+      message: "Error updating vendor", 
+      error: error.message 
+    });
+  }
+};
+
+const getVendorById = async (req, res) => {
+  try {
+    const vendor = await adminModel.findById(req.params.id)
+      .select('-password -__v'); // Exclude sensitive fields
+    
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    res.json(vendor);
+  } catch (error) {
+    console.error('Error fetching vendor:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -1314,4 +1365,6 @@ module.exports = {
     getVendorsByTransactionStatus,
     getVendorStatusStats,
     getSpacesStatus,
+    updateVendorDetails,
+    getVendorById,
 };

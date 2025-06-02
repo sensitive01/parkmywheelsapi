@@ -98,6 +98,11 @@ adminRoute.get("/transaction-status-list", adminController.getVendorsByTransacti
 adminRoute.get("/vendor-status-stats", adminController.getVendorStatusStats);
 adminRoute.get("/space-status-stats", adminController.getSpacesStatus);
 
+adminRoute.put(
+  "/update-vendor/:id",
+  adminController.updateVendorDetails
+);
 
+adminRoute.get("/fetchadmin/:id", adminController.getVendorById)
 
 module.exports = adminRoute;
