@@ -907,9 +907,40 @@ const updateVendorHours = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const vendorLogoutById = async (req, res) => {
+  try {
+    const { _id } = req.body;
+
+    if (!_id) {
+      return res.status(400).json({ message: "Vendor _id is required" });
+    }
+
+    // Find vendor by _id
+    const vendor = await vendorModel.findById(_id);
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found with provided _id" });
+    }
+
+    if (vendor.fcmTokens.length === 0) {
+      return res.status(200).json({ message: "No FCM tokens to remove" });
+    }
+
+    // Remove the last token
+    vendor.fcmTokens.pop();
+    await vendor.save();
+
+    return res.status(200).json({ message: "Last FCM token removed successfully" });
+  } catch (error) {
+    console.error("Error in logout:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 module.exports = {
   fetchhours,
+  vendorLogoutById,
   updateVendorHours ,
   vendorSignup,
   vendorLogin,

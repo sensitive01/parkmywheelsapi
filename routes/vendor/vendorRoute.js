@@ -174,4 +174,7 @@ vendorRoute.get("/getbankdetails/:vendorId", bankdetailsConroller.getBankDetails
 
 vendorRoute.get("/fetchsubscriptionleft/:vendorId", vendorController.fetchVendorSubscriptionLeft);
 
+vendorRoute.post("/vendorlogout", vendorController.vendorLogoutById);
+
+
 module.exports = vendorRoute;

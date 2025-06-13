@@ -2,6 +2,9 @@ const bcrypt = require("bcrypt");
 const adminModel = require("../../models/adminSchema");
 const vendorModel = require("../../models/venderSchema");
 const userModel = require("../../models/userModel");
+const KycDetails = require('../../models/kycSchema');
+const Booking = require("../../models/bookingSchema");
+const VendorHelpSupport = require("../../models/userhelp");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
@@ -820,6 +823,514 @@ const fetchspacedatabyuser = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+const deleteKycData = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedKyc = await KycDetails.findByIdAndDelete(id);
+
+    if (!deletedKyc) {
+      return res.status(404).json({ message: "KYC record not found" });
+    }
+
+    res.status(200).json({ message: "KYC record deleted successfully", data: deletedKyc });
+  } catch (error) {
+    console.error("Error deleting KYC:", error);
+    res.status(500).json({ message: "Error deleting KYC", error: error.message });
+  }
+};
+
+const getAllVendorsTransaction = async (req, res) => {
+  try {
+    const vendors = await vendorModel.find({});
+    
+    if (!vendors || vendors.length === 0) {
+      return res.status(404).json({ success: false, message: "No vendors found" });
+    }
+
+    const results = await Promise.all(
+      vendors.map(async (vendor) => {
+        const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+        const completedBookings = await Booking.find({ 
+          vendorId: vendor._id, 
+          status: "COMPLETED" 
+        });
+
+        const totals = completedBookings.reduce((acc, booking) => {
+          const amount = parseFloat(booking.amount);
+          const platformfee = (amount * platformFeePercentage) / 100;
+          acc.totalAmount += amount;
+          acc.totalReceivable += (amount - platformfee);
+          return acc;
+        }, { totalAmount: 0, totalReceivable: 0 });
+
+        return {
+          vendorId: vendor._id,
+          vendorName: vendor.vendorName,
+          platformFeePercentage,
+          totalAmount: totals.totalAmount.toFixed(2),
+          totalReceivable: totals.totalReceivable.toFixed(2),
+          bookingCount: completedBookings.length
+        };
+      })
+    );
+
+    const grandTotals = results.reduce((acc, vendor) => {
+      acc.grandTotalAmount += parseFloat(vendor.totalAmount);
+      acc.grandTotalReceivable += parseFloat(vendor.totalReceivable);
+      return acc;
+    }, { grandTotalAmount: 0, grandTotalReceivable: 0 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        grandTotalAmount: grandTotals.grandTotalAmount.toFixed(2),
+        grandTotalReceivable: grandTotals.grandTotalReceivable.toFixed(2),
+        vendors: results
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching vendors' summary:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+
+
+const closeChat = async (req, res) => {
+  try {
+    const { helpRequestId } = req.params;
+    const { adminId } = req.body;
+
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId);
+    if (!helpRequest) {
+      return res.status(404).json({ message: "Help request not found." });
+    }   
+
+    // Update status to "Completed"
+    helpRequest.status = "Completed";
+    helpRequest.closedAt = new Date();
+    helpRequest.closedBy = adminId;
+
+    await helpRequest.save();
+
+    res.status(200).json({ 
+      message: "Chat closed successfully.", 
+      status: helpRequest.status
+    });
+  } catch (error) {
+    console.error("Error in closeChat:", error);
+    res.status(500).json({ message: "Error closing chat", error: error.message });
+  }
+};
+
+const getVendorCount = async (req, res) => {
+  try {
+    const count = await vendorModel.countDocuments();
+    
+    return res.status(200).json({
+      message: "Vendor count fetched successfully",
+      count: count
+    });
+  } catch (err) {
+    console.error("Error fetching vendor count:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+};
+
+
+const getBookingSummary = async (req, res) => {
+  try {
+    const count = await Booking.countDocuments();
+
+    const bookings = await Booking.find({}, { createdAt: 1 });
+
+    // Create a Set to store unique "YYYY-MM" strings
+    const uniqueMonths = new Set();
+
+    bookings.forEach((booking) => {
+      if (booking.createdAt) {
+        const date = new Date(booking.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    res.status(200).json({
+      message: "Booking summary fetched successfully",
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (error) {
+    console.error("Error fetching booking summary:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getUserSummary = async (req, res) => {
+  try {
+    const count = await userModel.countDocuments();
+
+    const users = await userModel.find({}, { createdAt: 1 });
+
+    const uniqueMonths = new Set();
+
+    users.forEach((user) => {
+      if (user.createdAt) {
+        const date = new Date(user.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    res.status(200).json({
+      message: "User summary fetched successfully",
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (error) {
+    console.error("Error fetching user summary:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getVendorSpaceSummary = async (req, res) => {
+  try {
+    // Filter only vendors with non-empty spaceid
+    const vendors = await vendorModel.find(
+      { spaceid: { $exists: true, $ne: "" } },
+      { createdAt: 1 }
+    );
+
+    const count = vendors.length;
+
+    const uniqueMonths = new Set();
+
+    vendors.forEach((vendor) => {
+      if (vendor.createdAt) {
+        const date = new Date(vendor.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    return res.status(200).json({
+      message: "Vendor space summary fetched successfully",
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (err) {
+    console.error("Error fetching vendor space summary:", err.message);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+};
+
+
+const getKycSummary = async (req, res) => {
+  try {
+    const kycDetails = await KycDetails.find({}, { createdAt: 1 });
+
+    if (!kycDetails || kycDetails.length === 0) {
+      return res.status(404).json({ message: 'No KYC details found' });
+    }
+
+    const count = kycDetails.length;
+
+    const uniqueMonths = new Set();
+
+    kycDetails.forEach(detail => {
+      if (detail.createdAt) {
+        const date = new Date(detail.createdAt);
+        const month = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        uniqueMonths.add(month);
+      }
+    });
+
+    return res.status(200).json({
+      message: 'KYC summary fetched successfully',
+      count,
+      totalMonths: uniqueMonths.size
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+
+
+const getTransactionSummary = async (req, res) => {
+  try {
+    const completedBookings = await Booking.find({ status: "COMPLETED" });
+
+    if (!completedBookings || completedBookings.length === 0) {
+      return res.status(404).json({ success: false, message: "No completed bookings found" });
+    }
+
+    const uniqueMonths = new Set();
+    let totalAmount = 0;
+    let totalAmountThisMonth = 0;
+
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-11
+    const currentYear = now.getFullYear();
+
+    completedBookings.forEach((booking) => {
+      const amount = parseFloat(booking.amount || 0);
+      totalAmount += amount;
+
+      if (booking.createdAt) {
+        const bookingDate = new Date(booking.createdAt);
+        const monthKey = `${bookingDate.getFullYear()}-${(bookingDate.getMonth() + 1).toString().padStart(2, "0")}`;
+        uniqueMonths.add(monthKey);
+
+        // Check if this booking is from current month
+        if (
+          bookingDate.getMonth() === currentMonth &&
+          bookingDate.getFullYear() === currentYear
+        ) {
+          totalAmountThisMonth += amount;
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Booking summary fetched successfully",
+      totalCompletedBookings: completedBookings.length,
+      totalMonths: uniqueMonths.size,
+      totalAmount: totalAmount.toFixed(2),
+      totalAmountThisMonth: totalAmountThisMonth.toFixed(2)
+    });
+  } catch (error) {
+    console.error("Error fetching booking summary:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+
+const getVendorsByTransactionStatus = async (req, res) => {
+  try {
+    const vendors = await vendorModel.find({});
+
+    const active = [];
+    const zero = [];
+
+    for (const vendor of vendors) {
+      const completedCount = await Booking.countDocuments({
+        vendorId: vendor._id,
+        status: "COMPLETED"
+      });
+
+      const vendorData = {
+        vendorId: vendor._id,
+        vendorName: vendor.vendorName,
+        bookingCount: completedCount
+      };
+
+      if (completedCount > 0) {
+        active.push(vendorData);
+      } else {
+        zero.push(vendorData);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      activeTransactions: active,
+      zeroTransactions: zero,
+      activeCount: active.length,
+      zeroCount: zero.length
+    });
+
+  } catch (error) {
+    console.error("Error fetching transaction status list:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+const getVendorStatusStats = async (req, res) => {
+  try {
+    const approvedData = await vendorModel.aggregate([
+      { $match: { status: "approved" } },
+      {
+        $group: {
+          _id: null,
+          totalApproved: { $sum: 1 },
+          latestApprovedMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    const pendingData = await vendorModel.aggregate([
+      { $match: { status: "pending" } },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: 1 },
+          latestPendingMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    const approved = approvedData[0] || { totalApproved: 0, latestApprovedMonth: null };
+    const pending = pendingData[0] || { totalPending: 0, latestPendingMonth: null };
+
+    return res.status(200).json({
+      message: "Vendor summary fetched successfully",
+      data: {
+        totalApproved: approved.totalApproved,
+        latestApprovedMonth: approved.latestApprovedMonth
+          ? new Date(approved.latestApprovedMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null,
+        totalPending: pending.totalPending,
+        latestPendingMonth: pending.latestPendingMonth
+          ? new Date(pending.latestPendingMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching vendor summary:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getSpacesStatus = async (req, res) => {
+  try {
+    // Approved vendors with spaceid
+    const approvedData = await vendorModel.aggregate([
+      { $match: { spaceid: { $exists: true, $ne: "" }, status: "approved" } },
+      {
+        $group: {
+          _id: null,
+          totalApproved: { $sum: 1 },
+          latestApprovedMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    // Pending vendors with spaceid
+    const pendingData = await vendorModel.aggregate([
+      { $match: { spaceid: { $exists: true, $ne: "" }, status: "pending" } },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: 1 },
+          latestPendingMonth: { $max: "$createdAt" }
+        }
+      }
+    ]);
+
+    const approved = approvedData[0] || { totalApproved: 0, latestApprovedMonth: null };
+    const pending = pendingData[0] || { totalPending: 0, latestPendingMonth: null };
+
+    return res.status(200).json({
+      message: "Vendor summary fetched successfully",
+      data: {
+        totalApproved: approved.totalApproved,
+        latestApprovedMonth: approved.latestApprovedMonth
+          ? new Date(approved.latestApprovedMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null,
+        totalPending: pending.totalPending,
+        latestPendingMonth: pending.latestPendingMonth
+          ? new Date(pending.latestPendingMonth).toLocaleString("default", { month: "long", year: "numeric" })
+          : null
+      }
+    });
+
+  } catch (err) {
+    console.error("Error fetching vendor summary:", err.message);
+    return res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};
+
+const updateVendorDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminName, contacts, address } = req.body;
+
+    // Find and update the vendor in one operation
+    const updatedVendor = await adminModel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          ...(adminName && { adminName }),
+          ...(address && { address }),
+          ...(contacts && { contacts: typeof contacts === 'string' ? JSON.parse(contacts) : contacts })
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({ 
+      message: "Vendor updated successfully",
+      data: {
+        adminName: updatedVendor.adminName,
+        contacts: updatedVendor.contacts,
+        address: updatedVendor.address
+      }
+    });
+  } catch (error) {
+    console.error("Error updating vendor:", error);
+    res.status(500).json({ 
+      message: "Error updating vendor", 
+      error: error.message 
+    });
+  }
+};
+
+const getVendorById = async (req, res) => {
+  try {
+    const vendor = await adminModel.findById(req.params.id)
+      .select('-password -__v'); // Exclude sensitive fields
+    
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    res.json(vendor);
+  } catch (error) {
+    console.error('Error fetching vendor:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 module.exports = {
     vendorSignup,
     vendorLogin,
@@ -841,5 +1352,19 @@ module.exports = {
     getAllSpaces,
     fetchsinglespacedata,
     getAllUsers,
-    fetchspacedatabyuser
+    fetchspacedatabyuser,
+    deleteKycData,
+    getAllVendorsTransaction,
+    closeChat,
+    getVendorCount,
+    getBookingSummary,
+    getUserSummary,
+    getVendorSpaceSummary,
+    getKycSummary,
+    getTransactionSummary,
+    getVendorsByTransactionStatus,
+    getVendorStatusStats,
+    getSpacesStatus,
+    updateVendorDetails,
+    getVendorById,
 };

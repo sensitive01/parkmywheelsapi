@@ -79,7 +79,30 @@ adminRoute.get("/fetchspacebyvendor", adminController.fetchsinglespacedata);
 adminRoute.get("/allusers", adminController.getAllUsers);
 adminRoute.get("/fetchspace/:spaceid", adminController.fetchspacedatabyuser);
 
+adminRoute.delete("/delete/:id", adminController.deleteKycData);
+adminRoute.get("/fetchallbookingtransactions", adminController.getAllVendorsTransaction);
 
 
+
+
+adminRoute.patch("/adminclosechat/:helpRequestId", adminController.closeChat);
+
+// Dashboard route for admin
+adminRoute.get("/vendor-count", adminController.getVendorCount);
+adminRoute.get("/booking-count", adminController.getBookingSummary);
+adminRoute.get("/user-summary", adminController.getUserSummary);
+adminRoute.get("/space-summary", adminController.getVendorSpaceSummary);
+adminRoute.get('/kyc-summary', adminController.getKycSummary);
+adminRoute.get("/transaction-summary", adminController.getTransactionSummary);
+adminRoute.get("/transaction-status-list", adminController.getVendorsByTransactionStatus);
+adminRoute.get("/vendor-status-stats", adminController.getVendorStatusStats);
+adminRoute.get("/space-status-stats", adminController.getSpacesStatus);
+
+adminRoute.put(
+  "/update-vendor/:id",
+  adminController.updateVendorDetails
+);
+
+adminRoute.get("/fetchadmin/:id", adminController.getVendorById)
 
 module.exports = adminRoute;
