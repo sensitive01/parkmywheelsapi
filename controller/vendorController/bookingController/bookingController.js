@@ -1,5 +1,7 @@
 const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
+
+const userModel = require("../../../models/userModel");
 const moment = require("moment");
 const admin = require("../../../config/firebaseAdmin"); // Use the singleton
 const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
@@ -135,74 +137,163 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    
-    const fcmTokens = vendorData.fcmTokens || [];
-    console.log("FCM Tokens being used:", fcmTokens);
 
-    if (fcmTokens.length > 0) {
-      const invalidTokens = [];
+    // Prepare and save vendor notification to Notification collection
+    const vendorNotification = new Notification({
+      vendorId: vendorId,
+      userId: userid, // Store the user's UUID as a string
+      bookingId: newBooking._id,
+      title: "New Booking Received",
+      message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+      vehicleType: vehicleType,
+      vehicleNumber: vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+    });
 
-      const promises = fcmTokens.map(async (token) => {
+    await vendorNotification.save();
+    console.log("Vendor notification saved:", vendorNotification);
+
+    // Prepare and save user notification to Notification collection
+    const userNotification = new Notification({
+      vendorId: vendorId,
+      userId: userid, // Store the user's UUID as a string
+      bookingId: newBooking._id,
+      title: "Booking Confirmed",
+      message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
+      vehicleType: vehicleType,
+      vehicleNumber: vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+    });
+
+    await userNotification.save();
+    console.log("User notification saved:", userNotification);
+
+    // Prepare notification messages for FCM
+    const vendorNotificationMessage = {
+      notification: {
+        title: "New Booking Received",
+        body: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    const userNotificationMessage = {
+      notification: {
+        title: "Booking Confirmed",
+        body: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
+      },
+      data: {
+        bookingId: newBooking._id.toString(),
+        vehicleType,
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    // Send notification to vendor
+    const vendorFcmTokens = vendorData.fcmTokens || [];
+    console.log("Vendor FCM Tokens:", vendorFcmTokens);
+    const vendorInvalidTokens = [];
+
+    if (vendorFcmTokens.length > 0) {
+      const vendorPromises = vendorFcmTokens.map(async (token) => {
         try {
-          const message = {
-            token: token,
-            notification: {
-              title: "New Booking Alert",
-              body: `${vehicleNumber} has booked a ${vehicleType}.`,
-            },
-            data: {
-              bookingId: newBooking._id.toString(),
-              vehicleType,
-            },
-            android: {
-              notification: {
-                sound: 'default', // Optional: set sound
-                priority: 'high',
-              },
-            },
-            apns: {
-              payload: {
-                aps: {
-                  sound: 'default',
-                  badge: 1,
-                },
-              },
-            },
-          };
-      
+          const message = { ...vendorNotificationMessage, token };
           const response = await admin.messaging().send(message);
-          console.log(`Notification sent to token: ${token}`, response);
+          console.log(`Vendor notification sent to token: ${token}`, response);
         } catch (error) {
-          console.error(`Error sending notification to token: ${token}`, error);
-          if (error.errorInfo && error.errorInfo.code === "messaging/registration-token-not-registered") {
-            invalidTokens.push(token);
+          console.error(`Error sending vendor notification to token: ${token}`, error);
+          if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+            vendorInvalidTokens.push(token);
           }
         }
       });
-      
-      await Promise.all(promises);
-      
-      // Handle invalid tokens
-      if (invalidTokens.length > 0) {
-        await vendorModel.updateOne(
+
+      await Promise.all(vendorPromises);
+
+      // Remove invalid vendor tokens
+      if (vendorInvalidTokens.length > 0) {
+        await Vendor.updateOne(
           { _id: vendorId },
-          { $pull: { fcmTokens: { $in: invalidTokens } } }
+          { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
         );
-        console.log("Removed invalid FCM tokens:", invalidTokens);
+        console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
       }
-      
-     
     } else {
       console.warn("No FCM tokens available for this vendor.");
     }
+
+    // Send notification to user
+    const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+    if (user) {
+      const userFcmTokens = user.userfcmTokens || [];
+      const userInvalidTokens = [];
+
+      if (userFcmTokens.length > 0) {
+        const userPromises = userFcmTokens.map(async (token) => {
+          try {
+            const message = { ...userNotificationMessage, token };
+            const response = await admin.messaging().send(message);
+            console.log(`✅ User notification sent to ${token}`, response);
+          } catch (error) {
+            console.error(`❌ Error sending to user token: ${token}`, error);
+            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+              userInvalidTokens.push(token);
+            }
+          }
+        });
+
+        await Promise.all(userPromises);
+
+        if (userInvalidTokens.length > 0) {
+          await userModel.updateOne(
+            { uuid: userid },
+            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
+          );
+          console.log("🧹 Removed invalid user tokens:", userInvalidTokens);
+        }
+      } else {
+        console.warn("ℹ️ No FCM tokens for this user.");
+      }
+    } else {
+      console.warn("⚠️ User not found with UUID:", userid);
+    }
+
+    // Return success response
     res.status(200).json({
       message: "Booking created successfully",
       bookingId: newBooking._id,
-      booking: newBooking,
-      otp: otp,
-      bookType: bookType,
-      sts:sts,
-      //
+      booking: newBooking._id,
+      otp,
+      bookType,
+      sts,
     });
   } catch (error) {
     console.error("Error creating booking:", error);
@@ -323,7 +414,7 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Approved date and time are required" });
     }
 
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(id).populate('vendorId', 'vendorName');
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
     }
@@ -342,6 +433,84 @@ exports.updateApproveBooking = async (req, res) => {
       },
       { new: true }
     );
+
+    // Prepare and save user notification to Notification collection
+    const userNotification = new Notification({
+      vendorId: booking.vendorId._id,
+      userId: booking.userid, // Store user's UUID as string
+      bookingId: booking._id,
+      title: "Booking Approved",
+      message: `Your booking with ${booking.vendorId.vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
+      vehicleType: booking.vehicleType,
+      vehicleNumber: booking.vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+    });
+
+    await userNotification.save();
+    console.log("User notification saved:", userNotification);
+
+    // Prepare FCM notification message for user
+    const userNotificationMessage = {
+      notification: {
+        title: "Booking Approved",
+        body: `Your booking with ${booking.vendorId.vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
+      },
+      data: {
+        bookingId: booking._id.toString(),
+        vehicleType: booking.vehicleType,
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    // Send notification to user
+    const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
+    if (user) {
+      const userFcmTokens = user.userfcmTokens || [];
+      const userInvalidTokens = [];
+
+      if (userFcmTokens.length > 0) {
+        const userPromises = userFcmTokens.map(async (token) => {
+          try {
+            const message = { ...userNotificationMessage, token };
+            const response = await admin.messaging().send(message);
+            console.log(`✅ User notification sent to ${token}`, response);
+          } catch (error) {
+            console.error(`❌ Error sending to user token: ${token}`, error);
+            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+              userInvalidTokens.push(token);
+            }
+          }
+        });
+
+        await Promise.all(userPromises);
+
+        if (userInvalidTokens.length > 0) {
+          await userModel.updateOne(
+            { uuid: booking.userid },
+            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
+          );
+          console.log("🧹 Removed invalid user tokens:", userInvalidTokens);
+        }
+      } else {
+        console.warn("ℹ️ No FCM tokens for this user.");
+      }
+    } else {
+      console.warn("⚠️ User not found with UUID:", booking.userid);
+    }
 
     res.status(200).json({
       success: true,
