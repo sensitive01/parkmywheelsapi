@@ -120,12 +120,21 @@ const userSignUp = async (req, res) => {
 
 const userVerification = async (req, res) => {
   try {
-    const { mobile, password } = req.body;
-    const userData = await userModel.findOne({ userMobile:mobile });
+    const { mobile, password, userfcmToken } = req.body;
+    const userData = await userModel.findOne({ userMobile: mobile });
 
     if (userData) {
       const isPasswordValid = await bcrypt.compare(password, userData.userPassword);
       
+      // Handle FCM token - only if token is provided and not already exists
+      if (userfcmToken && (!userData.userfcmTokens || !userData.userfcmTokens.includes(userfcmToken))) {
+        if (!userData.userfcmTokens) {
+          userData.userfcmTokens = []; // Initialize if not exists
+        }
+        userData.userfcmTokens.push(userfcmToken);
+        await userData.save(); // Save the user data, not userModel
+      }
+
       if (isPasswordValid) {
         const role = userData.role === "user" ? "user" : "admin";
         return res.status(200).json({
@@ -140,6 +149,7 @@ const userVerification = async (req, res) => {
       return res.status(404).json({ message: "User is not registered, please sign up." });
     }
   } catch (err) {
+    console.error("Verification error:", err); // Log the error for debugging
     return res.status(500).json({ message: "Internal server error." });
   }
 };

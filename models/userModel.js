@@ -47,6 +47,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "0",
     },
+     userfcmTokens: { type: [String], default: [] },
     walletstatus: {
       type: String,
       default: "Active",
