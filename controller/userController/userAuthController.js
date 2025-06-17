@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const userModel = require("../../models/userModel");
 const generateOTP = require("../../utils/generateOTP")
 
-
+const admin = require("firebase-admin");
 
 const { v4: uuidv4 } = require('uuid');
 
@@ -302,7 +302,9 @@ const userLogoutById = async (req, res) => {
 
 
 
+
 module.exports = {
+ 
   userSignUp,
   userLogoutById,
   userVerification,
