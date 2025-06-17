@@ -270,11 +270,41 @@ const getUserById = async (req, res) => {
 
 
 
+const userLogoutById = async (req, res) => {
+  try {
+    const { uuid } = req.body;
+
+    if (!uuid) {
+      return res.status(400).json({ message: "User uuid is required" });
+    }
+
+    // Use the model correctly and avoid name conflict
+    const user = await userModel.findOne({ uuid });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found with provided uuid" });
+    }
+
+    if (!user.userfcmTokens || user.userfcmTokens.length === 0) {
+      return res.status(200).json({ message: "No FCM tokens to remove" });
+    }
+
+    // Remove the last token
+    user.userfcmTokens.pop();
+    await user.save();
+
+    return res.status(200).json({ message: "Last FCM token removed successfully" });
+  } catch (error) {
+    console.error("Error in logout:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 
 module.exports = {
   userSignUp,
+  userLogoutById,
   userVerification,
   userForgotPassword,
   verifyOTP,

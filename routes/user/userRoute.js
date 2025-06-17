@@ -69,6 +69,10 @@ userRoute.get("/getfavlist", getVendors.getVendors);
 userRoute.get("/allusers", userController.getAllUsers);
 userRoute.put("/userupdate/:id", userController.updateUserById);
 userRoute.get("/fetchuser/:id", userController.getUserById);
+
+
+userRoute.post("/userlogout", userController.userLogoutById);
+
 userRoute.post('/delete-account', async (req, res) => {
   try {
     const { userId, reason } = req.body;
