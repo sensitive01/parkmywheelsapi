@@ -1110,3 +1110,57 @@ exports.getVendorParkingSummaryByType = async (req, res) => {
   }
 };
 
+exports.sendTestNotification = async (req, res) => {
+  try {
+    const { uuid } = req.body;
+
+    const user = await User.findOne({ uuid }, { userfcmTokens: 1 });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const tokens = user.userfcmTokens || [];
+    if (tokens.length === 0) {
+      return res.status(400).json({ message: "No FCM tokens found for user" });
+    }
+
+    const payload = {
+      notification: {
+        title: "🚀 Live Notification Test",
+        body: "This is a test push sent from production backend.",
+      },
+      data: {
+        type: "TEST",
+        click_action: "FLUTTER_NOTIFICATION_CLICK", // Important for Flutter
+      },
+    };
+
+    const response = await admin.messaging().sendToDevice(tokens, payload);
+
+    const invalidTokens = [];
+    response.results.forEach((result, index) => {
+      const error = result.error;
+      if (error) {
+        console.error("FCM Error:", error);
+        invalidTokens.push(tokens[index]);
+      }
+    });
+
+    // Optionally remove invalid tokens
+    if (invalidTokens.length > 0) {
+      await User.updateOne(
+        { uuid },
+        { $pull: { userfcmTokens: { $in: invalidTokens } } }
+      );
+    }
+
+    res.json({
+      message: "Notification sent",
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+    });
+  } catch (error) {
+    console.error("Notification Error:", error);
+    res.status(500).json({ message: "Failed to send notification", error });
+  }
+};

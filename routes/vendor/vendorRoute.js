@@ -30,6 +30,7 @@ vendorRoute.post("/change-password", vendorController.vendorChangePassword);
 vendorRoute.get("/fetchsubscription/:vendorId", vendorController.fetchVendorSubscription);
 vendorRoute.get("/fetchbusinesshours/:vendorId", vendorController.fetchhours);
 
+vendorRoute.post("/sendTestNotification", bookingController.sendTestNotification);
 
 
 vendorRoute.put("/updatehours/:vendorId", vendorController.updateVendorHours);
