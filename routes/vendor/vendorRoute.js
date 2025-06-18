@@ -175,5 +175,8 @@ vendorRoute.get("/fetchsubscriptionleft/:vendorId", vendorController.fetchVendor
 
 vendorRoute.post("/vendorlogout", vendorController.vendorLogoutById);
 
+// Assuming you're using Express router
+vendorRoute.get('/getusernotification/:uuid', bookingController.getNotificationsByUser);
+
 
 module.exports = vendorRoute;
