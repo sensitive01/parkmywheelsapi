@@ -1299,24 +1299,31 @@ exports.getUserCancelledCount = async (req, res) => {
 // GET /api/parking/vendors/summary
 exports.getVendorParkingSummaryByType = async (req, res) => {
   try {
-    const { vendorId, vehicleType } = req.query; // or use req.body for POST
+    const { vendorId, vehicleType } = req.query;
 
+    // 1. Validation
     if (!vendorId || !vehicleType) {
       return res.status(400).json({ error: "vendorId and vehicleType are required" });
     }
 
-    const vendor = await vendorModel.findById(vendorId, { _id: 1, vendorName: 1, parkingEntries: 1 });
+    // 2. Fetch vendor
+    const vendor = await vendorModel.findById(
+      vendorId,
+      { _id: 1, vendorName: 1, parkingEntries: 1 }
+    );
 
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
+    // 3. Build parking entry count map (e.g., "Cars": 20)
     const parkingEntries = vendor.parkingEntries.reduce((acc, entry) => {
-      const type = entry.type.trim();
+      const type = entry.type.trim(); // e.g., "Cars"
       acc[type] = parseInt(entry.count) || 0;
       return acc;
     }, {});
 
+    // 4. Aggregate bookings (e.g., pending Car bookings)
     const bookings = await Booking.aggregate([
       {
         $match: {
@@ -1334,21 +1341,30 @@ exports.getVendorParkingSummaryByType = async (req, res) => {
     ]);
 
     const bookedCount = bookings.length > 0 ? bookings[0].count : 0;
-    const totalSlots = parkingEntries[vehicleType + "s"] || 0; // e.g., "Cars", "Bikes"
+
+    // 5. Match pluralized vehicle type to entry map key
+    const pluralVehicleType = vehicleType.endsWith("s") ? vehicleType : vehicleType + "s";
+    const totalSlots = parkingEntries[pluralVehicleType] || 0;
+
     const availableSlots = totalSlots - bookedCount;
 
+    // 6. Response
     res.status(200).json({
+      availableSlots,
+      // You can uncomment below if needed
       // vendorId: vendor._id,
       // vendorName: vendor.vendorName,
       // vehicleType: vehicleType,
       // totalSlots,
       // bookedSlots: bookedCount,
-      availableSlots,
     });
+
   } catch (error) {
+    console.error("Error in getVendorParkingSummaryByType:", error); // Helpful for debugging
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.getNotificationsByUser = async (req, res) => {
   try {
     const { uuid } = req.params;
