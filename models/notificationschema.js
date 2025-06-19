@@ -11,7 +11,11 @@ const notificationSchema = new mongoose.Schema({
   vehicleType: { type: String },
   vehicleNumber: { type: String },
   
-  createdAt: { type: Date, default: Date.now },
+createdAt: {
+  type: Date,
+  default: () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })),
+},
+
   read: { type: Boolean, default: false },
 
   // Additional fields you mentioned
