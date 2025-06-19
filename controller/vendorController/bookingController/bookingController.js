@@ -149,6 +149,15 @@ exports.createBooking = async (req, res) => {
       vehicleNumber: vehicleNumber,
       createdAt: new Date(),
       read: false,
+        sts: sts,
+  bookingtype: bookType,
+  otp: otp.toString(),
+  vendorname: vendorName,
+  parkingDate: parkingDate,
+  parkingTime: parkingTime,
+  bookingdate: bookingDate,
+  schedule: `${parkingDate} ${parkingTime}`,
+  status: status,
     });
 
     await vendorNotification.save();
@@ -163,6 +172,15 @@ exports.createBooking = async (req, res) => {
       vehicleNumber: vehicleNumber,
       createdAt: new Date(),
       read: false,
+      sts: sts,
+  bookingtype: bookType,
+  otp: otp.toString(),
+  vendorname: vendorName,
+  parkingDate: parkingDate,
+  parkingTime: parkingTime,
+  bookingdate: bookingDate,
+  schedule: `${parkingDate} ${parkingTime}`,
+  status: status,
     });
 
     await userNotification.save();
