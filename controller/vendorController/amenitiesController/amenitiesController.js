@@ -29,14 +29,13 @@ const addAmenitiesData = async (req, res) => {
 };
 
 const getAmenitiesData = async (req, res) => {
-  
     const { id } = req.params; 
   
     try {
       const amenitiesData = await Amenities.findOne({ vendorId: id });
   
       if (!amenitiesData) {
-        return res.status(404).json({ message: `No data found for vendorId: ` });
+        return res.status(404).json({ message: `No data found for vendorId: ${id}` }); // ✅ Fixed: Changed vendorId to id
       }
   
       res.status(200).json({
@@ -47,8 +46,7 @@ const getAmenitiesData = async (req, res) => {
       console.error("Error retrieving data:", error);
       res.status(500).json({ message: "Error retrieving data", error: error.message });
     }
-  };
-
+};
 
 const updateAmenitiesData = async (req, res) => {
   const { id } = req.params;  
