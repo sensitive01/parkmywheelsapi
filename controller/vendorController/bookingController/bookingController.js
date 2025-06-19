@@ -311,7 +311,233 @@ exports.createBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.vendorcreateBooking = async (req, res) => {
+  try {
+    const {
+      userid,
+      vendorId,
+      vendorName,
+      amount,
+      hour,
+      personName,
+      mobileNumber,
+      vehicleType,
+      carType,
+      vehicleNumber,
+      bookingDate,
+      bookingTime,
+      parkingDate,
+      parkingTime,
+      tenditivecheckout,
+      subsctiptiontype,
+      status,
+      sts,
+      exitvehicledate,
+      exitvehicletime,
+      approvedDate = null,
+      approvedTime = null,
+      parkedDate = null,
+      parkedTime = null,
+      bookType,
+    } = req.body;
 
+    console.log("Booking data:", req.body);
+
+    // Check available slots before creating a booking
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
+
+    if (!vendorData) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim();
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+
+    const totalAvailableSlots = {
+      Cars: parkingEntries["Cars"] || 0,
+      Bikes: parkingEntries["Bikes"] || 0,
+      Others: parkingEntries["Others"] || 0,
+    };
+
+    const aggregationResult = await Booking.aggregate([
+      {
+        $match: {
+          vendorId: vendorId,
+          status: "PENDING",
+        },
+      },
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    let bookedSlots = {
+      Cars: 0,
+      Bikes: 0,
+      Others: 0,
+    };
+
+    aggregationResult.forEach(({ _id, count }) => {
+      if (_id === "Car") {
+        bookedSlots.Cars = count;
+      } else if (_id === "Bike") {
+        bookedSlots.Bikes = count;
+      } else {
+        bookedSlots.Others = count;
+      }
+    });
+
+    const availableSlots = {
+      Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
+      Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
+      Others: totalAvailableSlots.Others - bookedSlots.Others,
+    };
+    console.log("Available slots:", availableSlots);
+    console.log("Booked slots:", bookedSlots);
+
+    if (vehicleType === "Car" && availableSlots.Cars <= 0) {
+      return res.status(400).json({ message: "No available slots for Cars" });
+    } else if (vehicleType === "Bike" && availableSlots.Bikes <= 0) {
+      return res.status(400).json({ message: "No available slots for Bikes" });
+    } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
+      return res.status(400).json({ message: "No available slots for Others" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    const newBooking = new Booking({
+      userid,
+      vendorId,
+      amount,
+      hour,
+      personName,
+      vehicleType,
+      vendorName,
+      mobileNumber,
+      carType,
+      vehicleNumber,
+      bookingDate,
+      bookingTime,
+      parkingDate,
+      parkingTime,
+      tenditivecheckout,
+      subsctiptiontype,
+      status,
+      sts,
+      otp,
+      approvedDate,
+      approvedTime,
+      cancelledDate: null,
+      cancelledTime: null,
+      parkedDate,
+      parkedTime,
+      exitvehicledate,
+      exitvehicletime,
+      bookType,
+    });
+
+    await newBooking.save();
+
+    const vendorNotification = new Notification({
+      vendorId: vendorId,
+      userId: userid,
+      bookingId: newBooking._id,
+      title: "New Booking Received",
+      message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+      vehicleType: vehicleType,
+      vehicleNumber: vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+        sts: sts,
+  bookingtype: bookType,
+  otp: otp.toString(),
+  vendorname: vendorName,
+  parkingDate: parkingDate,
+  parkingTime: parkingTime,
+  bookingdate: bookingDate,
+  schedule: `${parkingDate} ${parkingTime}`,
+    notificationdtime:`${bookingDate} ${bookingTime}`,
+  status: status,
+    });
+
+    await vendorNotification.save();
+
+   
+
+    const vendorNotificationMessage = {
+      notification: {
+        title: "New Booking Received",
+        body: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+    };
+
+
+
+    const vendorFcmTokens = vendorData.fcmTokens || [];
+    const vendorInvalidTokens = [];
+
+    if (vendorFcmTokens.length > 0) {
+      const vendorPromises = vendorFcmTokens.map(async (token) => {
+        try {
+          const message = { ...vendorNotificationMessage, token };
+          const response = await admin.messaging().send(message);
+          console.log(`Vendor notification sent to token: ${token}`, response);
+        } catch (error) {
+          console.error(`Error sending vendor notification to token: ${token}`, error);
+          if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+            vendorInvalidTokens.push(token);
+          }
+        }
+      });
+
+      await Promise.all(vendorPromises);
+
+      if (vendorInvalidTokens.length > 0) {
+        await vendorModel.updateOne(
+          { _id: vendorId },
+          { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
+        );
+        console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
+      }
+    } else {
+      console.warn("No FCM tokens available for this vendor.");
+    }
+
+
+
+    res.status(200).json({
+      message: "Booking created successfully",
+      bookingId: newBooking._id,
+      booking: newBooking._id,
+      otp,
+      bookType,
+      sts,
+    });
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 exports.getBookingsByStatus = async (req, res) => {
   try {
