@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const userModel = require("../../models/userModel");
 const generateOTP = require("../../utils/generateOTP")
-
+const vendorModel = require("../../models/venderSchema");
 const admin = require("firebase-admin");
 
 const { v4: uuidv4 } = require('uuid');
@@ -118,41 +118,55 @@ const userSignUp = async (req, res) => {
   }
 };
 
+
 const userVerification = async (req, res) => {
   try {
     const { mobile, password, userfcmToken } = req.body;
     const userData = await userModel.findOne({ userMobile: mobile });
 
-    if (userData) {
-      const isPasswordValid = await bcrypt.compare(password, userData.userPassword);
-      
-      // Handle FCM token - only if token is provided and not already exists
-      if (userfcmToken && (!userData.userfcmTokens || !userData.userfcmTokens.includes(userfcmToken))) {
-        if (!userData.userfcmTokens) {
-          userData.userfcmTokens = []; // Initialize if not exists
-        }
-        userData.userfcmTokens.push(userfcmToken);
-        await userData.save(); // Save the user data, not userModel
-      }
-
-      if (isPasswordValid) {
-        const role = userData.role === "user" ? "user" : "admin";
-        return res.status(200).json({
-          message: "Login successful.",
-          id: userData.uuid,
-          role: role,
-        });
-      } else {
-        return res.status(401).json({ message: "Entered password is incorrect." });
-      }
-    } else {
+    if (!userData) {
       return res.status(404).json({ message: "User is not registered, please sign up." });
     }
+
+    const isPasswordValid = await bcrypt.compare(password, userData.userPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Entered password is incorrect." });
+    }
+
+    // Handle FCM token - user collection
+    if (userfcmToken && (!userData.userfcmTokens || !userData.userfcmTokens.includes(userfcmToken))) {
+      if (!userData.userfcmTokens) {
+        userData.userfcmTokens = [];
+      }
+      userData.userfcmTokens.push(userfcmToken);
+      await userData.save();
+    }
+
+    // ✅ Associate user's FCM token with vendor (if applicable)
+    if (userfcmToken && userData.spaceid) {
+      const vendor = await vendorModel.findOne({ spaceid: userData.spaceid });
+
+      if (vendor) {
+        if (!vendor.fcmTokens.includes(userfcmToken)) {
+          vendor.fcmTokens.push(userfcmToken);
+          await vendor.save();
+        }
+      }
+    }
+
+    const role = userData.role === "user" ? "user" : "admin";
+    return res.status(200).json({
+      message: "Login successful.",
+      id: userData.uuid,
+      role: role,
+    });
+
   } catch (err) {
-    console.error("Verification error:", err); // Log the error for debugging
+    console.error("Verification error:", err);
     return res.status(500).json({ message: "Internal server error." });
   }
 };
+
 
 const userChangePassword = async (req, res) => {
   try {
