@@ -95,7 +95,7 @@ exports.createBooking = async (req, res) => {
     };
     console.log("Available slots:", availableSlots);
     console.log("Booked slots:", bookedSlots);
-    // Check if there are available slots for the requested vehicle type
+
     if (vehicleType === "Car" && availableSlots.Cars <= 0) {
       return res.status(400).json({ message: "No available slots for Cars" });
     } else if (vehicleType === "Bike" && availableSlots.Bikes <= 0) {
@@ -103,6 +103,7 @@ exports.createBooking = async (req, res) => {
     } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
       return res.status(400).json({ message: "No available slots for Others" });
     }
+
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     const newBooking = new Booking({
@@ -138,10 +139,9 @@ exports.createBooking = async (req, res) => {
 
     await newBooking.save();
 
-    // Prepare and save vendor notification to Notification collection
     const vendorNotification = new Notification({
       vendorId: vendorId,
-      userId: userid, // Store the user's UUID as a string
+      userId: userid,
       bookingId: newBooking._id,
       title: "New Booking Received",
       message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
@@ -152,12 +152,10 @@ exports.createBooking = async (req, res) => {
     });
 
     await vendorNotification.save();
-    console.log("Vendor notification saved:", vendorNotification);
 
-    // Prepare and save user notification to Notification collection
     const userNotification = new Notification({
       vendorId: vendorId,
-      userId: userid, // Store the user's UUID as a string
+      userId: userid,
       bookingId: newBooking._id,
       title: "Booking Confirmed",
       message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
@@ -168,9 +166,7 @@ exports.createBooking = async (req, res) => {
     });
 
     await userNotification.save();
-    console.log("User notification saved:", userNotification);
 
-    // Prepare notification messages for FCM
     const vendorNotificationMessage = {
       notification: {
         title: "New Booking Received",
@@ -217,9 +213,7 @@ exports.createBooking = async (req, res) => {
       },
     };
 
-    // Send notification to vendor
     const vendorFcmTokens = vendorData.fcmTokens || [];
-    console.log("Vendor FCM Tokens:", vendorFcmTokens);
     const vendorInvalidTokens = [];
 
     if (vendorFcmTokens.length > 0) {
@@ -238,9 +232,8 @@ exports.createBooking = async (req, res) => {
 
       await Promise.all(vendorPromises);
 
-      // Remove invalid vendor tokens
       if (vendorInvalidTokens.length > 0) {
-        await Vendor.updateOne(
+        await vendorModel.updateOne(
           { _id: vendorId },
           { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
         );
@@ -250,7 +243,6 @@ exports.createBooking = async (req, res) => {
       console.warn("No FCM tokens available for this vendor.");
     }
 
-    // Send notification to user
     const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
@@ -286,7 +278,6 @@ exports.createBooking = async (req, res) => {
       console.warn("⚠️ User not found with UUID:", userid);
     }
 
-    // Return success response
     res.status(200).json({
       message: "Booking created successfully",
       bookingId: newBooking._id,
@@ -300,6 +291,7 @@ exports.createBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 exports.getBookingsByStatus = async (req, res) => {
   try {
