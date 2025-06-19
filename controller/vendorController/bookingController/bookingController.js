@@ -448,8 +448,8 @@ exports.vendorcreateBooking = async (req, res) => {
       vendorId: vendorId,
       userId: userid,
       bookingId: newBooking._id,
-      title: "New Booking Received",
-      message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+      title: "New Booking ",
+      message: `New booking  from ${vehicleNumber} for ${parkingDate} at ${parkingTime}`,
       vehicleType: vehicleType,
       vehicleNumber: vehicleNumber,
       createdAt: new Date(),
@@ -472,8 +472,8 @@ exports.vendorcreateBooking = async (req, res) => {
 
     const vendorNotificationMessage = {
       notification: {
-        title: "New Booking Received",
-        body: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+        title: "New Booking ",
+      body: `New booking  from ${vehicleNumber} for ${parkingDate} at ${parkingTime}`,
       },
       android: {
         notification: {
