@@ -157,6 +157,7 @@ exports.createBooking = async (req, res) => {
   parkingTime: parkingTime,
   bookingdate: bookingDate,
   schedule: `${parkingDate} ${parkingTime}`,
+    notificationdtime:`${bookingDate} ${bookingTime}`,
   status: status,
     });
 
@@ -179,6 +180,7 @@ exports.createBooking = async (req, res) => {
   parkingDate: parkingDate,
   parkingTime: parkingTime,
   bookingdate: bookingDate,
+  notificationdtime:`${bookingDate} ${bookingTime}`,
   schedule: `${parkingDate} ${parkingTime}`,
   status: status,
     });
@@ -454,6 +456,7 @@ exports.updateApproveBooking = async (req, res) => {
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
+        notificationdtime:`${approvedDate} ${approvedTime}`,
       read: false,
     });
 

@@ -17,7 +17,7 @@ createdAt: {
 },
 
   read: { type: Boolean, default: false },
-
+notificationdtime: { type: String }, // Added notificationType field
   // Additional fields you mentioned
   sts: { type: String },
   bookingtype: { type: String },
