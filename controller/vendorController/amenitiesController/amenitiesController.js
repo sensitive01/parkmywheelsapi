@@ -36,7 +36,7 @@ const getAmenitiesData = async (req, res) => {
       const amenitiesData = await Amenities.findOne({ vendorId: id });
   
       if (!amenitiesData) {
-        return res.status(404).json({ message: `No data found for vendorId: ${vendorId}` });
+        return res.status(404).json({ message: `No data found for vendorId: ` });
       }
   
       res.status(200).json({
