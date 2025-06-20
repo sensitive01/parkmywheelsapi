@@ -1553,3 +1553,41 @@ exports.getNotificationsByUser = async (req, res) => {
   }
 };
 
+exports.clearNotificationById = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+
+    const deleted = await Notification.findByIdAndDelete(notificationId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Notification cleared successfully",
+    });
+  } catch (error) {
+    console.error("Error clearing notification:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+exports.clearAllNotificationsByVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const result = await Notification.deleteMany({ vendorId });
+
+    res.status(200).json({
+      success: true,
+      message: "All notifications cleared successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error clearing all notifications:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
