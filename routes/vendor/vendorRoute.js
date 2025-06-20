@@ -181,6 +181,6 @@ vendorRoute.post("/vendorlogout", vendorController.vendorLogoutById);
 vendorRoute.get('/getusernotification/:uuid', bookingController.getNotificationsByUser);
 vendorRoute.delete('/notification/:notificationId', bookingController.clearNotificationById);
 vendorRoute.delete('/notifications/vendor/:vendorId', bookingController.clearAllNotificationsByVendor);
-
+vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserNotifications);
 
 module.exports = vendorRoute;

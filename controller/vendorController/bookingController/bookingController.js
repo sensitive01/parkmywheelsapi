@@ -1591,3 +1591,39 @@ exports.clearAllNotificationsByVendor = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.clearUserNotifications = async (req, res) => {
+  try {
+    const { uuid } = req.params;
+
+    // Validate UUID
+    if (!uuid) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Delete all notifications for the user
+    const result = await Notification.deleteMany({ userId: uuid });
+
+    // Check if any notifications were deleted
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No notifications found to clear for this user",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "All notifications cleared successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error clearing user notifications:", error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to clear notifications: ${error.message}`,
+    });
+  }
+};
