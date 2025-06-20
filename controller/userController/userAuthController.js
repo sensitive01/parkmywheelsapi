@@ -118,7 +118,6 @@ const userSignUp = async (req, res) => {
   }
 };
 
-
 const userVerification = async (req, res) => {
   try {
     const { mobile, password, userfcmToken } = req.body;
@@ -166,6 +165,8 @@ const userVerification = async (req, res) => {
     return res.status(500).json({ message: "Internal server error." });
   }
 };
+
+
 
 
 const userChangePassword = async (req, res) => {

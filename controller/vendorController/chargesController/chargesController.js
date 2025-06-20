@@ -1,5 +1,5 @@
 const Parking = require('../../../models/chargesSchema');
-const vendorModel = require('../../../models/vendorModel');
+const vendorModel = require('../../../models/venderSchema');
 const Booking = require("../../../models/bookingSchema");
 const Parkingcharges = require("../../../models/chargesSchema");
 const { DateTime } = require('luxon');
