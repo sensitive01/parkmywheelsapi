@@ -567,10 +567,16 @@ exports.getvendorpayouts = async (req, res) => {
     }
 
     const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    const completedBookings = await Booking.find({ vendorId, status: "COMPLETED" });
+
+    // ✅ Only get completed bookings with userid present
+    const completedBookings = await Booking.find({ 
+      vendorId, 
+      status: "COMPLETED", 
+      userid: { $exists: true, $ne: "" } 
+    });
 
     if (completedBookings.length === 0) {
-      return res.status(404).json({ success: false, message: "No completed bookings found" });
+      return res.status(404).json({ success: false, message: "No completed bookings with userid found" });
     }
 
     const bookingsWithUpdatedPlatformFee = await Promise.all(
@@ -616,6 +622,7 @@ exports.getvendorpayouts = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 exports.userupdateCancelBooking = async (req, res) => {
   try {
