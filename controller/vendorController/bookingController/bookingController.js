@@ -589,6 +589,11 @@ exports.getvendorpayouts = async (req, res) => {
           amount: amount.toFixed(2),
           platformfee: platformfee.toFixed(2),
           receivableAmount: receivableAmount.toFixed(2),
+          bookingDate: booking.bookingDate || null,
+          parkingDate: booking.parkingDate || null,
+          parkingTime: booking.parkingTime || null,
+          exitvehicledate: booking.exitvehicledate || null,
+          exitvehicletime: booking.exitvehicletime || null
         };
       })
     );
