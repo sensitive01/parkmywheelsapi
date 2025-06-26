@@ -132,6 +132,7 @@ vendorRoute.post('/userlog/:userid', verifyPaymentResponse.userlogpay);
 vendorRoute.get('/fetchpay/:userid', verifyPaymentResponse.getPaymentsUserId);
 
 vendorRoute.get('/fet/:id', chargesController.fetchtestAmount);
+vendorRoute.put("/:id/visibility", vendorController.updateVendorVisibility);
 
 
 vendorRoute.post("/createkyc",  upload.fields([

@@ -40,7 +40,8 @@ contacts: [
         isClosed: Boolean,
       },
     ],
-    
+      visibility: { type: Boolean, default: false },
+
     subscriptionleft: { type: String, default: "0" },
     platformfee: { type: String, },
     subscription: { type: String, default: "false" },

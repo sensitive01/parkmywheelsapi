@@ -164,6 +164,7 @@ const vendorSignup = async (req, res) => {
       password: hashedPassword,
       status: "pending", // Explicitly set status to pending
       platformfee: "",
+      visibility: false,
       image: uploadedImageUrl || "",
     });
 
@@ -235,6 +236,7 @@ const myspacereg = async (req, res) => {
       subscriptionleft: 0,
       subscriptionenddate: "",
       status: "pending",
+      visibility: false,
       password: password || " ",  
       image: uploadedImageUrl,
     });
@@ -936,11 +938,40 @@ const vendorLogoutById = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const updateVendorVisibility = async (req, res) => {
+  const { id } = req.params;
+  const { visibility } = req.body;
 
+  if (typeof visibility !== "boolean") {
+    return res.status(400).json({ message: "Visibility must be true or false." });
+  }
 
+  try {
+    const vendor = await Vendor.findById(id);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.visibility = visibility;
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Vendor visibility updated successfully",
+      vendor: {
+        _id: vendor._id,
+        vendorName: vendor.vendorName,
+        visibility: vendor.visibility
+      }
+    });
+  } catch (error) {
+    console.error("Error updating visibility:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 module.exports = {
   fetchhours,
   vendorLogoutById,
+  updateVendorVisibility,
   updateVendorHours ,
   vendorSignup,
   vendorLogin,
