@@ -15,7 +15,7 @@ const  helpfeedbackController = require("../../controller/vendorController/helpf
 const bankdetailsConroller = require("../../controller/vendorController/bankdetailsController/bankdetailsController");
 const agenda = require("../../config/agenda");
 const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
-
+const gstcontroler = require("../../controller/vendorController/gstcontroler");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -184,7 +184,10 @@ vendorRoute.delete('/notification/:notificationId', bookingController.clearNotif
 vendorRoute.delete('/notifications/vendor/:vendorId', bookingController.clearAllNotificationsByVendor);
 vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserNotifications);
 
+vendorRoute.post("/addfeestructure", gstcontroler.addGstFee);
+vendorRoute.get("/getgstfee", gstcontroler.getAllGstFees);
+vendorRoute.put("/updatdde/:id", gstcontroler.updateGstFee);
 
-vendorRoute.get('/:id/fetchfeegst', vendorController.getVendorFeesById);
+
 
 module.exports = vendorRoute;
