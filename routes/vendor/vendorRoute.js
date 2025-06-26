@@ -17,7 +17,6 @@ const agenda = require("../../config/agenda");
 const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
 
 
-
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -184,5 +183,8 @@ vendorRoute.get('/getusernotification/:uuid', bookingController.getNotifications
 vendorRoute.delete('/notification/:notificationId', bookingController.clearNotificationById);
 vendorRoute.delete('/notifications/vendor/:vendorId', bookingController.clearAllNotificationsByVendor);
 vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserNotifications);
+
+
+vendorRoute.get('/:id/fetchfeegst', vendorController.getVendorFeesById);
 
 module.exports = vendorRoute;

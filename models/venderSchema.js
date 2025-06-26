@@ -54,6 +54,14 @@ contacts: [
       type: String,
       unique: true
     },
+        handlingfee: {
+      type: String,
+     
+    },
+        gst: {
+      type: String,
+     
+    },
     fcmTokens: { type: [String], default: [] },
     status: { type: String, default: "pending" },
     platformfee: { type: String, default: "" },

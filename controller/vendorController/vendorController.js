@@ -3,7 +3,25 @@ const vendorModel = require("../../models/venderSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 // const agenda = require("../../config/agenda");
+const getVendorFeesById = async (req, res) => {
+  const { id } = req.params;
 
+  try {
+    const vendor = await vendorModel.findById(id, "handlingfee gst");
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.json({
+      handlingfee: vendor.handlingfee,
+      gst: vendor.gst,
+    });
+  } catch (error) {
+    console.error("Error fetching vendor fees:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 const vendorForgotPassword = async (req, res) => {
   try {
     const { mobile } = req.body; 
@@ -165,6 +183,8 @@ const vendorSignup = async (req, res) => {
       status: "pending", // Explicitly set status to pending
       platformfee: "",
       visibility: false,
+      handlingfee: "0",
+      gst: "18",
       image: uploadedImageUrl || "",
     });
 
@@ -237,6 +257,8 @@ const myspacereg = async (req, res) => {
       subscriptionenddate: "",
       status: "pending",
       visibility: false,
+         handlingfee: "0",
+      gst: "18",
       password: password || " ",  
       image: uploadedImageUrl,
     });
@@ -987,6 +1009,7 @@ module.exports = {
   updateVendorSubscription,
   fetchVendorSubscriptionLeft,
   myspacereg,
+  getVendorFeesById,
   fetchspacedata,
   getVendorTrialStatus,
   updatespacedata,

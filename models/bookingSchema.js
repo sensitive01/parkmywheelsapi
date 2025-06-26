@@ -53,6 +53,14 @@ const bookingSchema = new mongoose.Schema(
       type: String,
      
     },
+     releasefee: {
+      type: String,
+     
+    },
+     recievableamount: {
+      type: String,
+     
+    },
        gst: {
       type: String,
      
