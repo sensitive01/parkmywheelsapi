@@ -49,7 +49,18 @@ const bookingSchema = new mongoose.Schema(
       required: true
     },
     
-
+   handlingfee: {
+      type: String,
+     
+    },
+       gst: {
+      type: String,
+     
+    },
+       payableamout : {
+      type: String,
+     
+    },
     parkingDate:{
       type: String,
     },
