@@ -186,7 +186,7 @@ vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserN
 
 vendorRoute.post("/addfeestructure", gstcontroler.addGstFee);
 vendorRoute.get("/getgstfee", gstcontroler.getAllGstFees);
-vendorRoute.put("/updatdde/:id", gstcontroler.updateGstFee);
+vendorRoute.put("/updategstfee/:id", gstcontroler.updateGstFee);
 
 
 

@@ -61,7 +61,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
      
     },
-       gst: {
+       gstamout: {
+      type: String,
+     
+    },
+       totalamout: {
       type: String,
      
     },

@@ -1278,7 +1278,7 @@ exports.updateBooking = async (req, res) => {
 
 exports.updateBookingAmountAndHour = async (req, res) => {
   try {
-    const { amount, hour } = req.body;
+    const { amount, hour, gstamout, totalamout, handlingfee } = req.body;
 
     if (amount === undefined || hour === undefined) {
       return res.status(400).json({ error: "Amount and hour are required" });
@@ -1293,11 +1293,17 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     const exitvehicledate = moment().format("DD-MM-YYYY");
     const exitvehicletime = moment().format("hh:mm A");
 
+    // Update fields
     booking.amount = amount;
     booking.hour = hour;
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
-    booking.status = "COMPLETED"; 
+    booking.status = "COMPLETED";
+    
+    // Optional fields
+    if (gstamout !== undefined) booking.gstamout = gstamout;
+    if (totalamout !== undefined) booking.totalamout = totalamout;
+    if (handlingfee !== undefined) booking.handlingfee = handlingfee;
 
     const updatedBooking = await booking.save();
 
@@ -1306,6 +1312,9 @@ exports.updateBookingAmountAndHour = async (req, res) => {
       booking: {
         amount: updatedBooking.amount,
         hour: updatedBooking.hour,
+        gstamout: updatedBooking.gstamout,
+        totalamout: updatedBooking.totalamout,
+        handlingfee: updatedBooking.handlingfee,
         exitvehicledate: updatedBooking.exitvehicledate,
         exitvehicletime: updatedBooking.exitvehicletime,
         status: updatedBooking.status
