@@ -104,5 +104,9 @@ adminRoute.put(
 );
 
 adminRoute.get("/fetchadmin/:id", adminController.getVendorById)
+adminRoute.put(
+  "/updatevendors/:vendorId",
+   upload.single("image"), 
+   adminController.UpdateVendorDataByAdmin);
 
 module.exports = adminRoute;
