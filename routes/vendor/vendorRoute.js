@@ -16,7 +16,7 @@ const bankdetailsConroller = require("../../controller/vendorController/bankdeta
 const agenda = require("../../config/agenda");
 const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
 const gstcontroler = require("../../controller/vendorController/gstcontroler");
-
+const Plan = require("../../models/planSchema");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -188,6 +188,67 @@ vendorRoute.post("/addfeestructure", gstcontroler.addGstFee);
 vendorRoute.get("/getgstfee", gstcontroler.getAllGstFees);
 vendorRoute.put("/updategstfee/:id", gstcontroler.updateGstFee);
 
+vendorRoute.post('/createorder/:vendorId', async (req, res) => {
+  const { vendorId } = req.params;
+  const { amount, currency, plan_id } = req.body;
 
+  // Validate request body
+  if (!amount || !currency || !plan_id) {
+    return res.status(400).json({ error: 'Missing required fields: amount, currency, or plan_id' });
+  }
+
+  if (isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' });
+  }
+
+  if (currency !== 'INR') {
+    return res.status(400).json({ error: 'Currency must be INR' });
+  }
+
+  try {
+    // Validate plan_id exists in Plan collection
+    const plan = await Plan.findById(plan_id);
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+
+    // Validate amount matches plan amount (convert plan.amount to paise)
+    const planAmountInPaise = parseInt(plan.amount) * 100;
+    if (planAmountInPaise !== parseInt(amount)) {
+      return res.status(400).json({ error: 'Amount does not match plan amount' });
+    }
+
+    // Create Razorpay order
+    const orderOptions = {
+      amount: parseInt(amount), // Amount in paise
+      currency: currency,
+      receipt: `receipt_${vendorId}_${Date.now()}`,
+      notes: {
+        vendor_id: vendorId,
+        plan_id: plan_id,
+      },
+    };
+
+    const order = await razorpay.orders.create(orderOptions);
+
+    // Store order details in MongoDB
+    const orderData = new order({
+      order_id: order.id,
+      vendor_id: vendorId,
+      plan_id: plan_id,
+      amount: parseInt(amount) / 100, // Store in rupees
+      currency: currency,
+      status: 'created',
+    });
+
+    await orderData.save();
+
+    // Return the order_id to the client
+    res.status(200).json({ order_id: order.id });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'Failed to create order', details: error.message });
+  }
+});
 
 module.exports = vendorRoute;
