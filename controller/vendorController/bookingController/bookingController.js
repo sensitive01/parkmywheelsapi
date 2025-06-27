@@ -1285,15 +1285,27 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     }
 
     const booking = await Booking.findById(req.params.id);
-
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
 
+    // Fetch vendor details to get platform fee percentage
+    const vendor = await vendorModel.findById(booking.vendorId);
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+    const totalAmount = parseFloat(totalamout) || parseFloat(amount) || 0;
+
+    // Calculate platform fee and receivable amount
+    const platformfee = (totalAmount * platformFeePercentage) / 100;
+    const receivableAmount = totalAmount - platformfee;
+
     const exitvehicledate = moment().format("DD-MM-YYYY");
     const exitvehicletime = moment().format("hh:mm A");
 
-    // Update fields
+    // Update booking fields
     booking.amount = amount;
     booking.hour = hour;
     booking.exitvehicledate = exitvehicledate;
@@ -1304,6 +1316,11 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     if (gstamout !== undefined) booking.gstamout = gstamout;
     if (totalamout !== undefined) booking.totalamout = totalamout;
     if (handlingfee !== undefined) booking.handlingfee = handlingfee;
+    
+    // Add calculated fields
+    booking.releasefee = platformfee.toFixed(2);
+    booking.recievableamount = receivableAmount.toFixed(2);
+    booking.payableamout = receivableAmount.toFixed(2); // Assuming payable amount is same as receivable
 
     const updatedBooking = await booking.save();
 
@@ -1315,6 +1332,9 @@ exports.updateBookingAmountAndHour = async (req, res) => {
         gstamout: updatedBooking.gstamout,
         totalamout: updatedBooking.totalamout,
         handlingfee: updatedBooking.handlingfee,
+        releasefee: updatedBooking.releasefee,
+        recievableamount: updatedBooking.recievableamount,
+        payableamout: updatedBooking.payableamout,
         exitvehicledate: updatedBooking.exitvehicledate,
         exitvehicletime: updatedBooking.exitvehicletime,
         status: updatedBooking.status
