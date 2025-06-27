@@ -1,5 +1,15 @@
 const express = require("express");
 const multer = require("multer");
+require('dotenv').config();
+
+// Razorpay instance setup
+const Razorpay = require("razorpay");
+// Razorpay instance setup
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
 const vendorRoute = express.Router();
 const vendorController = require("../../controller/vendorController/vendorController");
 const meetingController = require("../../controller/vendorController/meetingController/meetingController")
@@ -232,14 +242,15 @@ vendorRoute.post('/createorder/:vendorId', async (req, res) => {
     const order = await razorpay.orders.create(orderOptions);
 
     // Store order details in MongoDB
-    const orderData = new order({
-      order_id: order.id,
-      vendor_id: vendorId,
-      plan_id: plan_id,
-      amount: parseInt(amount) / 100, // Store in rupees
-      currency: currency,
-      status: 'created',
-    });
+const orderData = new Order({
+  order_id: order.id,
+  vendor_id: vendorId,
+  plan_id: plan_id,
+  amount: parseInt(amount) / 100, // Store in rupees
+  currency: currency,
+  status: 'created',
+});
+
 
     await orderData.save();
 
