@@ -1,17 +1,22 @@
 const Payment = require("../../../models/transactionschema");
-
+function generateBookingId() {
+  const prefix = "PMW";
+  const randomDigits = Math.floor(1000000 + Math.random() * 9000000); // Ensures 7 digits
+  return prefix + randomDigits;
+}
 const verifyPaymentResponse = async (req, res) => {
+ 
   try {
     const {
       payment_id,
-      order_id,
+      // order_id,
       signature,
       plan_id,
       amount,
       transaction_name,
       payment_status,
     } = req.body;
-
+const order_id = generateBookingId(); // Generate a unique order ID
     const vendor_id = req.params.vendorId;
 
     const payment = new Payment({

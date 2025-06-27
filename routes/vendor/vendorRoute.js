@@ -5,10 +5,7 @@ require('dotenv').config();
 // Razorpay instance setup
 const Razorpay = require("razorpay");
 // Razorpay instance setup
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+
 
 const vendorRoute = express.Router();
 const vendorController = require("../../controller/vendorController/vendorController");
@@ -202,16 +199,23 @@ vendorRoute.post('/createorder/:vendorId', async (req, res) => {
   const { vendorId } = req.params;
   const { amount, currency, plan_id } = req.body;
 
+  console.log('Received request to create order');
+  console.log('Request Params:', req.params);
+  console.log('Request Body:', req.body);
+
   // Validate request body
   if (!amount || !currency || !plan_id) {
+    console.log('Validation failed: Missing required fields');
     return res.status(400).json({ error: 'Missing required fields: amount, currency, or plan_id' });
   }
 
   if (isNaN(amount) || amount <= 0) {
+    console.log('Validation failed: Invalid amount');
     return res.status(400).json({ error: 'Invalid amount' });
   }
 
   if (currency !== 'INR') {
+    console.log('Validation failed: Invalid currency');
     return res.status(400).json({ error: 'Currency must be INR' });
   }
 
@@ -219,18 +223,22 @@ vendorRoute.post('/createorder/:vendorId', async (req, res) => {
     // Validate plan_id exists in Plan collection
     const plan = await Plan.findById(plan_id);
     if (!plan) {
+      console.log(`Plan not found for ID: ${plan_id}`);
       return res.status(404).json({ error: 'Plan not found' });
     }
 
-    // Validate amount matches plan amount (convert plan.amount to paise)
+    console.log('Fetched plan:', plan);
+
+    // Validate amount matches plan amount (convert to paise)
     const planAmountInPaise = parseInt(plan.amount) * 100;
     if (planAmountInPaise !== parseInt(amount)) {
+      console.log(`Amount mismatch: Expected ${planAmountInPaise}, got ${amount}`);
       return res.status(400).json({ error: 'Amount does not match plan amount' });
     }
 
     // Create Razorpay order
     const orderOptions = {
-      amount: parseInt(amount), // Amount in paise
+      amount: parseInt(amount),
       currency: currency,
       receipt: `receipt_${vendorId}_${Date.now()}`,
       notes: {
@@ -239,20 +247,23 @@ vendorRoute.post('/createorder/:vendorId', async (req, res) => {
       },
     };
 
+    console.log('Creating Razorpay order with options:', orderOptions);
+
     const order = await razorpay.orders.create(orderOptions);
+    console.log('Razorpay order created:', order);
 
     // Store order details in MongoDB
-const orderData = new Order({
-  order_id: order.id,
-  vendor_id: vendorId,
-  plan_id: plan_id,
-  amount: parseInt(amount) / 100, // Store in rupees
-  currency: currency,
-  status: 'created',
-});
-
+    const orderData = new Order({
+      order_id: order.id,
+      vendor_id: vendorId,
+      plan_id: plan_id,
+      amount: parseInt(amount) / 100,
+      currency: currency,
+      status: 'created',
+    });
 
     await orderData.save();
+    console.log('Order data saved to DB:', orderData);
 
     // Return the order_id to the client
     res.status(200).json({ order_id: order.id });
