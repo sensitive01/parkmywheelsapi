@@ -2,9 +2,6 @@ const express = require("express");
 const multer = require("multer");
 require('dotenv').config();
 
-// Razorpay instance setup
-const Razorpay = require("razorpay");
-// Razorpay instance setup
 
 
 const vendorRoute = express.Router();
@@ -26,7 +23,7 @@ const gstcontroler = require("../../controller/vendorController/gstcontroler");
 const Plan = require("../../models/planSchema");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-
+const orderController = require("../../controller/vendorController/orderController");
 vendorRoute.get("/fetchnotification/:vendorId", bookingController.getNotificationsByVendor);
 
 vendorRoute.post("/forgotpassword", vendorController.vendorForgotPassword);
@@ -194,83 +191,7 @@ vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserN
 vendorRoute.post("/addfeestructure", gstcontroler.addGstFee);
 vendorRoute.get("/getgstfee", gstcontroler.getAllGstFees);
 vendorRoute.put("/updategstfee/:id", gstcontroler.updateGstFee);
+vendorRoute.post('/create-order', orderController.createOrder);
 
-vendorRoute.post('/createorder/:vendorId', async (req, res) => {
-  const { vendorId } = req.params;
-  const { amount, currency, plan_id } = req.body;
-
-  console.log('Received request to create order');
-  console.log('Request Params:', req.params);
-  console.log('Request Body:', req.body);
-
-  // Validate request body
-  if (!amount || !currency || !plan_id) {
-    console.log('Validation failed: Missing required fields');
-    return res.status(400).json({ error: 'Missing required fields: amount, currency, or plan_id' });
-  }
-
-  if (isNaN(amount) || amount <= 0) {
-    console.log('Validation failed: Invalid amount');
-    return res.status(400).json({ error: 'Invalid amount' });
-  }
-
-  if (currency !== 'INR') {
-    console.log('Validation failed: Invalid currency');
-    return res.status(400).json({ error: 'Currency must be INR' });
-  }
-
-  try {
-    // Validate plan_id exists in Plan collection
-    const plan = await Plan.findById(plan_id);
-    if (!plan) {
-      console.log(`Plan not found for ID: ${plan_id}`);
-      return res.status(404).json({ error: 'Plan not found' });
-    }
-
-    console.log('Fetched plan:', plan);
-
-    // Validate amount matches plan amount (convert to paise)
-    const planAmountInPaise = parseInt(plan.amount) * 100;
-    if (planAmountInPaise !== parseInt(amount)) {
-      console.log(`Amount mismatch: Expected ${planAmountInPaise}, got ${amount}`);
-      return res.status(400).json({ error: 'Amount does not match plan amount' });
-    }
-
-    // Create Razorpay order
-    const orderOptions = {
-      amount: parseInt(amount),
-      currency: currency,
-      receipt: `receipt_${vendorId}_${Date.now()}`,
-      notes: {
-        vendor_id: vendorId,
-        plan_id: plan_id,
-      },
-    };
-
-    console.log('Creating Razorpay order with options:', orderOptions);
-
-    const order = await razorpay.orders.create(orderOptions);
-    console.log('Razorpay order created:', order);
-
-    // Store order details in MongoDB
-    const orderData = new Order({
-      order_id: order.id,
-      vendor_id: vendorId,
-      plan_id: plan_id,
-      amount: parseInt(amount) / 100,
-      currency: currency,
-      status: 'created',
-    });
-
-    await orderData.save();
-    console.log('Order data saved to DB:', orderData);
-
-    // Return the order_id to the client
-    res.status(200).json({ order_id: order.id });
-  } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ error: 'Failed to create order', details: error.message });
-  }
-});
 
 module.exports = vendorRoute;

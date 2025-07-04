@@ -1,40 +1,22 @@
-const Plan = require('./models/Plan'); // Adjust path to your Plan model
+const mongoose = require('mongoose');
 
-// Define Order schema
-const OrderSchema = new mongoose.Schema({
-  order_id: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  vendor_id: {
-    type: String,
-    required: true,
-  },
-  plan_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Plan',
-    required: true,
-  },
-  amount: {
-    type: Number,
-    required: true,
-  },
+const orderSchema = new mongoose.Schema({
+  orderId: String,
+  amount: Number,
   currency: {
     type: String,
-    required: true,
+    default: 'INR'
   },
   status: {
     type: String,
-    enum: ['created', 'attempted', 'paid', 'failed'],
-    default: 'created',
+    enum: ['created', 'paid', 'failed'],
+    default: 'created'
   },
-  created_at: {
+  paymentId: String,
+  createdAt: {
     type: Date,
-    default: Date.now,
-  },
-}, { timestamps: true });
+    default: Date.now
+  }
+});
 
-const Order = mongoose.model('Order', OrderSchema);
-
-module.exports = Order;
+module.exports = mongoose.model('Ordersss', orderSchema);
