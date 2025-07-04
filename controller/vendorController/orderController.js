@@ -5,6 +5,7 @@ const razorpay = new Razorpay({
   key_id: process.env.SECRETKEYID,
   key_secret: process.env.SECRETCODE,
 });
+console.log('Razorpay initialized with key_id:',razorpay )
 
 exports.createOrder = async (req, res) => {
   const { amount, vendor_id, plan_id } = req.body;
