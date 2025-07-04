@@ -12,6 +12,8 @@ const orderSchema = new mongoose.Schema({
     enum: ['created', 'paid', 'failed'],
     default: 'created'
   },
+    vendor_id: String,
+  plan_id: String,
   paymentId: String,
   createdAt: {
     type: Date,
