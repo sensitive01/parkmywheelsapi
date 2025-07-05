@@ -197,5 +197,6 @@ vendorRoute.get('/fetchvendorbookingrelease/:vendorId', bookingController.getVen
 vendorRoute.put('/updatebookingcont/:vendorId', bookingController.updateVendorBookingsSettlement);
 vendorRoute.delete("/delte/:vendorId", vendorController.deleteBookingsByVendorId);
 vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlementsByVendorId);
+vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsBySettlementId);
 
 module.exports = vendorRoute;
