@@ -1836,22 +1836,21 @@ exports.getVendorcBookingDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Fetch bookings that are completed but not settled
+    // Fetch bookings with userid, completed status, and settlement pending
     const bookings = await Booking.find({
       vendorId,
       status: "COMPLETED",
       userid: { $exists: true, $ne: "" },
-     $or: [
-    { settlementstatus: { $regex: /^pending$/i } },
-    { settlemtstatus: { $regex: /^pending$/i } },
-  ],
+      $or: [
+        { settlementstatus: { $regex: /^pending$/i } },
+        { settlementstatus: { $exists: false } }, // optionally handle missing field
+      ],
     });
 
     if (bookings.length === 0) {
       return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
     }
 
-    // Send full booking data
     const bookingData = bookings.map((b) => ({
       _id: b._id,
       userid: b.userid,
@@ -1878,17 +1877,16 @@ exports.getVendorcBookingDetails = async (req, res) => {
       cancelledDate: b.cancelledDate || null,
       cancelledTime: b.cancelledTime || null,
 
-      // Financial fields
       amount: b.amount || "0.00",
-      totalamout: b.totalamout || "0.00",
-      gstamout: b.gstamout || "0.00",
+      totalamount: b.totalamount || "0.00", // corrected typo from totalamout
+      gstamount: b.gstamount || "0.00",     // corrected typo from gstamout
       handlingfee: b.handlingfee || "0.00",
       releasefee: b.releasefee || "0.00",
       recievableamount: b.recievableamount || "0.00",
-      payableamout: b.payableamout || "0.00",
-settlemtmentstatus: b.settlementstatus || "pending",
-      // Extra fields
-      subsctiptiontype: b.subsctiptiontype || null,
+      payableamount: b.payableamount || "0.00", // corrected typo from payableamout
+      settlementstatus: b.settlementstatus || "pending",
+
+      subscriptiontype: b.subscriptiontype || null, // corrected typo from subsctiptiontype
     }));
 
     return res.status(200).json({
