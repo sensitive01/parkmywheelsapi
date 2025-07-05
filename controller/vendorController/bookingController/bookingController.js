@@ -135,6 +135,7 @@ exports.createBooking = async (req, res) => {
       cancelledTime: null,
       parkedDate,
       parkedTime,
+       settlemtstatus: "pending",
       exitvehicledate,
       exitvehicletime,
       bookType,
@@ -1927,15 +1928,18 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     }
 
     // Fetch bookings to calculate totals
-    const bookings = await Booking.find({
-      _id: { $in: bookingIds },
-      vendorId,
-      status: "COMPLETED",
-      $or: [
-        { settlementstatus: { $regex: /^pending$/i } },
-        { settlemtstatus: { $regex: /^pending$/i } }, // fallback typo handling
-      ],
-    });
+ const bookings = await Booking.find({
+  _id: { $in: bookingIds },
+  vendorId,
+  status: "COMPLETED",
+  $or: [
+    { settlementstatus: { $regex: /^pending$/i } },
+    { settlementstatus: { $exists: false } },
+    { settlemtstatus: { $regex: /^pending$/i } },
+    { settlemtstatus: { $exists: false } },
+  ],
+});
+
 
     console.log("🔍 Matched Bookings Count:", bookings.length);
     console.log("📄 Bookings Details:", bookings.map(b => ({
@@ -2024,21 +2028,22 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     const newId = new mongoose.Types.ObjectId().toString();
     const orderid = `ORD-${newId.slice(-8)}`;
 
-    const settlement = new Settlement({
-      orderid,
-      parkingamout: totalParkingAmount.toFixed(2),
-      platformfee: totalPlatformFee.toFixed(2),
-      gst: totalGst.toFixed(2),
-      tds: [tds],
-      payableammout: payableAmount,
-      date: new Date().toISOString().split("T")[0],
-      time: new Date().toISOString().split("T")[1].split(".")[0],
-      status: "settled",
-      settlementid: newId,
-      vendorid: vendorId,
-      bookingtotal: totalReceivableAmount.toFixed(2),
-      bookings: bookingDetails,
-    });
+const settlement = new Settlement({
+  orderid,
+  parkingamout: totalParkingAmount.toFixed(2),
+  platformfee: totalPlatformFee.toFixed(2),
+  gst: totalGst.toFixed(2),
+  tds: tds,
+  payableammout: payableAmount,
+  date: new Date().toISOString().split("T")[0],
+  time: new Date().toISOString().split("T")[1].split(".")[0],
+  status: "settled",
+  settlementid: newId,
+  vendorid: vendorId,
+  bookingtotal: totalReceivableAmount.toFixed(2),
+  bookings: bookingDetails,
+});
+
 
     await settlement.save();
 
