@@ -1820,3 +1820,79 @@ exports.clearUserNotifications = async (req, res) => {
     });
   }
 };
+exports.getVendorcBookingDetails = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    // Fetch bookings that are completed but not settled
+    const bookings = await Booking.find({
+      vendorId,
+      status: "COMPLETED",
+      userid: { $exists: true, $ne: "" },
+      settlementstatus: { $ne: "Finished" },
+    });
+
+    if (bookings.length === 0) {
+      return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
+    }
+
+    // Send full booking data
+    const bookingData = bookings.map((b) => ({
+      _id: b._id,
+      userid: b.userid,
+      vendorId: b.vendorId,
+      vendorName: b.vendorName || null,
+      vehicleType: b.vehicleType || null,
+      vehicleNumber: b.vehicleNumber || null,
+      personName: b.personName || null,
+      mobileNumber: b.mobileNumber || null,
+      carType: b.carType || null,
+
+      status: b.status,
+      bookingDate: b.bookingDate || null,
+      bookingTime: b.bookingTime || null,
+      parkingDate: b.parkingDate || null,
+      parkingTime: b.parkingTime || null,
+      exitvehicledate: b.exitvehicledate || null,
+      exitvehicletime: b.exitvehicletime || null,
+      parkedDate: b.parkedDate || null,
+      parkedTime: b.parkedTime || null,
+      tenditivecheckout: b.tenditivecheckout || null,
+      approvedDate: b.approvedDate || null,
+      approvedTime: b.approvedTime || null,
+      cancelledDate: b.cancelledDate || null,
+      cancelledTime: b.cancelledTime || null,
+
+      // Financial fields
+      amount: b.amount || "0.00",
+      totalamout: b.totalamout || "0.00",
+      gstamout: b.gstamout || "0.00",
+      handlingfee: b.handlingfee || "0.00",
+      releasefee: b.releasefee || "0.00",
+      recievableamount: b.recievableamount || "0.00",
+      payableamout: b.payableamout || "0.00",
+
+      // Extra fields
+      subsctiptiontype: b.subsctiptiontype || null,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking details retrieved successfully",
+      count: bookingData.length,
+      data: bookingData,
+    });
+  } catch (error) {
+    console.error("Error fetching vendor booking details:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

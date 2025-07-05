@@ -37,6 +37,22 @@ const settlementSchema = new mongoose.Schema({
     bookingtotal : {
     type: String, 
   },
+  bookings: [{ // Added to store booking details
+    _id: String,
+    userid: String,
+    vendorId: String,
+    amount: String,
+    platformfee: String,
+    receivableAmount: String,
+    bookingDate: String,
+    parkingDate: String,
+    parkingTime: String,
+    exitvehicledate: String,
+    exitvehicletime: String,
+    vendorName: String,
+    vehicleType: String,
+    vehicleNumber: String,
+  }],
   createdAt: {
     type: Date,
     default: Date.now
