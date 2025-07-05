@@ -753,7 +753,7 @@ exports.updateApproveBooking = async (req, res) => {
       userId: booking.userid, // Store user's UUID as string
       bookingId: booking._id,
       title: "Booking Approved",
-      message: `Your booking with ${booking.vendorId.vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
+      message: `Your booking with ${booking.vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
