@@ -1965,7 +1965,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
 
     const bookingDetails = bookings.map((b) => {
       const amount = parseFloat(b.amount || "0.00");
-     const platformFee = parseFloat(b.platformFee || "0.00");
+const platformFee = parseFloat(b.releasefee || "0.00");
       const gst = parseFloat(b.gstamout || "0.00");
       const receivableAmount = parseFloat(b.recievableamount || "0.00");
 
@@ -1979,7 +1979,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
         userid: b.userid || "",
         vendorId: b.vendorId || "",
         amount: b.amount || "0.00",
-      platformfee: b.platformFee || "0.00",
+    platformfee: b.releasefee || "0.00",
         receivableAmount: b.recievableamount || "0.00",
         bookingDate: b.bookingDate || "",
         parkingDate: b.parkingDate || "",
