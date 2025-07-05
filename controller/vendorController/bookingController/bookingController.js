@@ -1,10 +1,13 @@
+const mongoose = require("mongoose");
 const Booking = require("../../../models/bookingSchema");
 const vendorModel = require("../../../models/venderSchema");
+const Settlement = require("../../../models/settlementSchema");
 
 const userModel = require("../../../models/userModel");
 const moment = require("moment");
 const admin = require("../../../config/firebaseAdmin"); // Use the singleton
 const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
+const { v4: uuidv4 } = require('uuid');
 
 exports.createBooking = async (req, res) => {
   try {
@@ -1901,3 +1904,154 @@ settlemtmentstatus: b.settlementstatus || "pending",
 };
 
 
+exports.updateVendorBookingsSettlement = async (req, res) => {
+  try {
+    const { bookingIds } = req.body;
+    const { vendorId } = req.params;
+
+    // Validate inputs
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    if (!Array.isArray(bookingIds) || bookingIds.length === 0) {
+      return res.status(400).json({ success: false, message: "Booking IDs array is required and cannot be empty" });
+    }
+
+    console.log("📥 Input Booking IDs:", bookingIds);
+    console.log("📥 Vendor ID:", vendorId);
+
+    // Verify vendor exists
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    // Fetch bookings to calculate totals
+    const bookings = await Booking.find({
+      _id: { $in: bookingIds },
+      vendorId,
+      status: "COMPLETED",
+      $or: [
+        { settlementstatus: { $regex: /^pending$/i } },
+        { settlemtstatus: { $regex: /^pending$/i } }, // fallback typo handling
+      ],
+    });
+
+    console.log("🔍 Matched Bookings Count:", bookings.length);
+    console.log("📄 Bookings Details:", bookings.map(b => ({
+      _id: b._id,
+      status: b.status,
+      settlementstatus: b.settlementstatus,
+      settlemtstatus: b.settlemtstatus
+    })));
+
+    if (bookings.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No matching bookings found or already settled",
+      });
+    }
+
+    // Calculate totals
+    let totalParkingAmount = 0;
+    let totalPlatformFee = 0;
+    let totalGst = 0;
+    let totalReceivableAmount = 0;
+
+    const bookingDetails = bookings.map((b) => {
+      const amount = parseFloat(b.amount || "0.00");
+      const platformFee = parseFloat(b.handlingfee || "0.00");
+      const gst = parseFloat(b.gstamout || "0.00");
+      const receivableAmount = parseFloat(b.recievableamount || "0.00");
+
+      totalParkingAmount += amount;
+      totalPlatformFee += platformFee;
+      totalGst += gst;
+      totalReceivableAmount += receivableAmount;
+
+      return {
+        _id: b._id.toString(),
+        userid: b.userid || "",
+        vendorId: b.vendorId || "",
+        amount: b.amount || "0.00",
+        platformfee: b.handlingfee || "0.00",
+        receivableAmount: b.recievableamount || "0.00",
+        bookingDate: b.bookingDate || "",
+        parkingDate: b.parkingDate || "",
+        parkingTime: b.parkingTime || "",
+        exitvehicledate: b.exitvehicledate || "",
+        exitvehicletime: b.exitvehicletime || "",
+        vendorName: b.vendorName || "",
+        vehicleType: b.vehicleType || "",
+        vehicleNumber: b.vehicleNumber || "",
+      };
+    });
+
+    // Calculate TDS (10% of total receivable amount)
+    const tds = (totalReceivableAmount * 0.1).toFixed(2);
+    const payableAmount = (totalReceivableAmount - parseFloat(tds)).toFixed(2);
+
+    // Update bookings' settlement status
+    const updateResult = await Booking.updateMany(
+      {
+        _id: { $in: bookingIds },
+        vendorId,
+        status: "COMPLETED",
+        $or: [
+          { settlementstatus: { $regex: /^pending$/i } },
+          { settlemtstatus: { $regex: /^pending$/i } },
+        ],
+      },
+      {
+        $set: {
+          settlementstatus: "settled",
+          settlemtstatus: "settled",
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    console.log("✅ Booking Update Result:", updateResult);
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No matching bookings found or already settled",
+      });
+    }
+
+    // Create new Settlement document with fallback IDs using Mongo ObjectId
+    const newId = new mongoose.Types.ObjectId().toString();
+    const orderid = `ORD-${newId.slice(-8)}`;
+
+    const settlement = new Settlement({
+      orderid,
+      parkingamout: totalParkingAmount.toFixed(2),
+      platformfee: totalPlatformFee.toFixed(2),
+      gst: totalGst.toFixed(2),
+      tds: [tds],
+      payableammout: payableAmount,
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toISOString().split("T")[1].split(".")[0],
+      status: "settled",
+      settlementid: newId,
+      vendorid: vendorId,
+      bookingtotal: totalReceivableAmount.toFixed(2),
+      bookings: bookingDetails,
+    });
+
+    await settlement.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking settlement status updated and settlement record created successfully",
+      updatedCount: updateResult.modifiedCount,
+      matchedCount: updateResult.matchedCount,
+      settlementId: settlement.settlementid,
+    });
+  } catch (error) {
+    console.error("❌ Error updating booking settlement status:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
