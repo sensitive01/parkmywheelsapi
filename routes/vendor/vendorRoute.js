@@ -18,6 +18,7 @@ const kycController = require("../../controller/vendorController/kycController/k
 const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
 const bankdetailsConroller = require("../../controller/vendorController/bankdetailsController/bankdetailsController");
 const agenda = require("../../config/agenda");
+const settlementcontroller = require("../../controller/vendorController/settlementController");
 const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
 const gstcontroler = require("../../controller/vendorController/gstcontroler");
 const Plan = require("../../models/planSchema");
@@ -195,5 +196,6 @@ vendorRoute.post('/create-order', orderController.createOrder);
 vendorRoute.get('/fetchvendorbookingrelease/:vendorId', bookingController.getVendorcBookingDetails);
 vendorRoute.put('/updatebookingcont/:vendorId', bookingController.updateVendorBookingsSettlement);
 vendorRoute.delete("/delte/:vendorId", vendorController.deleteBookingsByVendorId);
+vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlementsByVendorId);
 
 module.exports = vendorRoute;
