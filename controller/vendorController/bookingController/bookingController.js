@@ -721,13 +721,12 @@ exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
     const { id } = req.params;
-    const { approvedDate, approvedTime } = req.body;
+    const { approvedDate, approvedTime } = req.body; // Get manual values from request
 
     if (!approvedDate || !approvedTime) {
       return res.status(400).json({ success: false, message: "Approved date and time are required" });
     }
 
-    // Populate vendorId with the correct field name (e.g., vendorName or name)
     const booking = await Booking.findById(id).populate('vendorId', 'vendorName');
     if (!booking) {
       return res.status(400).json({ success: false, message: "Booking not found" });
@@ -737,10 +736,7 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    // Ensure vendorName is available
-    const vendorName = booking.vendorId?.vendorName || "Unknown Vendor"; // Fallback if vendorName is missing
-    console.log("Vendor Name:", vendorName);
-
+    console.log("approvedDate", approvedDate, "approvedTime", approvedTime);
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       { 
@@ -751,36 +747,28 @@ exports.updateApproveBooking = async (req, res) => {
       { new: true }
     );
 
-    // Prepare and save user notification
+    // Prepare and save user notification to Notification collection
     const userNotification = new Notification({
       vendorId: booking.vendorId._id,
-      userId: booking.userid,
+      userId: booking.userid, // Store user's UUID as string
       bookingId: booking._id,
       title: "Booking Approved",
-      message: `Your booking with ${vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
+      message: `Your booking with ${booking.vendorId.vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
-      notificationdtime: `${approvedDate} ${approvedTime}`,
+        notificationdtime:`${approvedDate} ${approvedTime}`,
       read: false,
-      vendorname: vendorName, // Store vendorName in notification
-      sts: booking.sts,
-      bookingtype: booking.bookType,
-      parkingDate: booking.parkingDate,
-      parkingTime: booking.parkingTime,
-      bookingdate: booking.bookingDate,
-      schedule: `${booking.parkingDate} ${booking.parkingTime}`,
-      status: updatedBooking.status,
     });
 
     await userNotification.save();
     console.log("User notification saved:", userNotification);
 
-    // Prepare FCM notification message
+    // Prepare FCM notification message for user
     const userNotificationMessage = {
       notification: {
         title: "Booking Approved",
-        body: `Your booking with ${vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
+        body: `Your booking with ${booking.vendorId.vendorName} has been approved for ${approvedDate} at ${approvedTime}`,
       },
       data: {
         bookingId: booking._id.toString(),
@@ -803,7 +791,7 @@ exports.updateApproveBooking = async (req, res) => {
     };
 
     // Send notification to user
-    const user = await userModel.findOne({ uuid: booking.userid }, { USerfcmtoken: HiveMind, userfcmTokens: 1 });
+    const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
       const userInvalidTokens = [];
