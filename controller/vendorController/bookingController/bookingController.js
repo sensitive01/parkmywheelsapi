@@ -1851,43 +1851,44 @@ exports.getVendorcBookingDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
     }
 
-    const bookingData = bookings.map((b) => ({
-      _id: b._id,
-      userid: b.userid,
-      vendorId: b.vendorId,
-      vendorName: b.vendorName || null,
-      vehicleType: b.vehicleType || null,
-      vehicleNumber: b.vehicleNumber || null,
-      personName: b.personName || null,
-      mobileNumber: b.mobileNumber || null,
-      carType: b.carType || null,
+ const bookingData = bookings.map((b) => ({
+  _id: b._id,
+  userid: b.userid,
+  vendorId: b.vendorId,
+  vendorName: b.vendorName || null,
+  vehicleType: b.vehicleType || null,
+  vehicleNumber: b.vehicleNumber || null,
+  personName: b.personName || null,
+  mobileNumber: b.mobileNumber || null,
+  carType: b.carType || null,
 
-      status: b.status,
-      bookingDate: b.bookingDate || null,
-      bookingTime: b.bookingTime || null,
-      parkingDate: b.parkingDate || null,
-      parkingTime: b.parkingTime || null,
-      exitvehicledate: b.exitvehicledate || null,
-      exitvehicletime: b.exitvehicletime || null,
-      parkedDate: b.parkedDate || null,
-      parkedTime: b.parkedTime || null,
-      tenditivecheckout: b.tenditivecheckout || null,
-      approvedDate: b.approvedDate || null,
-      approvedTime: b.approvedTime || null,
-      cancelledDate: b.cancelledDate || null,
-      cancelledTime: b.cancelledTime || null,
+  status: b.status,
+  bookingDate: b.bookingDate || null,
+  bookingTime: b.bookingTime || null,
+  parkingDate: b.parkingDate || null,
+  parkingTime: b.parkingTime || null,
+  exitvehicledate: b.exitvehicledate || null,
+  exitvehicletime: b.exitvehicletime || null,
+  parkedDate: b.parkedDate || null,
+  parkedTime: b.parkedTime || null,
+  tenditivecheckout: b.tenditivecheckout || null,
+  approvedDate: b.approvedDate || null,
+  approvedTime: b.approvedTime || null,
+  cancelledDate: b.cancelledDate || null,
+  cancelledTime: b.cancelledTime || null,
 
-      amount: b.amount || "0.00",
-      totalamount: b.totalamount || "0.00", // corrected typo from totalamout
-      gstamount: b.gstamount || "0.00",     // corrected typo from gstamout
-      handlingfee: b.handlingfee || "0.00",
-      releasefee: b.releasefee || "0.00",
-      recievableamount: b.recievableamount || "0.00",
-      payableamount: b.payableamount || "0.00", // corrected typo from payableamout
-      settlementstatus: b.settlementstatus || "pending",
+  amount: b.amount || "0.00",
+  totalamount: b.totalamout || "0.00",       // <- fixed
+  gstamount: b.gstamout || "0.00",           // <- fixed
+  handlingfee: b.handlingfee || "0.00",
+  releasefee: b.releasefee || "0.00",
+  recievableamount: b.recievableamount || "0.00",
+  payableamount: b.payableamout || "0.00",   // <- fixed
+  settlementstatus: b.settlemtstatus || "pending", // <- fixed
 
-      subscriptiontype: b.subscriptiontype || null, // corrected typo from subsctiptiontype
-    }));
+  subscriptiontype: b.subsctiptiontype || null, // <- fixed
+}));
+
 
     return res.status(200).json({
       success: true,
@@ -2053,3 +2054,4 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
