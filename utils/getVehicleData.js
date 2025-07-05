@@ -1,5 +1,15 @@
 const axios = require('axios');
-
+await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+  params: {
+    username: "vayusutha",
+    password: "Connect@123",
+    unicode: "false",
+    from: "PRMYWH",
+    to: mobile,
+    text: `Hi, ${otp} is your One time verification code. Park Smart with ParkMyWheels.`,
+    dltContentId: "1007991289098439570"
+  }
+});
 const options = {
   method: 'POST',
   url: 'https://vehicle-information-verification-rto-india.p.rapidapi.com/rc-full',
