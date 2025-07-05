@@ -4,6 +4,7 @@ const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 
 const axios = require('axios');
+const Booking = require("../../models/bookingSchema");
 
 
 // const encodeMessage = (otp) => {
@@ -1041,9 +1042,28 @@ const updateVendorVisibility = async (req, res) => {
   }
 };
 
+const deleteBookingsByVendorId = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
 
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    const result = await Booking.deleteMany({ vendorId });
+
+    return res.status(200).json({
+      success: true,
+      message: `Deleted ${result.deletedCount} bookings for vendorId ${vendorId}`,
+    });
+  } catch (error) {
+    console.error("Error deleting bookings:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
 
 module.exports = {
+  deleteBookingsByVendorId,
   fetchhours,
   vendorLogoutById,
   updateVendorVisibility,

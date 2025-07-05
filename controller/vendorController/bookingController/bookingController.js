@@ -1842,11 +1842,11 @@ exports.getVendorcBookingDetails = async (req, res) => {
       vendorId,
       status: "COMPLETED",
       userid: { $exists: true, $ne: "" },
-      $or: [
-        { settlementstatus: { $regex: /^pending$/i } },
-        { settlementstatus: { $exists: false } }, // optionally handle missing field
-      ],
-    });
+$or: [
+    { settlementstatus: { $regex: /^pending$/i } },
+    { settlementstatus: { $exists: false } },
+  ],
+});
 
     if (bookings.length === 0) {
       return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
