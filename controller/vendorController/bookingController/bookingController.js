@@ -1012,7 +1012,7 @@ exports.updateApprovedCancelBooking = async (req, res) => {
       userId: booking.userid,
       bookingId: booking._id,
       title: "Booking Cancelled",
-      message: `Your  booking at ${booking.vendorId.vendorName}  has been cancelled by the vendor."`,
+      message: `Your  booking at ${booking.vendorName}  has been cancelled by the vendor."`,
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
@@ -1027,7 +1027,7 @@ exports.updateApprovedCancelBooking = async (req, res) => {
     const userNotificationMessage = {
       notification: {
         title: "Booking Cancelled",
-        body: `Your  booking at ${booking.vendorId.vendorName}  has been cancelled by the vendor."`,
+        body: `Your  booking at ${booking.vendorName}  has been cancelled by the vendor."`,
       },
       data: {
         bookingId: booking._id.toString(),
@@ -1139,7 +1139,7 @@ exports.allowParking = async (req, res) => {
       userId: booking.userid,
       bookingId: updatedBooking._id,
       title: "Parking Started",
-      message: `Your parking has started at ${booking.vendorId.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+      message: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
@@ -1160,7 +1160,7 @@ exports.allowParking = async (req, res) => {
     const userNotificationMessage = {
       notification: {
         title: "Parking Started",
-        body: `Your parking has started at ${booking.vendorId.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+        body: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
       },
       data: {
         bookingId: updatedBooking._id.toString(),
