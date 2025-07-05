@@ -1838,7 +1838,10 @@ exports.getVendorcBookingDetails = async (req, res) => {
       vendorId,
       status: "COMPLETED",
       userid: { $exists: true, $ne: "" },
-      settlementstatus: { $ne: "Finished" },
+     $or: [
+    { settlementstatus: { $regex: /^pending$/i } },
+    { settlemtstatus: { $regex: /^pending$/i } },
+  ],
     });
 
     if (bookings.length === 0) {
@@ -1880,7 +1883,7 @@ exports.getVendorcBookingDetails = async (req, res) => {
       releasefee: b.releasefee || "0.00",
       recievableamount: b.recievableamount || "0.00",
       payableamout: b.payableamout || "0.00",
-
+settlemtmentstatus: b.settlementstatus || "pending",
       // Extra fields
       subsctiptiontype: b.subsctiptiontype || null,
     }));
@@ -1896,3 +1899,5 @@ exports.getVendorcBookingDetails = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+

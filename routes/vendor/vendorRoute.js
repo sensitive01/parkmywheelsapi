@@ -194,5 +194,4 @@ vendorRoute.put("/updategstfee/:id", gstcontroler.updateGstFee);
 vendorRoute.post('/create-order', orderController.createOrder);
 vendorRoute.get('/fetchvendorbookingrelease/:vendorId', bookingController.getVendorcBookingDetails);
 
-
 module.exports = vendorRoute;
