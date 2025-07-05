@@ -1838,15 +1838,16 @@ exports.getVendorcBookingDetails = async (req, res) => {
     }
 
     // Fetch bookings with userid, completed status, and settlement pending
-    const bookings = await Booking.find({
-      vendorId,
-      status: "COMPLETED",
-      userid: { $exists: true, $ne: "" },
-$or: [
-    { settlementstatus: { $regex: /^pending$/i } },
-    { settlementstatus: { $exists: false } },
+const bookings = await Booking.find({
+  vendorId,
+  status: "COMPLETED",
+  userid: { $exists: true, $ne: "" },
+  $or: [
+    { settlemtstatus: { $regex: /^pending$/i } },
+    { settlemtstatus: { $exists: false } }, // Optional: If you want to include unset values too
   ],
 });
+
 
     if (bookings.length === 0) {
       return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
