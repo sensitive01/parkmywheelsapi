@@ -1,9 +1,6 @@
 const express = require("express");
 const multer = require("multer");
 require('dotenv').config();
-
-
-
 const vendorRoute = express.Router();
 const vendorController = require("../../controller/vendorController/vendorController");
 const meetingController = require("../../controller/vendorController/meetingController/meetingController")

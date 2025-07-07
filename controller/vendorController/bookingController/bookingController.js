@@ -206,7 +206,7 @@ exports.createBooking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -231,7 +231,7 @@ exports.createBooking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -490,7 +490,7 @@ body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${pa
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -788,7 +788,7 @@ exports.updateApproveBooking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -907,7 +907,7 @@ exports.updateCancelBooking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -1047,7 +1047,7 @@ exports.updateApprovedCancelBooking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -1180,7 +1180,7 @@ exports.allowParking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },
@@ -1311,7 +1311,7 @@ exports.directallowParking = async (req, res) => {
         payload: {
           aps: {
             sound: 'default',
-            badge: 0,
+            // badge: 0,
           },
         },
       },

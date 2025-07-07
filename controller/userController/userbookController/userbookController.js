@@ -117,7 +117,7 @@ exports.updateBookingById = async (req, res) => {
               payload: {
                 aps: {
                   sound: 'default',
-                  badge: 0,
+                  // badge: 0,
                 },
               },
             },

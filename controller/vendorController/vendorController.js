@@ -7,24 +7,101 @@ const axios = require('axios');
 const Booking = require("../../models/bookingSchema");
 
 
-// const encodeMessage = (otp) => {
-//   const message = `Hi, ${otp} is your One time verification code. Park Smart with ParkMyWheels.`;
-//   return {
-//     raw: message,
-//     encoded: encodeURIComponent(message),
-//   };
-// };
+const encodeMessage = (otp) => {
+  const message = `Hi, ${otp} is your One time verification code. Park Smart with ParkMyWheels.`;
+  return {
+    raw: message,
+    encoded: encodeURIComponent(message),
+  };
+};
+
+
+const vendorForgotPassword = async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    // ✅ Basic validation
+    if (!mobile) {
+      return res.status(400).json({ message: "Mobile number is required" });
+    }
+
+    // ✅ Validate Indian mobile format
+    let cleanedMobile = mobile.replace(/[^0-9]/g, '');
+    if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
+      cleanedMobile = cleanedMobile.slice(2);
+    }
+
+    if (!/^[6-9]\d{9}$/.test(cleanedMobile)) {
+      return res.status(400).json({ message: "Invalid mobile number format" });
+    }
+
+    // 🔍 Check if vendor exists
+    const existVendor = await vendorModel.findOne({ "contacts.mobile": cleanedMobile });
+    if (!existVendor) {
+      return res.status(404).json({
+        message: "Vendor not found with the provided mobile number",
+      });
+    }
+
+    // 🔐 Generate OTP and store
+    const otp = generateOTP(); // Should return a 5/6-digit random number
+    existVendor.otp = otp;
+    existVendor.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
+    await existVendor.save();
+
+    // 💬 Encode message
+    const { raw, encoded } = encodeMessage(otp);
+    console.log("🔐 OTP:", otp);
+    console.log("📤 SMS Text (raw):", raw);
+    console.log("📤 SMS Text (encoded):", encoded);
+
+    // 📡 Send SMS using VISPL API
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: {
+        username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+        password: process.env.VISPL_PASSWORD || "pdizP",
+        unicode: "false",
+        from: process.env.VISPL_SENDER_ID || "PRMYWH",
+        to: cleanedMobile,
+        text: encoded,
+        dltContentId: process.env.VISPL_TEMPLATE_ID || "1007991289098439570",
+      },
+    });
+
+    console.log("📩 VISPL SMS API Response:", smsResponse.data);
+
+    // ✅ Acceptable status codes from VISPL
+    const acceptedCodes = [200, 2000];
+    if (!acceptedCodes.includes(smsResponse.data.statusCode)) {
+      return res.status(500).json({
+        message: "Failed to send OTP via SMS",
+        visplResponse: smsResponse.data,
+      });
+    }
+
+    // ✅ Success
+    return res.status(200).json({ message: "OTP sent successfully" });
+
+  } catch (err) {
+    console.error("❌ Error in forgot password:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
 
 // const vendorForgotPassword = async (req, res) => {
 //   try {
-//     const { mobile } = req.body;
+//     const { mobile } = req.body; 
+
 
 //     if (!mobile) {
 //       return res.status(400).json({ message: "Mobile number is required" });
 //     }
 
-//     // Check vendor existence
-//     const existVendor = await vendorModel.findOne({ "contacts.mobile": mobile });
+//     const existVendor = await vendorModel.findOne({
+//       "contacts.mobile": mobile, 
+//     });
 
 //     if (!existVendor) {
 //       return res.status(404).json({
@@ -32,84 +109,21 @@ const Booking = require("../../models/bookingSchema");
 //       });
 //     }
 
-//     // Generate and store OTP
+
 //     const otp = generateOTP();
-//     existVendor.otp = otp;
-//     existVendor.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-//     await existVendor.save();
+//     console.log("Generated OTP:", otp);
 
-//     // Prepare SMS message
-//     const { raw, encoded } = encodeMessage(otp);
+//     req.app.locals.otp = otp;
 
-//     // Log what you're sending
-//     console.log("🔐 OTP:", otp);
-//     console.log("📤 SMS Text (raw):", raw);
-//     console.log("📤 SMS Text (encoded):", encoded);
-
-//     // VISPL SMS API Call
-//     const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-//       params: {
-//         username: process.env.VISPL_USERNAME || "vayusutha",             // Replace with env in production
-//         password: process.env.VISPL_PASSWORD || "Connect@123",           // Replace with env in production
-//         unicode: "false",
-//         from: process.env.VISPL_SENDER_ID || "PRMYWH",                   // Your DLT-approved sender ID
-//         to: mobile,
-//         text: encoded,
-//         dltContentId: process.env.VISPL_TEMPLATE_ID || "1007991289098439570", // Approved Template ID
-//       }
+//     return res.status(200).json({
+//       message: "OTP sent successfully",
+//       otp: otp,
 //     });
-
-//     // Log VISPL response
-//     console.log("📩 VISPL SMS API Response:", smsResponse.data);
-
-//     if (smsResponse.data.statusCode !== 2000) {
-//       return res.status(500).json({
-//         message: "Failed to send OTP via SMS",
-//         visplResponse: smsResponse.data,
-//       });
-//     }
-
-//     return res.status(200).json({ message: "OTP sent successfully" });
-
 //   } catch (err) {
-//     console.error("❌ Error in forgot password:", err);
+//     console.error("Error in forgot password:", err);
 //     return res.status(500).json({ message: "Internal server error" });
 //   }
 // };
-const vendorForgotPassword = async (req, res) => {
-  try {
-    const { mobile } = req.body; 
-
-
-    if (!mobile) {
-      return res.status(400).json({ message: "Mobile number is required" });
-    }
-
-    const existVendor = await vendorModel.findOne({
-      "contacts.mobile": mobile, 
-    });
-
-    if (!existVendor) {
-      return res.status(404).json({
-        message: "Vendor not found with the provided mobile number",
-      });
-    }
-
-
-    const otp = generateOTP();
-    console.log("Generated OTP:", otp);
-
-    req.app.locals.otp = otp;
-
-    return res.status(200).json({
-      message: "OTP sent successfully",
-      otp: otp,
-    });
-  } catch (err) {
-    console.error("Error in forgot password:", err);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
 
 const verifyOTP = async (req, res) => {
   try {
