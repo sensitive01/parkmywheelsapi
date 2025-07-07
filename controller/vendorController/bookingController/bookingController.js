@@ -2060,4 +2060,26 @@ platformfee: totalPlatformFee.toFixed(2),
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.getBookingById = async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    
+    // Validate ObjectId
+    if (!bookingId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: "Invalid booking ID format" });
+    }
 
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.status(200).json({
+      message: "Booking details fetched successfully",
+      data: booking
+    });
+  } catch (error) {
+    console.error("Error fetching booking:", error);
+    res.status(500).json({ error: "An error occurred while fetching the booking" });
+  }
+};
