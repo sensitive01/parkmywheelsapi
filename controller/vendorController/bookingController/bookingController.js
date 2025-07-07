@@ -1235,6 +1235,138 @@ exports.allowParking = async (req, res) => {
   }
 };
 
+exports.directallowParking = async (req, res) => {
+  try {
+    console.log("BOOKING ID", req.params);
+    const { id } = req.params;
+    const { parkedDate, parkedTime } = req.body; // Get date and time from frontend
+
+    // Validate if date and time are provided
+    if (!parkedDate || !parkedTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Parked date and parked time are required",
+      });
+    }
+
+    // Find the booking and populate vendor details
+    const booking = await Booking.findById(id).populate('vendorId', 'vendorName');
+    if (!booking) {
+      return res.status(400).json({ success: false, message: "Booking not found" });
+    }
+
+
+
+    // Update the booking status to PARKED
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      {
+        status: "PARKED",
+        parkedDate,
+        parkedTime,
+      },
+      { new: true }
+    );
+
+    // Create a new notification for the customer
+    const userNotification = new Notification({
+      vendorId: booking.vendorId._id,
+      userId: booking.userid,
+      bookingId: updatedBooking._id,
+      title: "Parking Started",
+      message: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+      vehicleType: booking.vehicleType,
+      vehicleNumber: booking.vehicleNumber,
+      createdAt: new Date(),
+      notificationdtime: `${parkedDate} ${parkedTime}`,
+      read: false,
+      sts: booking.sts,
+      bookingtype: booking.bookType,
+      vendorname: booking.vendorId.vendorName,
+      parkingDate: parkedDate,
+      parkingTime: parkedTime,
+      status: updatedBooking.status,
+    });
+
+    await userNotification.save();
+    console.log("Customer parking start notification saved:", userNotification);
+
+    // Prepare FCM notification message for the customer
+    const userNotificationMessage = {
+      notification: {
+        title: "Parking Started",
+        body: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+      },
+      data: {
+        bookingId: updatedBooking._id.toString(),
+        vehicleType: booking.vehicleType,
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 0,
+          },
+        },
+      },
+    };
+
+    // Send push notification to the customer
+    const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
+    if (user) {
+      const userFcmTokens = user.userfcmTokens || [];
+      const userInvalidTokens = [];
+
+      if (userFcmTokens.length > 0) {
+        const userPromises = userFcmTokens.map(async (token) => {
+          try {
+            const message = { ...userNotificationMessage, token };
+            const response = await admin.messaging().send(message);
+            console.log(`✅ Customer parking start notification sent to ${token}`, response);
+          } catch (error) {
+            console.error(`❌ Error sending to customer token: ${token}`, error);
+            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+              userInvalidTokens.push(token);
+            }
+          }
+        });
+
+        await Promise.all(userPromises);
+
+        // Remove invalid tokens if any
+        if (userInvalidTokens.length > 0) {
+          await userModel.updateOne(
+            { uuid: booking.userid },
+            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
+          );
+          console.log("🧹 Removed invalid customer tokens:", userInvalidTokens);
+        }
+      } else {
+        console.warn("ℹ️ No FCM tokens for this customer.");
+      }
+    } else {
+      console.warn("⚠️ Customer not found with UUID:", booking.userid);
+    }
+
+    // Send response
+    res.status(200).json({
+      success: true,
+      message: "Vehicle Parked Successfully",
+      data: updatedBooking,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 exports.getBookingsByVendorId = async (req, res) => {
   try {
     const { id } = req.params; 

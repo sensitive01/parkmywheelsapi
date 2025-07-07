@@ -91,6 +91,8 @@ vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
 vendorRoute.put("/cancelbooking/:id", bookingController.updateCancelBooking);
 vendorRoute.put("/approvedcancelbooking/:id", bookingController.updateApprovedCancelBooking);
 vendorRoute.put("/allowparking/:id", bookingController.allowParking);
+vendorRoute.put("/qrallowpark/:id", bookingController.directallowParking);
+
 vendorRoute.put("/usercancelbooking/:id", bookingController.userupdateCancelBooking);
 
 vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBookingsByVendorId);
