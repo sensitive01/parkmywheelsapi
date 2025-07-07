@@ -987,23 +987,31 @@ function calculateFullDay(charges, startDate, endDate, bookType) {
 
 const fetchtestAmount = async (req, res) => {
   try {
+    console.log('🔍 Incoming request ID:', req.params.id);
+
     // Step 1: Retrieve booking information
     const booking = await Booking.findById(req.params.id)
       .populate('vendorId', 'parkingCharges');
 
     if (!booking) {
+      console.error('❌ Booking not found');
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    console.log('📦 Booking:', booking);
+    console.log('📌 Vehicle Type:', booking.vehicleType);
+    console.log('📌 Book Type:', booking.bookType);
+    console.log('📌 Status:', booking.status);
+
     if (booking.status !== 'PARKED') {
+      console.warn('⚠️ Vehicle is not in PARKED state');
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Log raw parked date/time for debugging
-    console.log('Raw parkedDate:', booking.parkedDate);
-    console.log('Raw parkedTime:', booking.parkedTime);
+    // Step 2: Parse parked datetime
+    console.log('🕐 Raw Parked Date:', booking.parkedDate);
+    console.log('🕐 Raw Parked Time:', booking.parkedTime);
 
-    // Parse parked datetime using Luxon with timezone
     const parkedDateTimeLuxon = DateTime.fromFormat(
       `${booking.parkedDate} ${booking.parkedTime}`,
       'dd-MM-yyyy hh:mm a',
@@ -1011,50 +1019,56 @@ const fetchtestAmount = async (req, res) => {
     );
 
     if (!parkedDateTimeLuxon.isValid) {
+      console.error('❌ Invalid parked date/time format');
       return res.status(400).json({ error: 'Invalid parked date/time format' });
     }
 
     const parkedDateTime = parkedDateTimeLuxon.toJSDate();
     const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
 
-    // Debug: Output parsed times
-    console.log('Parsed parkedDateTime (ISO):', parkedDateTime.toISOString());
-    console.log('ExitDateTime (ISO):', exitDateTime.toISOString());
-    console.log('Timestamp difference (exit - parked):', exitDateTime - parkedDateTime);
+    console.log('✅ Parsed Parked DateTime:', parkedDateTime.toISOString());
+    console.log('✅ Exit DateTime:', exitDateTime.toISOString());
 
-    // Validate exit time is after parked time
+    // Step 3: Duration calculation
     if (exitDateTime < parkedDateTime) {
-      console.warn('⚠️ Server thinks exit is earlier than parked!');
-      console.warn('parked:', parkedDateTime);
-      console.warn('exit:', exitDateTime);
+      console.warn('⛔ Exit time is earlier than parked time!');
       return res.status(400).json({ error: 'Exit time cannot be before parked time' });
     }
 
     const durationMs = exitDateTime - parkedDateTime;
     const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
-    // Debug: Output calculated duration
-    console.log('Duration (ms):', durationMs);
-    console.log('Duration (hours):', durationHours);
+    console.log('🧮 Duration (ms):', durationMs);
+    console.log('🧮 Duration (hours):', durationHours);
 
-    // Retrieve charges for vehicle type
+    // Step 4: Get Charges
+    console.log('🔎 Fetching charges for vehicleType:', booking.vehicleType);
+
     const charges = await Parkingcharges.findOne({
       vendorid: booking.vendorId,
       "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
     });
 
     if (!charges) {
+      console.error('❌ Charges not found for vehicle type:', booking.vehicleType);
       return res.status(400).json({ error: 'No charges found for this vehicle type' });
     }
 
-    // Calculate amount
+    console.log('✅ Charges found:', JSON.stringify(charges, null, 2));
+
+    // Step 5: Calculate amount
     let amount = 0;
     if (booking.bookType.toLowerCase() === 'hourly') {
+      console.log('📊 Using hourly calculation...');
       amount = calculateHourly(charges, durationHours);
     } else {
+      console.log('📊 Using full-day calculation...');
       const fullDayType = getFullDayTypeForVehicle(charges, booking.vehicleType);
+      console.log('➡️ Full day type:', fullDayType);
       amount = calculateFullDay(charges, parkedDateTime, exitDateTime, fullDayType);
     }
+
+    console.log('💰 Final calculated amount:', amount);
 
     return res.json({
       success: true,
@@ -1063,13 +1077,14 @@ const fetchtestAmount = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error occurred:', error);
+    console.error('🔥 Error occurred:', error);
     return res.status(500).json({
       success: false,
       error: error.message
     });
   }
 };
+
 
 
 // Include the helper functions: getFullDayTypeForVehicle, parseDateTime, calculateHourly, calculateFullDay
