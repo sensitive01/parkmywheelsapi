@@ -999,11 +999,11 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Log raw parked date/time for debugging
+    // Log parked date/time
     console.log('Raw parkedDate:', booking.parkedDate);
     console.log('Raw parkedTime:', booking.parkedTime);
 
-    // Parse parked datetime using Luxon with timezone
+    // Parse parked datetime
     const parkedDateTimeLuxon = DateTime.fromFormat(
       `${booking.parkedDate} ${booking.parkedTime}`,
       'dd-MM-yyyy hh:mm a',
@@ -1017,45 +1017,39 @@ const fetchtestAmount = async (req, res) => {
     const parkedDateTime = parkedDateTimeLuxon.toJSDate();
     const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
 
-    // Debug: Output parsed times
-    console.log('Parsed parkedDateTime (ISO):', parkedDateTime.toISOString());
-    console.log('ExitDateTime (ISO):', exitDateTime.toISOString());
-    console.log('Timestamp difference (exit - parked):', exitDateTime - parkedDateTime);
-
-    // Validate exit time is after parked time
     if (exitDateTime < parkedDateTime) {
-      console.warn('⚠️ Server thinks exit is earlier than parked!');
-      console.warn('parked:', parkedDateTime);
-      console.warn('exit:', exitDateTime);
       return res.status(400).json({ error: 'Exit time cannot be before parked time' });
     }
 
     const durationMs = exitDateTime - parkedDateTime;
     const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
-    // Debug: Output calculated duration
-    console.log('Duration (ms):', durationMs);
-    console.log('Duration (hours):', durationHours);
+    // ✅ Step 2: Fetch vendor charges
+    const parkingChargesDoc = await Parkingcharges.findOne({ vendorid: booking.vendorId._id });
 
-    // Retrieve charges for vehicle type
-    const charges = await Parkingcharges.findOne({
-      vendorid: booking.vendorId,
-      "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
-    });
+    if (!parkingChargesDoc) {
+      return res.status(400).json({ error: 'No charges found for this vendor' });
+    }
 
-    if (!charges) {
+    // ✅ Step 3: Find correct charge entry based on vehicle type
+    const matchedCharge = parkingChargesDoc.charges.find(
+      (entry) => entry.category.toLowerCase() === booking.vehicleType.toLowerCase()
+    );
+
+    if (!matchedCharge) {
       return res.status(400).json({ error: 'No charges found for this vehicle type' });
     }
 
-    // Calculate amount
+    // ✅ Step 4: Calculate amount
     let amount = 0;
+
     if (booking.bookType.toLowerCase() === 'hourly') {
-      amount = calculateHourly(charges, durationHours);
+      amount = calculateHourly(matchedCharge, durationHours); // pass only matchedCharge
     } else {
-      const fullDayType = getFullDayTypeForVehicle(charges, booking.vehicleType);
-      amount = calculateFullDay(charges, parkedDateTime, exitDateTime, fullDayType);
+      amount = calculateFullDay(matchedCharge, parkedDateTime, exitDateTime);
     }
 
+    // ✅ Step 5: Respond with calculated data
     return res.json({
       success: true,
       payableAmount: amount?.toFixed(2) ?? '0.00',
