@@ -47,6 +47,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "0",
     },
+        otp: { type: String },
+    otpExpiresAt: { type: Date },
      userfcmTokens: { type: [String], default: [] },
     walletstatus: {
       type: String,

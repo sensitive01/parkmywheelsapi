@@ -3,7 +3,7 @@ const userModel = require("../../models/userModel");
 const generateOTP = require("../../utils/generateOTP")
 const vendorModel = require("../../models/venderSchema");
 const admin = require("firebase-admin");
-
+const qs = require("qs");
 const { v4: uuidv4 } = require('uuid');
 
 const generateUserUUID = () => {
@@ -15,59 +15,120 @@ const userForgotPassword = async (req, res) => {
   try {
     const { contactNo } = req.body;
 
-    const existUser = await userModel.findOne({userMobile:contactNo})
-
-    if (!existUser) {
-      return res.status(404).json({
-        message: "User not found with the provided contact number"
-      });
-    }
-
+    // 1. Basic validation
     if (!contactNo) {
       return res.status(400).json({ message: "Mobile number is required" });
     }
 
+    // 2. Clean and validate Indian mobile format
+    let cleanedMobile = contactNo.replace(/\D/g, '');
+    if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
+      cleanedMobile = cleanedMobile.slice(2);
+    }
+
+    if (!/^[6-9]\d{9}$/.test(cleanedMobile)) {
+      return res.status(400).json({ message: "Invalid mobile number format" });
+    }
+
+    // 3. Check user
+    const existUser = await userModel.findOne({ userMobile: cleanedMobile });
+    if (!existUser) {
+      return res.status(404).json({ message: "User not found with the provided mobile number" });
+    }
+
+    // 4. Generate OTP and save
     const otp = generateOTP();
-    console.log("Generated OTP:", otp);
+    existUser.otp = otp;
+    existUser.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+    await existUser.save();
 
-    req.app.locals.otp = otp;
+    // 5. Prepare message
+    const rawMessage = `Hi, ${otp} is your One time verification code. Park Smart with ParkMyWheels.`;
+    const encodedMessage = encodeURIComponent(rawMessage);
 
+    console.log("🔐 OTP:", otp);
+    console.log("📤 SMS Raw Message:", rawMessage);
 
-    return res.status(200).json({
-      message: "OTP sent successfully",
-      otp: otp,
+    // 6. Prepare query parameters
+    const smsParams = {
+      username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+      password: process.env.VISPL_PASSWORD || "pdizP",
+      unicode: "false",
+      from: process.env.VISPL_SENDER_ID || "PRMYWH",
+      to: cleanedMobile,
+      text: rawMessage, // pass raw, we'll encode it via qs below
+      dltContentId: process.env.VISPL_TEMPLATE_ID || "1007991289098439570",
+    };
+
+    // 7. Send SMS using axios with safe encoding
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: smsParams,
+      paramsSerializer: params => qs.stringify(params, { encode: true }),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Node.js)', // mimic browser
+      },
     });
+
+    console.log("📩 VISPL SMS API Response:", smsResponse.data);
+
+    const status = smsResponse.data.STATUS || smsResponse.data.status || smsResponse.data.statusCode;
+    const isSuccess = status === "SUCCESS" || status === 200 || status === 2000;
+
+    if (!isSuccess) {
+      return res.status(500).json({
+        message: "Failed to send OTP via SMS",
+        visplResponse: smsResponse.data,
+      });
+    }
+
+    // ✅ Success
+    return res.status(200).json({ message: "OTP sent successfully" });
+
   } catch (err) {
-    console.log("Error in sending OTP in forgot password:", err);
+    console.error("❌ Error in userForgotPassword:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
 const verifyOTP = async (req, res) => {
   try {
-    const { otp } = req.body;
+    const { contactNo, otp } = req.body;
 
-    if (!otp) {
-      return res
-        .status(400)
-        .json({ message: "OTP is required" });
+    if (!contactNo || !otp) {
+      return res.status(400).json({ message: "Mobile number and OTP are required" });
     }
 
-    if (req.app.locals.otp) {
-      if (otp == req.app.locals.otp) {
-        return res.status(200).json({
-          message: "OTP verified successfully",
-          success: true,
-        });
-      } else {
-        return res.status(400).json({
-          message: "Invalid OTP",
-          success: false,
-        });
-      }
+    // Clean mobile number as in forgot password
+    let cleanedMobile = contactNo.replace(/\D/g, '');
+    if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
+      cleanedMobile = cleanedMobile.slice(2);
+    }
+
+    // Find user by mobile
+    const user = await userModel.findOne({ userMobile: cleanedMobile });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check OTP and expiry
+    if (
+      user.otp === otp &&
+      user.otpExpiresAt &&
+      new Date() < new Date(user.otpExpiresAt)
+    ) {
+      // Optionally clear OTP after successful verification
+      user.otp = null;
+      user.otpExpiresAt = null;
+      await user.save();
+
+      return res.status(200).json({
+        message: "OTP verified successfully",
+        success: true,
+      });
     } else {
       return res.status(400).json({
-        message: "OTP has expired or is invalid",
+        message: "Invalid or expired OTP",
         success: false,
       });
     }
@@ -76,7 +137,6 @@ const verifyOTP = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 
 
