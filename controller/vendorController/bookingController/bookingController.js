@@ -8,7 +8,7 @@ const moment = require("moment");
 const admin = require("../../../config/firebaseAdmin"); // Use the singleton
 const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
 const { v4: uuidv4 } = require('uuid');
-
+const axios = require('axios');
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -528,7 +528,18 @@ body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${pa
       console.warn("No FCM tokens available for this vendor.");
     }
 
+if (mobileNumber) {
+      const smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
+      const encodedSms = encodeURIComponent(smsText);
+      const smsUrl = `https://pgapi.vispl.in/fe/api/v1/send?username=Vayusutha.trans&password=pdizP&unicode=false&from=PRMYWH&to=${mobileNumber}&text=${encodedSms}`;
 
+      try {
+        const smsResponse = await axios.get(smsUrl);
+        console.log("📤 SMS sent successfully:", smsResponse.data);
+      } catch (smsError) {
+        console.error("❌ SMS send failed:", smsError.message);
+      }
+    }
 
     res.status(200).json({
       message: "Booking created successfully",
