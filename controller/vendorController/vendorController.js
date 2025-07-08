@@ -2,31 +2,23 @@ const bcrypt = require("bcrypt");
 const vendorModel = require("../../models/venderSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
-
 const axios = require('axios');
 const Booking = require("../../models/bookingSchema");
 
-
-const encodeMessage = (otp) => {
-  const message = `Hi, ${otp} is your One time verification code. Park Smart with ParkMyWheels.`;
-  return {
-    raw: message,
-    encoded: encodeURIComponent(message),
-  };
-};
+const qs = require("qs");
 
 
 const vendorForgotPassword = async (req, res) => {
   try {
     const { mobile } = req.body;
 
-    // ✅ Basic validation
+    // 1. Basic validation
     if (!mobile) {
       return res.status(400).json({ message: "Mobile number is required" });
     }
 
-    // ✅ Validate Indian mobile format
-    let cleanedMobile = mobile.replace(/[^0-9]/g, '');
+    // 2. Clean and validate Indian mobile format
+    let cleanedMobile = mobile.replace(/\D/g, '');
     if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
       cleanedMobile = cleanedMobile.slice(2);
     }
@@ -35,44 +27,51 @@ const vendorForgotPassword = async (req, res) => {
       return res.status(400).json({ message: "Invalid mobile number format" });
     }
 
-    // 🔍 Check if vendor exists
+    // 3. Check vendor
     const existVendor = await vendorModel.findOne({ "contacts.mobile": cleanedMobile });
     if (!existVendor) {
-      return res.status(404).json({
-        message: "Vendor not found with the provided mobile number",
-      });
+      return res.status(404).json({ message: "Vendor not found with the provided mobile number" });
     }
 
-    // 🔐 Generate OTP and store
-    const otp = generateOTP(); // Should return a 5/6-digit random number
+    // 4. Generate OTP and save
+    const otp = generateOTP();
     existVendor.otp = otp;
-    existVendor.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
+    existVendor.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
     await existVendor.save();
 
-    // 💬 Encode message
-    const { raw, encoded } = encodeMessage(otp);
-    console.log("🔐 OTP:", otp);
-    console.log("📤 SMS Text (raw):", raw);
-    console.log("📤 SMS Text (encoded):", encoded);
+    // 5. Prepare message
+    const rawMessage = `Hi, ${otp} is your One time verification code. Park Smart with ParkMyWheels.`;
+    const encodedMessage = encodeURIComponent(rawMessage);
 
-    // 📡 Send SMS using VISPL API
+    console.log("🔐 OTP:", otp);
+    console.log("📤 SMS Raw Message:", rawMessage);
+
+    // 6. Prepare query parameters
+    const smsParams = {
+      username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+      password: process.env.VISPL_PASSWORD || "pdizP",
+      unicode: "false",
+      from: process.env.VISPL_SENDER_ID || "PRMYWH",
+      to: cleanedMobile,
+      text: rawMessage, // pass raw, we'll encode it via qs below
+      dltContentId: process.env.VISPL_TEMPLATE_ID || "1007991289098439570",
+    };
+
+    // 7. Send SMS using axios with safe encoding
     const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-      params: {
-        username: process.env.VISPL_USERNAME || "Vayusutha.trans",
-        password: process.env.VISPL_PASSWORD || "pdizP",
-        unicode: "false",
-        from: process.env.VISPL_SENDER_ID || "PRMYWH",
-        to: cleanedMobile,
-        text: encoded,
-        dltContentId: process.env.VISPL_TEMPLATE_ID || "1007991289098439570",
+      params: smsParams,
+      paramsSerializer: params => qs.stringify(params, { encode: true }),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Node.js)', // mimic browser
       },
     });
 
     console.log("📩 VISPL SMS API Response:", smsResponse.data);
 
-    // ✅ Acceptable status codes from VISPL
-    const acceptedCodes = [200, 2000];
-    if (!acceptedCodes.includes(smsResponse.data.statusCode)) {
+    const status = smsResponse.data.STATUS || smsResponse.data.status || smsResponse.data.statusCode;
+    const isSuccess = status === "SUCCESS" || status === 200 || status === 2000;
+
+    if (!isSuccess) {
       return res.status(500).json({
         message: "Failed to send OTP via SMS",
         visplResponse: smsResponse.data,
@@ -83,10 +82,12 @@ const vendorForgotPassword = async (req, res) => {
     return res.status(200).json({ message: "OTP sent successfully" });
 
   } catch (err) {
-    console.error("❌ Error in forgot password:", err);
+    console.error("❌ Error in vendorForgotPassword:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 
 
 
