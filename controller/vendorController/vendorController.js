@@ -91,66 +91,45 @@ const vendorForgotPassword = async (req, res) => {
 
 
 
-// const vendorForgotPassword = async (req, res) => {
-//   try {
-//     const { mobile } = req.body; 
-
-
-//     if (!mobile) {
-//       return res.status(400).json({ message: "Mobile number is required" });
-//     }
-
-//     const existVendor = await vendorModel.findOne({
-//       "contacts.mobile": mobile, 
-//     });
-
-//     if (!existVendor) {
-//       return res.status(404).json({
-//         message: "Vendor not found with the provided mobile number",
-//       });
-//     }
-
-
-//     const otp = generateOTP();
-//     console.log("Generated OTP:", otp);
-
-//     req.app.locals.otp = otp;
-
-//     return res.status(200).json({
-//       message: "OTP sent successfully",
-//       otp: otp,
-//     });
-//   } catch (err) {
-//     console.error("Error in forgot password:", err);
-//     return res.status(500).json({ message: "Internal server error" });
-//   }
-// };
-
 const verifyOTP = async (req, res) => {
   try {
-    const { otp } = req.body;
+    const { mobile, otp } = req.body;
 
-    if (!otp) {
-      return res.status(400).json({ message: "OTP is required" });
+    if (!mobile || !otp) {
+      return res.status(400).json({ message: "Mobile number and OTP are required" });
     }
 
-    if (req.app.locals.otp) {
-      console.log(" req.app.locals");
-      if (otp == req.app.locals.otp) {
-        return res.status(200).json({
-          message: "OTP verified successfully",
-          success: true,
-        });
-      } else {
-        console.log("no req.app.locals");
-        return res.status(400).json({
-          message: "Invalid OTP",
-          success: false,
-        });
-      }
+    // Clean mobile number as in forgot password
+    let cleanedMobile = mobile.replace(/\D/g, '');
+    if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
+      cleanedMobile = cleanedMobile.slice(2);
+    }
+
+    // Find vendor by mobile
+    const vendor = await vendorModel.findOne({ "contacts.mobile": cleanedMobile });
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Check OTP and expiry
+    if (
+      vendor.otp === otp &&
+      vendor.otpExpiresAt &&
+      new Date() < new Date(vendor.otpExpiresAt)
+    ) {
+      // Optionally clear OTP after successful verification
+      vendor.otp = null;
+      vendor.otpExpiresAt = null;
+      await vendor.save();
+
+      return res.status(200).json({
+        message: "OTP verified successfully",
+        success: true,
+      });
     } else {
       return res.status(400).json({
-        message: "OTP has expired or is invalid",
+        message: "Invalid or expired OTP",
         success: false,
       });
     }
