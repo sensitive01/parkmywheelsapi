@@ -69,6 +69,8 @@ contacts: [
 
 
     }],
+        otp: { type: String },
+    otpExpiresAt: { type: Date },
   },
   { timestamps: true }
 );

@@ -87,10 +87,6 @@ const vendorForgotPassword = async (req, res) => {
   }
 };
 
-
-
-
-
 const verifyOTP = async (req, res) => {
   try {
     const { mobile, otp } = req.body;
