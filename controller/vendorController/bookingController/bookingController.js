@@ -2568,3 +2568,115 @@ exports.getBookingById = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching the booking" });
   }
 };
+exports.getReceivableAmountByUser = async (req, res) => {
+  try {
+    const { vendorId, userId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    // Base filter
+    let filter = { vendorId, status: "COMPLETED" };
+
+    // Apply user filter if present; otherwise exclude null userids
+    if (userId) {
+      filter.userid = userId;
+    } else {
+      filter.userid = { $ne: null }; // exclude userid: null
+    }
+
+    let completedBookings = await Booking.find(filter);
+
+    // If userId is provided but no bookings found, fallback to all vendor bookings
+    if (userId && completedBookings.length === 0) {
+      completedBookings = await Booking.find({ vendorId, status: "COMPLETED", userid: { $ne: null } });
+    }
+
+    if (completedBookings.length === 0) {
+      return res.status(200).json({ success: true, message: "No completed bookings found", data: [] });
+    }
+
+    const bookings = completedBookings.map((booking) => ({
+      _id: booking._id,
+      userid: booking.userid || null,
+      bookingDate: booking.bookingDate,
+      parkingDate: booking.parkingDate,
+      parkingTime: booking.parkingTime,
+      amount: parseFloat(booking.amount).toFixed(2),
+      gstamout: booking.gstamout,
+      totalamout: booking.totalamout,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: bookings,
+    });
+
+  } catch (error) {
+    console.error("Error fetching receivable amounts:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+exports.getReceivableAmountWithPlatformFee = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+
+    // Get all COMPLETED bookings for the vendor where userid is null or not present
+    const completedBookings = await Booking.find({
+      vendorId,
+      status: "COMPLETED",
+      $or: [{ userid: null }, { userid: { $exists: false } }]
+    });
+
+    if (completedBookings.length === 0) {
+      return res.status(200).json({ success: true, message: "No completed bookings without userid found", data: [] });
+    }
+
+    const bookings = completedBookings.map((booking) => {
+      const amount = parseFloat(booking.amount) || 0;
+      const platformfee = (amount * platformFeePercentage) / 100;
+      const receivableAmount = amount - platformfee;
+
+      return {
+        _id: booking._id,
+        userid: null, // always null here
+        bookingDate: booking.bookingDate,
+        parkingDate: booking.parkingDate,
+        parkingTime: booking.parkingTime,
+        amount: amount.toFixed(2),
+        gstamout: booking.gstamout,
+        totalamout: booking.totalamout,
+        platformfee: platformfee.toFixed(2),
+        receivableAmount: receivableAmount.toFixed(2),
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: bookings,
+    });
+
+  } catch (error) {
+    console.error("Error fetching receivable amounts:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
