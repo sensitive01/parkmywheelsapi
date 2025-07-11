@@ -604,7 +604,240 @@ exports.getBookingsByStatus = async (req, res) => {
   }
 };
 //sndjdn
+exports.livecreateBooking = async (req, res) => {
+  try {
+    const {
+      userid,
+      vendorId,
+      vendorName,
+      amount,
+      hour,
+      personName,
+      mobileNumber,
+      vehicleType,
+      carType,
+      vehicleNumber,
+      bookingDate,
+      bookingTime,
+      parkingDate,
+      parkingTime,
+      tenditivecheckout,
+      subsctiptiontype,
+      status,
+      sts,
+      exitvehicledate,
+      exitvehicletime,
+      approvedDate,
+      approvedTime,
+      parkedDate,
+      parkedTime,
+      bookType,
+    } = req.body;
 
+    console.log("Booking data:", req.body);
+
+    // Step 1: Check vendor and available slots
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
+    if (!vendorData) return res.status(404).json({ message: "Vendor not found" });
+
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+      const type = entry.type.trim();
+      acc[type] = parseInt(entry.count) || 0;
+      return acc;
+    }, {});
+
+    const totalAvailableSlots = {
+      Car: parkingEntries["Car"] || 0,
+      Bike: parkingEntries["Bike"] || 0,
+      Others: parkingEntries["Others"] || 0,
+    };
+
+    const aggregationResult = await Booking.aggregate([
+      { $match: { vendorId, status: "PENDING" } },
+      { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
+    ]);
+
+    let bookedSlots = { Car: 0, Bike: 0, Others: 0 };
+    aggregationResult.forEach(({ _id, count }) => {
+      if (_id in bookedSlots) bookedSlots[_id] = count;
+    });
+
+    const availableSlots = {
+      Car: totalAvailableSlots.Car - bookedSlots.Car,
+      Bike: totalAvailableSlots.Bike - bookedSlots.Bike,
+      Others: totalAvailableSlots.Others - bookedSlots.Others,
+    };
+
+    if (availableSlots[vehicleType] <= 0) {
+      return res.status(400).json({ message: `No available slots for ${vehicleType}` });
+    }
+
+    // Step 2: Generate OTP and create booking
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const newBooking = new Booking({
+      userid,
+      vendorId,
+      amount,
+      hour,
+      personName,
+      vehicleType,
+      vendorName,
+      mobileNumber,
+      carType,
+      vehicleNumber,
+      bookingDate,
+      bookingTime,
+      parkingDate,
+      parkingTime,
+      tenditivecheckout,
+      subsctiptiontype,
+      status,
+      sts,
+      otp,
+      approvedDate,
+      approvedTime,
+      parkedDate,
+      parkedTime,
+      cancelledDate: null,
+      cancelledTime: null,
+      settlemtstatus: "PARKED",
+      exitvehicledate,
+      exitvehicletime,
+      bookType,
+    });
+
+    await newBooking.save();
+
+    // Step 3: Create Notifications (Database)
+    const vendorNotif = new Notification({
+      vendorId,
+      userId: userid,
+      bookingId: newBooking._id,
+      title: "Booking Start Notification",
+      message: `New booking Strated from ${personName} for ${parkingDate} at ${parkingTime}`,
+      vehicleType,
+      vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+      sts,
+      bookingtype: bookType,
+      otp: otp.toString(),
+      vendorname: vendorName,
+      parkingDate,
+      parkingTime,
+      bookingdate: bookingDate,
+      schedule: `${parkingDate} ${parkingTime}`,
+      notificationdtime: `${bookingDate} ${bookingTime}`,
+      status,
+    });
+
+    const userNotif = new Notification({
+      vendorId,
+      userId: userid,
+      bookingId: newBooking._id,
+      title: "Booking Start Notification ",
+      message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
+      vehicleType,
+      vehicleNumber,
+      createdAt: new Date(),
+      read: false,
+      sts,
+      bookingtype: bookType,
+      otp: otp.toString(),
+      vendorname: vendorName,
+      parkingDate,
+      parkingTime,
+      bookingdate: bookingDate,
+      schedule: `${parkingDate} ${parkingTime}`,
+      notificationdtime: `${bookingDate} ${bookingTime}`,
+      status,
+    });
+
+    await vendorNotif.save();
+    await userNotif.save();
+
+    // Step 4: Define FCM payloads
+    const vendorNotificationMessage = {
+      notification: {
+        title: "New Booking Received",
+        body: `New booking from ${personName} for ${parkingDate} at ${parkingTime}`,
+      },
+      android: { notification: { sound: 'default', priority: 'high' } },
+      apns: { payload: { aps: { sound: 'default' } } },
+    };
+
+    const userNotificationMessage = {
+      notification: {
+        title: "Booking Confirmed",
+        body: `Booking with ${vendorName} confirmed for ${parkingDate} at ${parkingTime}`,
+      },
+      android: { notification: { sound: 'default', priority: 'high' } },
+      apns: { payload: { aps: { sound: 'default' } } },
+    };
+
+    // Step 5: Send Vendor Notifications via FCM
+    const vendorFcmTokens = vendorData.fcmTokens || [];
+    const vendorInvalidTokens = [];
+
+    if (vendorFcmTokens.length) {
+      const vendorPromises = vendorFcmTokens.map(async (token) => {
+        try {
+          await admin.messaging().send({ ...vendorNotificationMessage, token });
+        } catch (error) {
+          if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+            vendorInvalidTokens.push(token);
+          }
+        }
+      });
+      await Promise.all(vendorPromises);
+      if (vendorInvalidTokens.length) {
+        await vendorModel.updateOne(
+          { _id: vendorId },
+          { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
+        );
+      }
+    }
+
+    // Step 6: Send User Notifications via FCM
+    const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+    if (user) {
+      const userFcmTokens = user.userfcmTokens || [];
+      const userInvalidTokens = [];
+
+      if (userFcmTokens.length) {
+        const userPromises = userFcmTokens.map(async (token) => {
+          try {
+            await admin.messaging().send({ ...userNotificationMessage, token });
+          } catch (error) {
+            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+              userInvalidTokens.push(token);
+            }
+          }
+        });
+        await Promise.all(userPromises);
+        if (userInvalidTokens.length) {
+          await userModel.updateOne(
+            { uuid: userid },
+            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
+          );
+        }
+      }
+    }
+
+    // ✅ Response
+    res.status(200).json({
+      message: "Booking created successfully",
+      bookingId: newBooking._id,
+      otp,
+      bookType,
+      sts,
+    });
+
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 
 exports.getvendorpayouts = async (req, res) => {

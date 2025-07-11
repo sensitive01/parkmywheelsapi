@@ -40,6 +40,7 @@ vendorRoute.get("/fetchmeeting/:id", meetingController.getMeetingsByVendor);
 
 vendorRoute.post("/createbooking", bookingController.createBooking);
 vendorRoute.post("/vendorcreatebooking", bookingController.vendorcreateBooking);
+vendorRoute.post("/livebooking", bookingController.livecreateBooking);
 
 vendorRoute.get("/getbookingdata/:id", bookingController.getBookingsByVendorId);
 vendorRoute.get("/getbookinguserid/:id", bookingController.getBookingsByuserid);
