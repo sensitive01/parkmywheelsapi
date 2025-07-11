@@ -43,6 +43,8 @@ vendorRoute.post("/vendorcreatebooking", bookingController.vendorcreateBooking);
 vendorRoute.post("/livebooking", bookingController.livecreateBooking);
 
 vendorRoute.get("/getbookingdata/:id", bookingController.getBookingsByVendorId);
+
+vendorRoute.get("/subget/:id", bookingController.withoutsubgetBookingsByuserid);
 vendorRoute.get("/getbookinguserid/:id", bookingController.getBookingsByuserid);
 vendorRoute.get("/getbooking/:id", bookingController.getBookingById);
 vendorRoute.get("/bookings", bookingController.getAllBookings);

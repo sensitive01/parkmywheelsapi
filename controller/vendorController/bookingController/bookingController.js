@@ -1729,6 +1729,43 @@ exports.getBookingsByuserid = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.withoutsubgetBookingsByuserid = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const bookings = await Booking.find({
+      userid: id,
+      sts: { $ne: "Subscription" }, // Exclude Subscription bookings
+    });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(200).json({ message: "No bookings found for this user" });
+    }
+
+    const convertTo24Hour = (time) => {
+      if (!time) return '00:00';
+      const [timePart, modifier] = time.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      if (modifier === 'PM' && hours !== '12') {
+        hours = parseInt(hours, 10) + 12;
+      }
+      if (modifier === 'AM' && hours === '12') {
+        hours = '00';
+      }
+      return `${hours}:${minutes}`;
+    };
+
+    bookings.sort((a, b) => {
+      const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
+      const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
+      return dateB - dateA;
+    });
+
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 exports.getBookingById = async (req, res) => {
   try {
