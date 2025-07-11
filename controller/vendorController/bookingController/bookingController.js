@@ -640,37 +640,65 @@ exports.livecreateBooking = async (req, res) => {
     const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
     if (!vendorData) return res.status(404).json({ message: "Vendor not found" });
 
-    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       const type = entry.type.trim();
       acc[type] = parseInt(entry.count) || 0;
       return acc;
     }, {});
 
     const totalAvailableSlots = {
-      Car: parkingEntries["Car"] || 0,
-      Bike: parkingEntries["Bike"] || 0,
+      Cars: parkingEntries["Cars"] || 0,
+      Bikes: parkingEntries["Bikes"] || 0,
       Others: parkingEntries["Others"] || 0,
     };
 
     const aggregationResult = await Booking.aggregate([
-      { $match: { vendorId, status: "PENDING" } },
-      { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
+      {
+        $match: {
+          vendorId: vendorId,
+          status: "PENDING",
+        },
+      },
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
-    let bookedSlots = { Car: 0, Bike: 0, Others: 0 };
+    let bookedSlots = {
+      Cars: 0,
+      Bikes: 0,
+      Others: 0,
+    };
+
     aggregationResult.forEach(({ _id, count }) => {
-      if (_id in bookedSlots) bookedSlots[_id] = count;
+      if (_id === "Car") {
+        bookedSlots.Cars = count;
+      } else if (_id === "Bike") {
+        bookedSlots.Bikes = count;
+      } else {
+        bookedSlots.Others = count;
+      }
     });
 
     const availableSlots = {
-      Car: totalAvailableSlots.Car - bookedSlots.Car,
-      Bike: totalAvailableSlots.Bike - bookedSlots.Bike,
+      Cars: totalAvailableSlots.Cars - bookedSlots.Cars,
+      Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
       Others: totalAvailableSlots.Others - bookedSlots.Others,
     };
+    console.log("Available slots:", availableSlots);
+    console.log("Booked slots:", bookedSlots);
 
-    if (availableSlots[vehicleType] <= 0) {
-      return res.status(400).json({ message: `No available slots for ${vehicleType}` });
+    if (vehicleType === "Car" && availableSlots.Cars <= 0) {
+      return res.status(400).json({ message: "No available slots for Cars" });
+    } else if (vehicleType === "Bike" && availableSlots.Bikes <= 0) {
+      return res.status(400).json({ message: "No available slots for Bikes" });
+    } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
+      return res.status(400).json({ message: "No available slots for Others" });
     }
+
 
     // Step 2: Generate OTP and create booking
     const otp = Math.floor(100000 + Math.random() * 900000);
