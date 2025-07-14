@@ -2680,3 +2680,33 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.setVendorVisibility = async (req, res) => {
+  try {
+    const { vendorId, visibility } = req.body; // Expect vendorId and visibility (true/false) in the request body
+
+    // Validate input
+    if (!vendorId || typeof visibility !== 'boolean') {
+      return res.status(400).json({ message: "vendorId and visibility (boolean) are required" });
+    }
+
+    // Update the vendor's visibility
+    const updateResult = await vendorModel.updateOne(
+      { vendorId: vendorId },
+      { $set: { visibility: visibility } },
+      { new: true }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ message: `No vendor found with vendorId: ${vendorId}` });
+    }
+
+    res.status(200).json({
+      message: `Vendor visibility updated successfully for vendorId: ${vendorId}`,
+      matchedCount: updateResult.matchedCount,
+      modifiedCount: updateResult.modifiedCount
+    });
+  } catch (error) {
+    console.error("Error updating vendor visibility:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

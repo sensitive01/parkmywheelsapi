@@ -97,6 +97,8 @@ vendorRoute.put("/allowparking/:id", bookingController.allowParking);
 vendorRoute.put("/qrallowpark/:id", bookingController.directallowParking);
 
 vendorRoute.put("/usercancelbooking/:id", bookingController.userupdateCancelBooking);
+////////////////////
+vendorRoute.put("/changevisibility", bookingController.setVendorVisibility);
 
 vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBookingsByVendorId);
 
@@ -117,6 +119,8 @@ vendorRoute.post("/login", vendorController.vendorLogin);
 vendorRoute.get("/fetchspacedata", vendorController.fetchsinglespacedata);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
+vendorRoute.get("/fetchvisible", vendorController.fetchvisiblevendordata);
+
 vendorRoute.get("/fetch-slot-vendor-data/:id", vendorController.fetchSlotVendorData);
 vendorRoute.get("/fetchspace/:spaceid", vendorController.fetchspacedata);
 vendorRoute.put(

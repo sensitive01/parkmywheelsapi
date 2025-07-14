@@ -1052,7 +1052,38 @@ const deleteBookingsByVendorId = async (req, res) => {
   }
 };
 
+const fetchvisiblevendordata = async (req, res) => {
+  try {
+    // Fetch vendors with status 'approved' and visibility set to true, exclude password field
+    const vendors = await vendorModel.find(
+      { status: 'approved', visibility: true },
+      { password: 0 }
+    );
+
+    if (!vendors || vendors.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No approved and visible vendors found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Approved and visible vendors fetched successfully",
+      data: vendors,
+    });
+  } catch (error) {
+    console.error("Error fetching approved and visible vendors:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
+  fetchvisiblevendordata,
   deleteBookingsByVendorId,
   fetchhours,
   vendorLogoutById,
