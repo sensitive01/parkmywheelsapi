@@ -233,7 +233,25 @@ const getVendorDetails = async (req, res) => {
     });
   }
 };
+const getlistVendorDetails = async (req, res) => {
+  try {
+    console.log("Welcome to get Vendor Details");
 
+    const vendorData = await venderSchema.find({}, { password: 0 });
+    console.log("Vendor Data:", vendorData);
+
+    res.status(200).json({
+      message: " vendor details fetched successfully",
+      vendorData,
+    });
+  } catch (err) {
+    console.error("Error in get  Vendor Details:", err);
+    res.status(500).json({
+      message: "Server error while fetching details",
+      error: err.message,
+    });
+  }
+};
 
 const bookParkingSlot = async (req, res) => {
   try {
@@ -471,6 +489,7 @@ const getVendors = async (req, res) => {
 
 module.exports = {
   getUserData,
+  getlistVendorDetails,
   updateUserData,
   addNewVehicle,
   getUserVehicleData,

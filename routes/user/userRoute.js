@@ -42,6 +42,7 @@ userRoute.delete("/deletevehicle", userProfileController.deleteUserVehicle);
 userRoute.post("/add-vehicle", upload.fields([{ name: 'image' }]), userProfileController.addNewVehicle);
 
 userRoute.get("/get-slot-details-vendor",userProfileController.getVendorDetails)
+userRoute.get("/getvisibilityvendor",userProfileController.getlistVendorDetails)
 
 userRoute.get("/get-vehicle-slot", userProfileController.getUserVehicleData);
 
