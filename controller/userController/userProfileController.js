@@ -237,15 +237,15 @@ const getlistVendorDetails = async (req, res) => {
   try {
     console.log("Welcome to get Vendor Details");
 
-    const vendorData = await venderSchema.find({}, { password: 0 });
+    const vendorData = await venderSchema.find({ visibility: true }, { password: 0 });
     console.log("Vendor Data:", vendorData);
 
     res.status(200).json({
-      message: " vendor details fetched successfully",
+      message: "Vendor details fetched successfully",
       vendorData,
     });
   } catch (err) {
-    console.error("Error in get  Vendor Details:", err);
+    console.error("Error in get Vendor Details:", err);
     res.status(500).json({
       message: "Server error while fetching details",
       error: err.message,
