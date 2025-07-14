@@ -1081,8 +1081,40 @@ const fetchvisiblevendordata = async (req, res) => {
     });
   }
 };
+// In vendorController.js
+const updateVendorVisibilityOnly = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    const { visibility } = req.body;
+
+    if (typeof visibility !== "boolean") {
+      return res.status(400).json({ message: "Visibility must be true or false" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.visibility = visibility;
+
+    // Only update platform fee if visibility is being turned ON and platformfee is "0"
+    if (visibility === true && vendor.platformfee === "0") {
+      vendor.platformfee = "5";
+    }
+
+    await vendor.save();
+    res.json({ message: "Vendor visibility updated successfully", vendor });
+
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 module.exports = {
+  updateVendorVisibilityOnly,
   fetchvisiblevendordata,
   deleteBookingsByVendorId,
   fetchhours,

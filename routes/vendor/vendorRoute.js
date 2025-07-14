@@ -147,6 +147,7 @@ vendorRoute.get('/fetchpay/:userid', verifyPaymentResponse.getPaymentsUserId);
 vendorRoute.get('/fet/:id', chargesController.fetchtestAmount);
 vendorRoute.put("/:id/visibility", vendorController.updateVendorVisibility);
 
+vendorRoute.put("/visibility/:id", vendorController.updateVendorVisibilityOnly);
 
 vendorRoute.post("/createkyc",  upload.fields([
   { name: "idProofImage", maxCount: 1 },
