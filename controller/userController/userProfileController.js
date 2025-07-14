@@ -11,9 +11,9 @@ const addNewVehicle = async (req, res) => {
     const { id } = req.query;
     const { category, type, make, model, color, vehicleNo } = req.body;
 
-    if (!req.files || !req.files.image) {
-      return res.status(400).json({ message: "No image provided" });
-    }
+    // if (!req.files || !req.files.image) {
+    //   return res.status(400).json({ message: "No image provided" });
+    // }
 
     const imageFile = req.files.image[0];
 
