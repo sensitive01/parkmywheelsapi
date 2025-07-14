@@ -11,22 +11,22 @@ const addNewVehicle = async (req, res) => {
     const { id } = req.query;
     const { category, type, make, model, color, vehicleNo } = req.body;
 
-    // if (!req.files || !req.files.image) {
-    //   return res.status(400).json({ message: "No image provided" });
-    // }
+    if (!id) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
 
-    const imageFile = req.files.image[0];
-
-    const imageUrl = await uploadImage(imageFile.buffer, "vehicles");
+    const imageUrl = req.files?.image
+      ? await uploadImage(req.files.image[0].buffer, "vehicles")
+      : null;
 
     const newVehicle = new vehicleModel({
       image: imageUrl,
-      category,
-      type,
-      make,
-      model,
-      color,
-      vehicleNo,
+      category: category || undefined,
+      type: type || undefined,
+      make: make || undefined,
+      model: model || undefined,
+      color: color || undefined,
+      vehicleNo: vehicleNo || undefined,
       userId: id,
     });
 
