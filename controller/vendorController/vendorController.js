@@ -1099,7 +1099,9 @@ const fetchvisiblevendordata = async (req, res) => {
         message: "No approved and visible vendors found",
       });
     }
-   const chargeMap = {
+
+    // Map for charge ID to key name
+    const chargeMap = {
       A: "carInstant",
       B: "carSchedule",
       C: "carFullDay",
@@ -1134,16 +1136,22 @@ const fetchvisiblevendordata = async (req, res) => {
         });
       }
 
-      results.push({
-        vendor: vendor,
-        charges: categorizedCharges,
-      });
+      // Add charges inside the vendor object
+      const vendorWithCharges = {
+        ...vendor.toObject(), // Convert Mongoose document to plain JS object
+        charges: categorizedCharges, // Inject charges directly into the vendor
+      };
+
+      results.push(vendorWithCharges);
     }
+
+    // Final response
     return res.status(200).json({
       success: true,
       message: "Approved and visible vendors fetched successfully",
-      data: vendors,
+      data: results,
     });
+
   } catch (error) {
     console.error("Error fetching approved and visible vendors:", error);
     return res.status(500).json({
@@ -1153,6 +1161,7 @@ const fetchvisiblevendordata = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   updateVendorVisibilityOnly,
