@@ -4,7 +4,7 @@ const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 const axios = require('axios');
 const Booking = require("../../models/bookingSchema");
-
+const Parkingcharges = require("../../models/chargesSchema");
 const qs = require("qs");
 
 
@@ -1100,10 +1100,52 @@ const fetchvisiblevendordata = async (req, res) => {
       });
     }
 
+    const chargeMap = {
+      A: "carInstant",
+      B: "carSchedule",
+      C: "carFullDay",
+      D: "carMonthly",
+      E: "bikeInstant",
+      F: "bikeSchedule",
+      G: "bikeFullDay",
+      H: "bikeMonthly",
+      I: "othersInstant",
+      J: "othersSchedule",
+      K: "othersFullDay",
+      L: "othersMonthly"
+    };
+
+    const results = [];
+
+    for (const vendor of vendors) {
+      const chargesDoc = await Parkingcharges.findOne({ vendorid: vendor.vendorId });
+
+      const categorizedCharges = {};
+
+      if (chargesDoc && chargesDoc.charges) {
+        chargesDoc.charges.forEach((charge) => {
+          const key = chargeMap[charge.chargeid];
+          if (key) {
+            categorizedCharges[key] = {
+              type: charge.type,
+              amount: charge.amount,
+              category: charge.category,
+            };
+          }
+        });
+      }
+
+      results.push({
+        vendor: vendor,
+        charges: categorizedCharges,
+      });
+    }
+
+    // ✅ Return the enriched results
     return res.status(200).json({
       success: true,
       message: "Approved and visible vendors fetched successfully",
-      data: vendors,
+      data: results, // <== FIXED HERE
     });
   } catch (error) {
     console.error("Error fetching approved and visible vendors:", error);
@@ -1114,6 +1156,7 @@ const fetchvisiblevendordata = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   updateVendorVisibilityOnly,
