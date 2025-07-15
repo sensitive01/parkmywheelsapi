@@ -1125,6 +1125,71 @@ function formatTime(date) {
   return `${hours}:${minutes} ${period}`;
 }
 
+const fetchVendorsWithCategorizedCharges = async (req, res) => {
+  try {
+    const vendors = await vendorModel.find({ status: 'approved', visibility: true }, { password: 0 });
 
+    if (!vendors || vendors.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No approved and visible vendors found",
+      });
+    }
 
-module.exports = {fetchtestAmount,tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+    const chargeMap = {
+      A: "carInstant",
+      B: "carSchedule",
+      C: "carFullDay",
+      D: "carMonthly",
+      E: "bikeInstant",
+      F: "bikeSchedule",
+      G: "bikeFullDay",
+      H: "bikeMonthly",
+      I: "othersInstant",
+      J: "othersSchedule",
+      K: "othersFullDay",
+      L: "othersMonthly"
+    };
+
+    const results = [];
+
+    for (const vendor of vendors) {
+      const chargesDoc = await Parkingcharges.findOne({ vendorid: vendor.vendorId });
+
+      const categorizedCharges = {};
+
+      if (chargesDoc && chargesDoc.charges) {
+        chargesDoc.charges.forEach((charge) => {
+          const key = chargeMap[charge.chargeid];
+          if (key) {
+            categorizedCharges[key] = {
+              type: charge.type,
+              amount: charge.amount,
+              category: charge.category,
+            };
+          }
+        });
+      }
+
+      results.push({
+        vendor: vendor,
+        charges: categorizedCharges,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Vendors with categorized charges fetched successfully",
+      data: results,
+    });
+
+  } catch (error) {
+    console.error("Error fetching vendors with charges:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+module.exports = {fetchVendorsWithCategorizedCharges,fetchtestAmount,tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};

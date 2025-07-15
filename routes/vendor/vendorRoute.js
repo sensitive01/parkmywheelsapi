@@ -210,5 +210,8 @@ vendorRoute.put('/updatebookingcont/:vendorId', bookingController.updateVendorBo
 vendorRoute.delete("/delte/:vendorId", vendorController.deleteBookingsByVendorId);
 vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlementsByVendorId);
 vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsBySettlementId);
+vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCharges);
+
+
 
 module.exports = vendorRoute;
