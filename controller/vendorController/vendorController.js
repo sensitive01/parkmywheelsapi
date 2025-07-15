@@ -1099,8 +1099,7 @@ const fetchvisiblevendordata = async (req, res) => {
         message: "No approved and visible vendors found",
       });
     }
-
-    const chargeMap = {
+   const chargeMap = {
       A: "carInstant",
       B: "carSchedule",
       C: "carFullDay",
@@ -1140,12 +1139,10 @@ const fetchvisiblevendordata = async (req, res) => {
         charges: categorizedCharges,
       });
     }
-
-    // ✅ Return the enriched results
     return res.status(200).json({
       success: true,
       message: "Approved and visible vendors fetched successfully",
-      data: results, // <== FIXED HERE
+      data: vendors,
     });
   } catch (error) {
     console.error("Error fetching approved and visible vendors:", error);
@@ -1156,7 +1153,6 @@ const fetchvisiblevendordata = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   updateVendorVisibilityOnly,
