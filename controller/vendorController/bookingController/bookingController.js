@@ -2609,6 +2609,10 @@ exports.getReceivableAmountByUser = async (req, res) => {
       parkingDate: booking.parkingDate,
       parkingTime: booking.parkingTime,
       amount: parseFloat(booking.amount).toFixed(2),
+      handlingfee: parseFloat(booking.handlingfee).toFixed(2),
+      releasefee: parseFloat(booking.releasefee).toFixed(2),
+      recievableamount: parseFloat(booking.recievableamount).toFixed(2),
+      payableamout: parseFloat(booking.payableamout).toFixed(2),
       gstamout: booking.gstamout,
       totalamout: booking.totalamout,
     }));
