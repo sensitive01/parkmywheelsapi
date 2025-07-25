@@ -42,7 +42,8 @@ contacts: [
     ],
       visibility: { type: Boolean, default: false },
 
-    subscriptionleft: { type: String, default: "0" },
+   subscriptionleft: { type: Number, default: 0 },
+
     platformfee: { type: String, },
     subscription: { type: String, default: "false" },
     trial : { type: String, default: "false" },

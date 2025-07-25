@@ -31,7 +31,7 @@
 //       type: String,
 //     },
 
-//     subscriptionleft: { type: String, default: "0" },
+//    : { type: String, default: "0" },
 //     platformfee: { type: String, },
 //     subscription: { type: String, default: "false" },
 //     subscriptionenddate: { type: String, },
@@ -93,7 +93,8 @@ const adminSchema = new mongoose.Schema(
     landMark: {
       type: String,
     },
-    subscriptionleft: { type: String, default: "0" },
+  subscriptionleft: { type: Number, default: 0 },
+
     platformfee: { type: String, },
     subscription: { type: String, default: "false" },
     subscriptionenddate: { type: String, },

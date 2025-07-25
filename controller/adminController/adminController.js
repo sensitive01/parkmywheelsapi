@@ -167,7 +167,7 @@ const vendorSignup = async (req, res) => {
             parkingEntries: parsedParkingEntries,
             address,
             subscription: "false",
-            subscriptionleft: "0",
+            subscriptionleft: 0,
             subscriptionenddate: "",
             password: hashedPassword,
             image: uploadedImageUrl || "",
@@ -262,7 +262,7 @@ const myspacereg = async (req, res) => {
             parkingEntries: parsedParkingEntries,
             address,
             subscription: "false",
-            subscriptionleft: "0",
+            subscriptionleft: 0,
             subscriptionenddate: "",
             password: password || " ",  // Use provided password or default
             image: uploadedImageUrl,
@@ -325,7 +325,7 @@ const updateVendorSubscription = async (req, res) => {
             subscription = "true";
         }
         if (typeof subscriptionleft === "undefined") {
-            subscriptionleft = "30";
+            subscriptionleft = 30;
         }
 
         const vendor = await adminModel.findById(adminId);
@@ -334,7 +334,7 @@ const updateVendorSubscription = async (req, res) => {
         }
 
         // If the subscription is true and subscriptionleft is 30, calculate the new subscription end date
-        if (subscription === "true" && subscriptionleft === "30") {
+        if (subscription === "true" && subscriptionleft === 30) {
             const today = new Date();
             let subscriptionEndDate;
 

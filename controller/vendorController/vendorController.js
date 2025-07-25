@@ -220,7 +220,7 @@ const vendorSignup = async (req, res) => {
       parkingEntries: parsedParkingEntries,
       address,
       subscription: "false",
-      subscriptionleft: "0",
+      subscriptionleft: 0,
       subscriptionenddate: "",
       password: hashedPassword,
       status: "pending", // Explicitly set status to pending
@@ -360,7 +360,6 @@ const fetchsinglespacedata = async (req, res) => {
 
 const updateVendorSubscription = async (req, res) => {
   try {
-    // Extract vendorId from URL parameters
     const { vendorId } = req.params;
     let { subscription, subscriptionleft } = req.body;
 
@@ -368,45 +367,36 @@ const updateVendorSubscription = async (req, res) => {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
 
-    // If subscription or subscriptionleft is not provided, set default values
+    // Parse and validate subscription
     if (typeof subscription === "undefined") {
-      subscription = "true";
+      subscription = true;
+    } else {
+      subscription = subscription === "true" || subscription === true;
     }
-    if (typeof subscriptionleft === "undefined") {
-      subscriptionleft = "30";
-    }
+
+    // Parse and validate subscriptionleft
+    subscriptionleft = parseInt(subscriptionleft);
+    if (isNaN(subscriptionleft)) subscriptionleft = 30;
 
     const vendor = await vendorModel.findById(vendorId);
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    // If the subscription is true and subscriptionleft is 30, calculate the new subscription end date
-    if (subscription === "true" && subscriptionleft === "30") {
-      const today = new Date();
-      let subscriptionEndDate;
+    // Update subscription fields
+    vendor.subscription = subscription;
+    vendor.subscriptionleft = subscriptionleft;
 
-      // If subscriptionenddate is missing, set it
-      if (!vendor.subscriptionenddate) {
-        subscriptionEndDate = new Date(today.setDate(today.getDate() + 30)); // Add 30 days to the current date
-        vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
-      }
+    // If eligible, set subscription end date
+    if (!vendor.subscriptionenddate && subscription === true && subscriptionleft === 30) {
+      const today = new Date();
+      const subscriptionEndDate = new Date(today.setDate(today.getDate() + 30));
+      vendor.subscriptionenddate = subscriptionEndDate.toISOString().split("T")[0];
     }
 
-    // Update vendor subscription details
-    vendor.subscription = subscription;  // Ensure subscription is set
-    vendor.subscriptionleft = subscriptionleft;  // Ensure subscriptionleft is set
-
-    // If subscriptionenddate is still not set, we calculate and set it
-    if (!vendor.subscriptionenddate) {
-      const today = new Date();
-      let subscriptionEndDate = new Date(today.setDate(today.getDate() + 30)); // Add 30 days to the current date
-      vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
-    }
-
-    // Set trial to true once activated
+    // Set trial to true if not already
     if (vendor.trial !== "true") {
-      vendor.trial = "true"; // Activate trial
+      vendor.trial = "true";
     }
 
     await vendor.save();
@@ -422,10 +412,10 @@ const updateVendorSubscription = async (req, res) => {
         landmark: vendor.landMark,
         address: vendor.address,
         image: vendor.image,
-        subscription: vendor.subscription,          // Explicitly return subscription
-        subscriptionleft: vendor.subscriptionleft,  // Explicitly return subscriptionleft
-        subscriptionenddate: vendor.subscriptionenddate, // Explicitly return subscriptionenddate
-        trial: vendor.trial, // Return trial status
+        subscription: vendor.subscription,
+        subscriptionleft: vendor.subscriptionleft,
+        subscriptionenddate: vendor.subscriptionenddate,
+        trial: vendor.trial,
       },
     });
   } catch (err) {
@@ -433,6 +423,7 @@ const updateVendorSubscription = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 const getVendorTrialStatus = async (req, res) => {
   try {

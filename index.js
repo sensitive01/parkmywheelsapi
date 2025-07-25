@@ -58,30 +58,30 @@ cron.schedule("0 0 * * *", async () => {
       if (diffDays >= 30) {
         vendor.trial = "true"; // trial completed
         vendor.subscription = "false";
-        vendor.subscriptionleft = "0";
+        vendor.subscriptionleft = 0;
         console.log(`✅ Trial ended for vendor: ${vendor.vendorName}`);
         await vendor.save();
       }
     }
 
     // 2. SUBSCRIPTION DECREMENT: Active subscriptions
-    const activeVendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: "0" } });
+    const activeVendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: 0 } });
 
     for (const vendor of activeVendors) {
       let left = parseInt(vendor.subscriptionleft);
       left -= 1;
       vendor.subscriptionleft = left.toString();
 
-      if (left === 0) {
+      if (vendor.subscriptionleft <= 0) {
         vendor.subscription = "false";
+        vendor.subscriptionleft = 0; // ensure no negative values
         console.log(`🚫 Subscription expired for vendor: ${vendor.vendorName}`);
       } else {
-        console.log(`📉 Decremented subscription for: ${vendor.vendorName} (${left} days left)`);
+        console.log(`📉 Decremented subscription for: ${vendor.vendorName} (${vendor.subscriptionleft} days left)`);
       }
 
       await vendor.save();
     }
-
     console.log("✅ Daily vendor subscription & trial check completed.");
   } catch (error) {
     console.error("❌ Error in cron job:", error);
