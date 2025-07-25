@@ -7,7 +7,7 @@ const { PORT } = require("./config/variables.js");
 const dbConnect = require("./config/dbConnect.js");
 const userRoute = require("./routes/user/userRoute.js");
 const vendorRoute = require("./routes/vendor/vendorRoute.js");
-
+const Vendor = require("./models/venderSchema.js");
 const adminRoute = require("./routes/admin/adminRoute.js");
 
 const cron = require('node-cron');  // Import node-cron for scheduling jobs
