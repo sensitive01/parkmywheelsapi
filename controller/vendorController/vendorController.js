@@ -470,22 +470,25 @@ const addExtraDaysToSubscription = async (req, res) => {
     }
 
     // Update subscription left
-    const currentDaysLeft = parseInt(vendor.subscriptionleft);
+    const currentDaysLeft = parseInt(vendor.subscriptionleft || 0);
     const newDaysLeft = currentDaysLeft + parseInt(extraDays);
-    vendor.subscriptionleft = newDaysLeft.toString(); // Update subscription left
+    vendor.subscriptionleft = newDaysLeft.toString();
 
     // Update subscription end date
     const today = new Date();
     let subscriptionEndDate;
 
     if (!vendor.subscriptionenddate) {
-      subscriptionEndDate = new Date(today.setDate(today.getDate() + newDaysLeft)); // Add new days to current date
+      subscriptionEndDate = new Date(today.setDate(today.getDate() + newDaysLeft));
     } else {
       subscriptionEndDate = new Date(vendor.subscriptionenddate);
-      subscriptionEndDate.setDate(subscriptionEndDate.getDate() + parseInt(extraDays)); // Add extra days to existing end date
+      subscriptionEndDate.setDate(subscriptionEndDate.getDate() + parseInt(extraDays));
     }
 
-    vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+    vendor.subscriptionenddate = subscriptionEndDate.toISOString().split('T')[0];
+
+    // ✅ Set subscription to true
+    vendor.subscription = "true";
 
     await vendor.save();
 
@@ -494,8 +497,9 @@ const addExtraDaysToSubscription = async (req, res) => {
       vendorDetails: {
         vendorId: vendor._id,
         vendorName: vendor.vendorName,
-        subscriptionleft: vendor.subscriptionleft, // Return updated subscription left
-        subscriptionenddate: vendor.subscriptionenddate, // Return updated subscription end date
+        subscriptionleft: vendor.subscriptionleft,
+        subscriptionenddate: vendor.subscriptionenddate,
+        subscription: vendor.subscription,
       },
     });
   } catch (err) {
@@ -503,6 +507,7 @@ const addExtraDaysToSubscription = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 const vendorLogin = async (req, res) => {
   try {
     const { mobile, password, fcmToken } = req.body;
