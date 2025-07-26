@@ -42,9 +42,7 @@ app.use("/vendor", vendorRoute);
 app.use("/admin", adminRoute);
 
 // Cron job definition to decrement subscription days every day at midnight
-cron.schedule("4 10 * * *", async () => {
-  
-  
+cron.schedule("15 10 * * *", async () => {
   console.log("⏰ Running daily vendor trial + subscription check...");
 
   try {
@@ -84,10 +82,13 @@ cron.schedule("4 10 * * *", async () => {
 
       await vendor.save();
     }
+
     console.log("✅ Daily vendor subscription & trial check completed.");
   } catch (error) {
     console.error("❌ Error in cron job:", error);
   }
+}, {
+  timezone: "Asia/Kolkata"  // ⏰ Set timezone to IST
 });
 console.log('Cron job scheduled.'); // To confirm that the job is scheduled
 
