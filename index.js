@@ -43,6 +43,8 @@ app.use("/admin", adminRoute);
 
 // Cron job definition to decrement subscription days every day at midnight
 cron.schedule("0 0 * * *", async () => {
+  
+  
   console.log("⏰ Running daily vendor trial + subscription check...");
 
   try {
