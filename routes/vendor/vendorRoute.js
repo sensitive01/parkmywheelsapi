@@ -2,6 +2,7 @@ const express = require("express");
 const multer = require("multer");
 require('dotenv').config();
 const vendorRoute = express.Router();
+const gateController = require("../../controller/vendorController/gateController");
 const vendorController = require("../../controller/vendorController/vendorController");
 const meetingController = require("../../controller/vendorController/meetingController/meetingController")
 const bookingController = require("../../controller/vendorController/bookingController/bookingController")
@@ -175,7 +176,8 @@ vendorRoute.get("/charge/:id", chargesController.fetchC);
 vendorRoute.get("/fetchbookcharge/:id/:vehicleType", chargesController.fetchbookamout);
 vendorRoute.put('/book/:id/', chargesController.tested);
 
-
+vendorRoute.get("/gateopen", gateController.openGate);
+vendorRoute.get("/gateclose", gateController.closeGate);
 vendorRoute.get("/charges/:id/:vehicleType", chargesController.fetchexit);
 vendorRoute.get("/run-agenda-job", async (req, res) => {
   try {
