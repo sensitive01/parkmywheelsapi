@@ -1158,8 +1158,49 @@ const fetchvisiblevendordata = async (req, res) => {
   }
 };
 
+const updateVendorPlatformFee = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    const { platformfee } = req.body;
 
+    // Validate input
+    if (platformfee === undefined || platformfee === null || String(platformfee).trim() === "") {
+      return res.status(400).json({ message: "Platform fee is required" });
+    }
+
+    // Check if it's a valid non-negative number
+    if (isNaN(platformfee) || Number(platformfee) < 0) {
+      return res.status(400).json({ message: "Platform fee must be a valid non-negative number" });
+    }
+
+    // Find and update vendor
+    const vendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { platformfee: String(platformfee) },
+      { new: true } // return updated document
+    );
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.json({
+      message: "Vendor platform fee updated successfully",
+      vendor: {
+        id: vendor._id,
+        vendorId: vendor.vendorId,
+        vendorName: vendor.vendorName,
+        platformfee: vendor.platformfee
+      }
+    });
+
+  } catch (err) {
+    console.error("Error updating platform fee:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 module.exports = {
+  updateVendorPlatformFee,
   updateVendorVisibilityOnly,
   fetchvisiblevendordata,
   deleteBookingsByVendorId,
