@@ -1887,26 +1887,30 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     }
 
     const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    const totalAmount = parseFloat(totalamout) || parseFloat(amount) || 0;
 
-    // Calculate platform fee and receivable amount
-    const platformfee = (totalAmount * platformFeePercentage) / 100;
-    const receivableAmount = totalAmount - platformfee;
+    // Round up amounts to the next whole number
+    const roundedAmount = Math.ceil(parseFloat(amount) || 0);
+    const roundedGstAmount = gstamout !== undefined ? Math.ceil(parseFloat(gstamout) || 0) : undefined;
+    const roundedTotalAmount = totalamout !== undefined ? Math.ceil(parseFloat(totalamout) || 0) : roundedAmount;
+
+    // Calculate platform fee and receivable amount using rounded total amount
+    const platformfee = (roundedTotalAmount * platformFeePercentage) / 100;
+    const receivableAmount = roundedTotalAmount - platformfee;
 
     const exitvehicledate = moment().format("DD-MM-YYYY");
     const exitvehicletime = moment().format("hh:mm A");
 
     // Update booking fields
-    booking.amount = amount;
+    booking.amount = roundedAmount.toFixed(2); // Store as string with 2 decimal places
     booking.hour = hour;
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
     booking.status = "COMPLETED";
     
     // Optional fields
-    if (gstamout !== undefined) booking.gstamout = gstamout;
-    if (totalamout !== undefined) booking.totalamout = totalamout;
-    if (handlingfee !== undefined) booking.handlingfee = handlingfee;
+    if (roundedGstAmount !== undefined) booking.gstamout = roundedGstAmount.toFixed(2);
+    if (roundedTotalAmount !== undefined) booking.totalamout = roundedTotalAmount.toFixed(2);
+    if (handlingfee !== undefined) booking.handlingfee = parseFloat(handlingfee).toFixed(2);
     
     // Add calculated fields
     booking.releasefee = platformfee.toFixed(2);
