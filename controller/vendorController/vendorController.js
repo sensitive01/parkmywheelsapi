@@ -1199,7 +1199,48 @@ const updateVendorPlatformFee = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+const vendoridlogin = async (req, res) => {
+  try {
+    const { vendorId, password } = req.body;
+
+    // Validate input
+    if (!vendorId || !password) {
+      return res
+        .status(400)
+        .json({ message: "Vendor ID and password are required" });
+    }
+
+    // Find vendor by vendorId
+    const vendor = await vendorModel.findOne({ vendorId });
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, vendor.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Incorrect password" });
+    }
+
+
+
+    // Return success response with vendor details
+    return res.status(200).json({
+      message: "Login successful",
+      vendorId: vendor.vendorId,
+      vendorName: vendor.vendorName,
+      contacts: vendor.contacts,
+      latitude: vendor.latitude,
+      longitude: vendor.longitude,
+      address: vendor.address,
+    });
+  } catch (err) {
+    console.error("Error in vendor login", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 module.exports = {
+  vendoridlogin,
   updateVendorPlatformFee,
   updateVendorVisibilityOnly,
   fetchvisiblevendordata,

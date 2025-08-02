@@ -119,6 +119,7 @@ vendorRoute.post(
 );
 vendorRoute.post("/login", vendorController.vendorLogin);
 
+vendorRoute.post("/profilepass", vendorController.vendoridlogin);
 vendorRoute.get("/fetchspacedata", vendorController.fetchsinglespacedata);
 vendorRoute.get("/fetch-vendor-data", vendorController.fetchVendorData);
 vendorRoute.get("/fetch-all-vendor-data", vendorController.fetchAllVendorData);
