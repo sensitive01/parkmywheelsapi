@@ -1693,6 +1693,23 @@ exports.getBookingsByVendorId = async (req, res) => {
   }
 };
 
+exports.getBookingsparked = async (req, res) => {
+  try {
+    const { id } = req.params; 
+
+    const bookings = await Booking.find({ 
+      vendorId: id,
+      status: { $in: ['PARKED', 'Parked'] } 
+    });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(400).json({ message: "No parked bookings found for this vendor" });
+    }
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 exports.getBookingsByuserid = async (req, res) => {
   try {
     const { id } = req.params; 
