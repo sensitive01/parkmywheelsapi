@@ -9,6 +9,8 @@ const admin = require("../../../config/firebaseAdmin"); // Use the singleton
 const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
 const { v4: uuidv4 } = require('uuid');
 const qs = require("qs");
+// const moment = require("moment-timezone");
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -1867,6 +1869,7 @@ exports.updateBooking = async (req, res) => {
   }
 };
 
+
 exports.updateBookingAmountAndHour = async (req, res) => {
   try {
     const { amount, hour, gstamout, totalamout, handlingfee } = req.body;
@@ -1890,15 +1893,26 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 
     // Round up amounts to the next whole number
     const roundedAmount = Math.ceil(parseFloat(amount) || 0);
-    const roundedGstAmount = gstamout !== undefined ? Math.ceil(parseFloat(gstamout) || 0) : undefined;
-    const roundedTotalAmount = totalamout !== undefined ? Math.ceil(parseFloat(totalamout) || 0) : roundedAmount;
+    const roundedGstAmount =
+      gstamout !== undefined
+        ? Math.ceil(parseFloat(gstamout) || 0)
+        : undefined;
+    const roundedTotalAmount =
+      totalamout !== undefined
+        ? Math.ceil(parseFloat(totalamout) || 0)
+        : roundedAmount;
 
     // Calculate platform fee and receivable amount using rounded total amount
     const platformfee = (roundedTotalAmount * platformFeePercentage) / 100;
     const receivableAmount = roundedTotalAmount - platformfee;
 
-    const exitvehicledate = moment().format("DD-MM-YYYY");
-    const exitvehicletime = moment().format("hh:mm A");
+    // Get India date & time
+    const exitvehicledate = moment()
+      .tz("Asia/Kolkata")
+      .format("DD-MM-YYYY");
+    const exitvehicletime = moment()
+      .tz("Asia/Kolkata")
+      .format("hh:mm A");
 
     // Update booking fields
     booking.amount = roundedAmount.toFixed(2); // Store as string with 2 decimal places
@@ -1906,12 +1920,15 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
     booking.status = "COMPLETED";
-    
+
     // Optional fields
-    if (roundedGstAmount !== undefined) booking.gstamout = roundedGstAmount.toFixed(2);
-    if (roundedTotalAmount !== undefined) booking.totalamout = roundedTotalAmount.toFixed(2);
-    if (handlingfee !== undefined) booking.handlingfee = parseFloat(handlingfee).toFixed(2);
-    
+    if (roundedGstAmount !== undefined)
+      booking.gstamout = roundedGstAmount.toFixed(2);
+    if (roundedTotalAmount !== undefined)
+      booking.totalamout = roundedTotalAmount.toFixed(2);
+    if (handlingfee !== undefined)
+      booking.handlingfee = parseFloat(handlingfee).toFixed(2);
+
     // Add calculated fields
     booking.releasefee = platformfee.toFixed(2);
     booking.recievableamount = receivableAmount.toFixed(2);
@@ -1932,13 +1949,14 @@ exports.updateBookingAmountAndHour = async (req, res) => {
         payableamout: updatedBooking.payableamout,
         exitvehicledate: updatedBooking.exitvehicledate,
         exitvehicletime: updatedBooking.exitvehicletime,
-        status: updatedBooking.status
-      }
+        status: updatedBooking.status,
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 exports.getParkedVehicleCount = async (req, res) => {
   try {

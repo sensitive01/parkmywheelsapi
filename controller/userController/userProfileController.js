@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const userModel = require("../../models/userModel");
 const vehicleModel = require("../../models/vehicleModel");
-const ParkingBooking = require("../../models/parkingSchema");
+// const ParkingBooking = require("../../models/parkingSchema");
 const { uploadImage } = require("../../config/cloudinary");
 const venderSchema = require("../../models/venderSchema");
 const Favorite = require("../../models/favouritesSchema"); // Ensure this path is correct
