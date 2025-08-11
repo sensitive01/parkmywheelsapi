@@ -1906,16 +1906,18 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     const platformfee = (roundedTotalAmount * platformFeePercentage) / 100;
     const receivableAmount = roundedTotalAmount - platformfee;
 
-    // Get India date & time
-    const exitvehicledate = moment()
-      .tz("Asia/Kolkata")
-      .format("DD-MM-YYYY");
-    const exitvehicletime = moment()
-      .tz("Asia/Kolkata")
-      .format("hh:mm A");
+    // Get India date & time without moment.js
+    const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+    const [datePart, timePart] = nowInIndia.split(", "); // "DD/MM/YYYY", "HH:MM:SS AM/PM"
+
+    // Convert DD/MM/YYYY to DD-MM-YYYY
+    const [day, month, year] = datePart.split("/");
+    const exitvehicledate = `${day}-${month}-${year}`;
+    const exitvehicletime = timePart; // Already in HH:MM:SS AM/PM
 
     // Update booking fields
-    booking.amount = roundedAmount.toFixed(2); // Store as string with 2 decimal places
+    booking.amount = roundedAmount.toFixed(2);
     booking.hour = hour;
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
@@ -1932,7 +1934,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Add calculated fields
     booking.releasefee = platformfee.toFixed(2);
     booking.recievableamount = receivableAmount.toFixed(2);
-    booking.payableamout = receivableAmount.toFixed(2); // Assuming payable amount is same as receivable
+    booking.payableamout = receivableAmount.toFixed(2);
 
     const updatedBooking = await booking.save();
 
@@ -1956,6 +1958,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 
 exports.getParkedVehicleCount = async (req, res) => {
