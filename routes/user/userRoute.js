@@ -65,6 +65,7 @@ userRoute.get("/getfavourite", getFavoriteVendors.getFavoriteVendors);
 
 userRoute.get("/cancelled-count/:userid", bookingController.getUserBookingCounts);
 userRoute.put("/updatebookingbyid/:id", bookingController.updateBookingById);
+userRoute.put("/updaterescheule/:id", bookingController.vendorreschedule);
 
 userRoute.get("/getfavlist", getVendors.getVendors);
 userRoute.get("/allusers", userController.getAllUsers);
