@@ -361,42 +361,24 @@ const fetchsinglespacedata = async (req, res) => {
 const updateVendorSubscription = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    let { subscription, subscriptionleft } = req.body;
+    const { subscription, trial } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
     }
-
-    // Parse and validate subscription
-    if (typeof subscription === "undefined") {
-      subscription = true;
-    } else {
-      subscription = subscription === "true" || subscription === true;
-    }
-
-    // Parse and validate subscriptionleft
-    subscriptionleft = parseInt(subscriptionleft);
-    if (isNaN(subscriptionleft)) subscriptionleft = 30;
 
     const vendor = await vendorModel.findById(vendorId);
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    // Update subscription fields
-    vendor.subscription = subscription;
-    vendor.subscriptionleft = subscriptionleft;
-
-    // If eligible, set subscription end date
-    if (!vendor.subscriptionenddate && subscription === true && subscriptionleft === 30) {
-      const today = new Date();
-      const subscriptionEndDate = new Date(today.setDate(today.getDate() + 30));
-      vendor.subscriptionenddate = subscriptionEndDate.toISOString().split("T")[0];
+    // Update only if provided
+    if (typeof subscription !== "undefined") {
+      vendor.subscription = subscription === "true" || subscription === true;
     }
 
-    // Set trial to true if not already
-    if (vendor.trial !== "true") {
-      vendor.trial = "true";
+    if (typeof trial !== "undefined") {
+      vendor.trial = trial === "true" || trial === true;
     }
 
     await vendor.save();
@@ -406,14 +388,7 @@ const updateVendorSubscription = async (req, res) => {
       vendorDetails: {
         vendorId: vendor._id,
         vendorName: vendor.vendorName,
-        contacts: vendor.contacts,
-        latitude: vendor.latitude,
-        longitude: vendor.longitude,
-        landmark: vendor.landMark,
-        address: vendor.address,
-        image: vendor.image,
         subscription: vendor.subscription,
-        subscriptionleft: vendor.subscriptionleft,
         subscriptionenddate: vendor.subscriptionenddate,
         trial: vendor.trial,
       },
@@ -423,6 +398,7 @@ const updateVendorSubscription = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 const getVendorTrialStatus = async (req, res) => {

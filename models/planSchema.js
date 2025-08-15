@@ -10,6 +10,9 @@ const PlanSchema = new mongoose.Schema({
   validity: {
     type: String,
   },
+    vendorid : {
+    type: String,
+  },
   amount: {
     type: String,
   },

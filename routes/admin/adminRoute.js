@@ -49,8 +49,8 @@ adminRoute.get("/fetchsubscriptionleft/:adminId", adminController.fetchVendorSub
 
 adminRoute.post("/createplan",upload.single("image"), planController.addNewPlan);
 adminRoute.get("/getallplan", planController.getAllPlans);
-adminRoute.get("/getuserplan", planController.getUserPlan);
-adminRoute.get("/getvendorplan", planController.getvendorplan);
+adminRoute.get('/getuserplan/:vendorid', planController.getUserPlan);
+adminRoute.get("/getvendorplan/:vendorid", planController.getvendorplan);
 adminRoute.get("/getplanbyid/:id", planController.getPlanById);
 adminRoute.put("/updateplan/:id",upload.single("image"), planController.updatePlan);
 adminRoute.delete("/deleteplan/:id", planController.deletePlan);

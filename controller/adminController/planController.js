@@ -1,9 +1,9 @@
 const planModel = require("../../models/planSchema");
 const { uploadImage } = require("../../config/cloudinary");
-
+const Vendor = require('../../models/venderSchema');
 const addNewPlan = async (req, res) => {
     try {
-      const { planName, role, validity, amount, features, status } = req.body;
+      const { planName, role, validity, vendorid,amount, features, status } = req.body;
   
       // Check if image is provided
       if (!req.file) {
@@ -24,6 +24,7 @@ const addNewPlan = async (req, res) => {
       const newPlan = new planModel({
         planName,
         role,
+        vendorid,
         validity: Number(validity),
         amount: Number(amount),
         features: parsedFeatures,
@@ -72,15 +73,52 @@ const addNewPlan = async (req, res) => {
     }
   };
   
-  const getUserPlan = async (req, res) => {
+const getUserPlan = async (req, res) => {
     try {
         console.log("User Role:", req.user?.role);
 
-        // Always query for plans with role "user" and status "enable"
-        const query = { status: "enable", role: "user" };
-        console.log("Query:", query);
+        // Base filter for enabled user plans
+        const baseQuery = { status: "enable", role: "user" };
 
-        const plans = await planModel.find(query).sort({ createdAt: -1 });
+        let plans = [];
+
+        if (req.params.vendorid || req.query.vendorid) {
+            const vendorid = req.params.vendorid || req.query.vendorid;
+
+            console.log("Fetching vendor-specific + global user plans for:", vendorid);
+
+            // Get vendor details
+            const vendor = await Vendor.findOne({ vendorId: vendorid });
+            if (!vendor) {
+                return res.status(404).json({ message: "Vendor not found" });
+            }
+
+            // Apply trial filter
+            let amountFilter = {};
+            if (vendor.trial === "true") {
+                amountFilter.amount = { $ne: 0 }; // exclude free plans
+            }
+
+            // Vendor-specific plans
+            const vendorPlans = await planModel
+                .find({ ...baseQuery, vendorid, ...amountFilter })
+                .sort({ createdAt: -1 });
+
+            // Global plans (no vendorid field or null)
+            const globalPlans = await planModel
+                .find({
+                    ...baseQuery,
+                    $or: [{ vendorid: { $exists: false } }, { vendorid: null }],
+                    ...amountFilter
+                })
+                .sort({ createdAt: -1 });
+
+            plans = [...vendorPlans, ...globalPlans];
+        } else {
+            // No vendorid provided → all user plans
+            plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+        }
+
         console.log("Retrieved Plans:", plans);
 
         res.status(200).json({
@@ -95,31 +133,74 @@ const addNewPlan = async (req, res) => {
         });
     }
 };
-  
+
+
+
+
 const getvendorplan = async (req, res) => {
   try {
-      console.log("User Role:", req.user?.role);
+    console.log("User Role:", req.user?.role);
 
-      // Always query for plans with role "user" and status "enable"
-      const query = { status: "enable", role: "vendor" };
-      console.log("Query:", query);
+    // Base filter for enabled vendor plans
+    const baseQuery = { status: "enable", role: "vendor" };
 
-      const plans = await planModel.find(query).sort({ createdAt: -1 });
-      console.log("Retrieved Plans:", plans);
+    let plans = [];
 
-      res.status(200).json({
-          message: "Plans retrieved successfully",
-          plans,
-      });
+    // Check if vendorid is provided
+    if (req.params.vendorid || req.query.vendorid) {
+      const vendorid = req.params.vendorid || req.query.vendorid;
+
+      console.log("Fetching vendor-specific + global vendor plans for:", vendorid);
+
+      // Get vendor details
+      const vendor = await Vendor.findOne({ vendorId: vendorid });
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+
+      // Build additional filter based on trial
+      let amountFilter = {};
+      if (vendor.trial === "true") {
+        amountFilter.amount = { $ne: 0 }; // exclude free plans
+      }
+
+      // Vendor-specific vendor plans
+      const vendorPlans = await planModel
+        .find({ ...baseQuery, vendorid, ...amountFilter })
+        .sort({ createdAt: -1 });
+
+      // Global vendor plans (no vendorid field or null)
+      const globalPlans = await planModel
+        .find({
+          ...baseQuery,
+          $or: [{ vendorid: { $exists: false } }, { vendorid: null }],
+          ...amountFilter,
+        })
+        .sort({ createdAt: -1 });
+
+      // Merge results
+      plans = [...vendorPlans, ...globalPlans];
+    } else {
+      // No vendorid provided → fetch all vendor plans
+      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+    }
+
+    console.log("Retrieved Plans:", plans);
+
+    res.status(200).json({
+      message: "Plans retrieved successfully",
+      plans,
+    });
   } catch (err) {
-      console.error("Error in retrieving plans", err);
-      res.status(500).json({
-          message: "Error in retrieving plans",
-          error: err.message,
-      });
+    console.error("Error in retrieving plans", err);
+    res.status(500).json({
+      message: "Error in retrieving plans",
+      error: err.message,
+    });
   }
 };
- 
+
+
 
   
   
