@@ -54,7 +54,7 @@ vendorRoute.get("/bookings", bookingController.getAllBookings);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
 vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour);
-vendorRoute.get("/getvendorpayouts/:vendorId", bookingController.getvendorpayouts);
+// vendorRoute.get("/getvendorpayouts/:vendorId", bookingController.getvendorpayouts);
 vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
 vendorRoute.get("/userbookingtrans/:vendorId", bookingController.getReceivableAmountByUser);
 vendorRoute.get("/nonuserbookings/:vendorId", bookingController.getReceivableAmountWithPlatformFee);
