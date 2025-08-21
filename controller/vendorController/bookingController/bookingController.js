@@ -870,75 +870,6 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
 };
 
 
-// exports.getvendorpayouts = async (req, res) => {
-//   try {
-//     const { vendorId } = req.params;
-
-//     if (!vendorId) {
-//       return res.status(400).json({ success: false, message: "Vendor ID is required" });
-//     }
-
-//     const vendor = await vendorModel.findById(vendorId);
-//     if (!vendor) {
-//       return res.status(404).json({ success: false, message: "Vendor not found" });
-//     }
-
-//     const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-
-//     // ✅ Only get completed bookings with userid present
-//     const completedBookings = await Booking.find({ 
-//       vendorId, 
-//       status: "COMPLETED", 
-//       userid: { $exists: true, $ne: "" } 
-//     });
-
-//     if (completedBookings.length === 0) {
-//       return res.status(404).json({ success: false, message: "No completed bookings with userid found" });
-//     }
-
-//     const bookingsWithUpdatedPlatformFee = await Promise.all(
-//       completedBookings.map(async (booking) => {
-//         const amount = parseFloat(booking.amount) || 0;
-//         const platformfee = (amount * platformFeePercentage) / 100;
-//         const receivableAmount = amount - platformfee;
-
-//         booking.platformfee = platformfee.toFixed(2);
-//         await booking.save();
-
-//         return {
-//           _id: booking._id,
-//           userid: booking.userid,
-//           vendorId: booking.vendorId,
-//           amount: amount.toFixed(2),
-//           platformfee: platformfee.toFixed(2),
-//           receivableAmount: receivableAmount.toFixed(2),
-//           bookingDate: booking.bookingDate || null,
-//           parkingDate: booking.parkingDate || null,
-//           parkingTime: booking.parkingTime || null,
-//           exitvehicledate: booking.exitvehicledate || null,
-//           exitvehicletime: booking.exitvehicletime || null
-//         };
-//       })
-//     );
-
-//     const totalAmount = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.amount), 0);
-//     const totalReceivable = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.receivableAmount), 0);
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Platform fees updated and receivable amounts calculated successfully",
-//       data: {
-//         platformFeePercentage,
-//         totalAmount: totalAmount.toFixed(2),
-//         totalReceivable: totalReceivable.toFixed(2),
-//         bookings: bookingsWithUpdatedPlatformFee,
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error updating platform fees:", error);
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
 
 
 exports.userupdateCancelBooking = async (req, res) => {
@@ -2693,8 +2624,6 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-
     // Get all COMPLETED bookings for the vendor where userid is null or not present
     const completedBookings = await Booking.find({
       vendorId,
@@ -2703,21 +2632,24 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     });
 
     if (completedBookings.length === 0) {
-      return res.status(200).json({ success: true, message: "No completed bookings without userid found", data: [] });
+      return res.status(200).json({ 
+        success: true, 
+        message: "No completed bookings without userid found", 
+        data: [] 
+      });
     }
 
     const bookings = completedBookings.map((booking) => {
       const amount = parseFloat(booking.amount) || 0;
-      const platformfee = (amount * platformFeePercentage) / 100;
-      const receivableAmount = amount - platformfee;
+      const platformfee = parseFloat(booking.platformfee) || 0;
 
       return {
+       _id: booking._id,
+      userid: booking.userid || null,
+      bookingDate: booking.bookingDate,
+      parkingDate: booking.parkingDate,
+      parkingTime: booking.parkingTime,
         vehiclenumber: booking.vehicleNumber || null,
-        _id: booking._id,
-        userid: null, // always null here
-        bookingDate: booking.bookingDate,
-        parkingDate: booking.parkingDate,
-        parkingTime: booking.parkingTime,
       exitdate:booking.exitvehicledate || null,
       exittime: booking.exitvehicletime || null,
     status: booking.status,
@@ -2726,13 +2658,13 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     vendorid: booking.vendorId || null,
     bookingtype: booking.bookType || null,
     vehicleType: booking.vehicleType || null,
-        exitdate:booking.exitvehicledate || null,
-        exittime: booking.exitvehicletime || null,
-        amount: amount.toFixed(2),
-        gstamout: booking.gstamout,
-        totalamout: booking.totalamout,
-        platformfee: platformfee.toFixed(2),
-        receivableAmount: receivableAmount.toFixed(2),
+      amount: parseFloat(booking.amount).toFixed(2),
+      // handlingfee: parseFloat(booking.handlingfee).toFixed(2),
+      releasefee: parseFloat(booking.releasefee).toFixed(2),
+      recievableamount: parseFloat(booking.recievableamount).toFixed(2),
+      payableamout: parseFloat(booking.payableamout).toFixed(2),
+      gstamout: booking.gstamout,
+      totalamout: booking.totalamout,
       };
     });
 
@@ -2746,6 +2678,8 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
 exports.setVendorVisibility = async (req, res) => {
   try {
     const { vendorId, visibility } = req.body; // Expect vendorId and visibility (true/false) in the request body
