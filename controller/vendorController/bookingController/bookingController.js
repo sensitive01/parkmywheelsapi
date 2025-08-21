@@ -2095,65 +2095,65 @@ exports.getAvailableSlotCount = async (req, res) => {
   }
 };
 
-exports.getReceivableAmount = async (req, res) => {
-  try {
-    const { vendorId } = req.params;
-    if (!vendorId) {
-      return res.status(400).json({ success: false, message: "Vendor ID is required" });
-    }
-    const vendor = await vendorModel.findById(vendorId);
-    if (!vendor) {
-      return res.status(404).json({ success: false, message: "Vendor not found" });
-    }
+// exports.getReceivableAmount = async (req, res) => {
+//   try {
+//     const { vendorId } = req.params;
+//     if (!vendorId) {
+//       return res.status(400).json({ success: false, message: "Vendor ID is required" });
+//     }
+//     const vendor = await vendorModel.findById(vendorId);
+//     if (!vendor) {
+//       return res.status(404).json({ success: false, message: "Vendor not found" });
+//     }
 
-    const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    const completedBookings = await Booking.find({ vendorId, status: "COMPLETED" });
+//     const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+//     const completedBookings = await Booking.find({ vendorId, status: "COMPLETED" });
 
-    if (completedBookings.length === 0) {
-      return res.status(404).json({ success: false, message: "No completed bookings found" });
-    }
-    const bookingsWithUpdatedPlatformFee = await Promise.all(
-      completedBookings.map(async (booking) => {
-        const amount = parseFloat(booking.amount); 
-        const platformfee = (amount * platformFeePercentage) / 100;
-        const receivableAmount = amount - platformfee;
-        booking.platformfee = platformfee.toFixed(2);
-        await booking.save();
+//     if (completedBookings.length === 0) {
+//       return res.status(404).json({ success: false, message: "No completed bookings found" });
+//     }
+//     const bookingsWithUpdatedPlatformFee = await Promise.all(
+//       completedBookings.map(async (booking) => {
+//         const amount = parseFloat(booking.amount); 
+//         const platformfee = (amount * platformFeePercentage) / 100;
+//         const receivableAmount = amount - platformfee;
+//         booking.platformfee = platformfee.toFixed(2);
+//         await booking.save();
 
-        return {
-          _id: booking._id,
-          amount,
-          platformfee: booking.platformfee,
-          receivableAmount: receivableAmount.toFixed(2),
-          amount :booking.amount,
-          gstamout: booking.gstamout,
-          totalamout: booking.totalamout,
-          handlingfee: booking.handlingfee,
-          vehicleNumber: booking.vehicleNumber,
-          vehicleType: booking.vehicleType,
-          bookingDate: booking.bookingDate,
-          parkingDate: booking.parkingDate,
-          parkingTime: booking.parkingTime,
-        };
-      })
-    );
-    const totalAmount = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.amount), 0);
-    const totalReceivable = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.receivableAmount), 0);
-    res.status(200).json({
-      success: true,
-      message: "Platform fees updated and receivable amounts calculated successfully",
-      data: {
-        platformFeePercentage,
-        totalAmount: totalAmount.toFixed(2),
-        totalReceivable: totalReceivable.toFixed(2),
-        bookings: bookingsWithUpdatedPlatformFee,
-      },
-    });
-  } catch (error) {
-    console.error("Error updating platform fees:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+//         return {
+//           _id: booking._id,
+//           amount,
+//           platformfee: booking.platformfee,
+//           receivableAmount: receivableAmount.toFixed(2),
+//           amount :booking.amount,
+//           gstamout: booking.gstamout,
+//           totalamout: booking.totalamout,
+//           handlingfee: booking.handlingfee,
+//           vehicleNumber: booking.vehicleNumber,
+//           vehicleType: booking.vehicleType,
+//           bookingDate: booking.bookingDate,
+//           parkingDate: booking.parkingDate,
+//           parkingTime: booking.parkingTime,
+//         };
+//       })
+//     );
+//     const totalAmount = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+//     const totalReceivable = bookingsWithUpdatedPlatformFee.reduce((sum, b) => sum + parseFloat(b.receivableAmount), 0);
+//     res.status(200).json({
+//       success: true,
+//       message: "Platform fees updated and receivable amounts calculated successfully",
+//       data: {
+//         platformFeePercentage,
+//         totalAmount: totalAmount.toFixed(2),
+//         totalReceivable: totalReceivable.toFixed(2),
+//         bookings: bookingsWithUpdatedPlatformFee,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error updating platform fees:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
 
 exports.getUserCancelledCount = async (req, res) => {
   try {
