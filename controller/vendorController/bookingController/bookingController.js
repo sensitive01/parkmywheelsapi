@@ -9,6 +9,8 @@ const admin = require("../../../config/firebaseAdmin"); // Use the singleton
 const Notification = require("../../../models/notificationschema"); // Adjust the path as necessary
 const { v4: uuidv4 } = require('uuid');
 const qs = require("qs");
+const Parkingcharges = require("../../../models/chargesSchema");
+
 // const moment = require("moment-timezone");
 
 exports.createBooking = async (req, res) => {
@@ -868,9 +870,6 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-
-
 
 exports.userupdateCancelBooking = async (req, res) => {
   try {
@@ -1820,7 +1819,9 @@ exports.updateBookingAmountAndHour = async (req, res) => {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+    // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
+    let platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+    platformFeePercentage = Math.ceil(platformFeePercentage);
 
     // Round up amounts to the next whole number
     const roundedAmount = Math.ceil(parseFloat(amount) || 0);
@@ -1839,7 +1840,6 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 
     // Get India date & time without moment.js
     const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-
     const [datePart, timePart] = nowInIndia.split(", "); // "DD/MM/YYYY", "HH:MM:SS AM/PM"
 
     // Convert DD/MM/YYYY to DD-MM-YYYY
@@ -1862,7 +1862,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     if (handlingfee !== undefined)
       booking.handlingfee = parseFloat(handlingfee).toFixed(2);
 
-    // Add calculated fields
+    // Add calculated fields (round to 2 decimals)
     booking.releasefee = platformfee.toFixed(2);
     booking.recievableamount = receivableAmount.toFixed(2);
     booking.payableamout = receivableAmount.toFixed(2);
@@ -2682,31 +2682,127 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
 exports.setVendorVisibility = async (req, res) => {
   try {
-    const { vendorId, visibility } = req.body; // Expect vendorId and visibility (true/false) in the request body
+    const { vendorId, visibility } = req.body;
 
-    // Validate input
-    if (!vendorId || typeof visibility !== 'boolean') {
+    if (!vendorId || typeof visibility !== "boolean") {
       return res.status(400).json({ message: "vendorId and visibility (boolean) are required" });
     }
 
-    // Update the vendor's visibility
-    const updateResult = await vendorModel.updateOne(
-      { vendorId: vendorId },
-      { $set: { visibility: visibility } },
-      { new: true }
-    );
-
-    if (updateResult.matchedCount === 0) {
+    const vendor = await vendorModel.findOne({ vendorId });
+    if (!vendor) {
       return res.status(404).json({ message: `No vendor found with vendorId: ${vendorId}` });
     }
 
+    const charges = await Parkingcharges.findOne({ vendorid: vendorId });
+    const parking = vendor.parkingEntries || [];
+
+    const carEntry = parking.find(e => e.type.toLowerCase() === "cars");
+    const bikeEntry = parking.find(e => e.type.toLowerCase() === "bikes");
+    const othersEntry = parking.find(e => e.type.toLowerCase() === "others");
+
+    let errors = [];
+
+    if (visibility === true) {
+      // Check availability for each slot
+      const carAvailable = carEntry && parseInt(carEntry.count) > 0 && charges?.carenable === "true";
+      const bikeAvailable = bikeEntry && parseInt(bikeEntry.count) > 0 && charges?.bikeenable === "true";
+      const othersAvailable = othersEntry && parseInt(othersEntry.count) > 0 && charges?.othersenable === "true";
+
+      // At least one slot must be available
+      if (!carAvailable && !bikeAvailable && !othersAvailable) {
+        errors.push("At least one slot (Car, Bike, or Others) must be available and enabled to set visibility");
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: "Cannot set visibility", errors });
+    }
+
+    // ✅ Update visibility
+    vendor.visibility = visibility;
+    await vendor.save();
+
     res.status(200).json({
       message: `Vendor visibility updated successfully for vendorId: ${vendorId}`,
-      matchedCount: updateResult.matchedCount,
-      modifiedCount: updateResult.modifiedCount
+      visibility: vendor.visibility
     });
+
   } catch (error) {
     console.error("Error updating vendor visibility:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+// const Vendor = require("../models/vendorSchema");
+
+exports.vendorfetch = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendorData = await vendorModel.aggregate([
+      { $match: { vendorId: vendorId } },
+      {
+        $lookup: {
+          from: "parkingcharges",
+          localField: "vendorId",
+          foreignField: "vendorid",
+          as: "charges"
+        }
+      },
+      {
+        $project: {
+          vendorName: 1,
+          vendorId: 1,
+          parkingEntries: 1,
+          charges: 1
+        }
+      }
+    ]);
+
+    if (!vendorData || vendorData.length === 0) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    let vendor = vendorData[0];
+    let charges = vendor.charges[0] || {};
+
+    // default availability
+    let carslots = "not available";
+    let bikeslots = "not available";
+    let otherslots = "not available";
+
+    // check parking entries
+    const carEntry = vendor.parkingEntries.find(e => e.type.toLowerCase() === "cars");
+    const bikeEntry = vendor.parkingEntries.find(e => e.type.toLowerCase() === "bikes");
+    const othersEntry = vendor.parkingEntries.find(e => e.type.toLowerCase() === "others");
+
+    if (charges.carenable === "true" && carEntry && parseInt(carEntry.count) > 0) {
+      carslots = "available";
+    }
+    if (charges.bikeenable === "true" && bikeEntry && parseInt(bikeEntry.count) > 0) {
+      bikeslots = "available";
+    }
+    if (charges.othersenable === "true" && othersEntry && parseInt(othersEntry.count) > 0) {
+      otherslots = "available";
+    }
+
+    res.status(200).json({
+      vendorName: vendor.vendorName,
+      vendorId: vendor.vendorId,
+      parkingEntries: vendor.parkingEntries,
+      carslots,
+      bikeslots,
+      otherslots,
+      carenable: charges.carenable || "false",
+      bikeenable: charges.bikeenable || "false",
+      othersenable: charges.othersenable || "false",
+      charges: vendor.charges
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching vendor details:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
