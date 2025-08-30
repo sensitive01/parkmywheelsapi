@@ -76,7 +76,9 @@ const bookingSchema = new mongoose.Schema(
     parkingDate:{
       type: String,
     },
-
+    subsctiptionenddate:{
+      type: String,
+    },
     parkingTime:{
       type: String,
     },
