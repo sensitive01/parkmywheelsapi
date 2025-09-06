@@ -1934,7 +1934,7 @@ exports.renewSubscription = async (req, res) => {
 
     // Update booking fields
     booking.amount = roundedNewTotal.toFixed(2);
-    booking.subscriptionenddate = new_subscription_enddate;
+    booking.subsctiptionenddate = new_subscription_enddate;
 
     // Accumulate optional fields
     if (roundedGstAmount !== undefined) {
@@ -1961,7 +1961,7 @@ exports.renewSubscription = async (req, res) => {
         releasefee: updatedBooking.releasefee,
         recievableamount: updatedBooking.recievableamount,
         payableamout: updatedBooking.payableamout,
-        subscriptionenddate: updatedBooking.subscriptionenddate,
+        subscriptionenddate: updatedBooking.subsctiptionenddate,
       },
     });
   } catch (error) {
