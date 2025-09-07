@@ -50,7 +50,7 @@ exports.createBooking = async (req, res) => {
 
     console.log("Booking data:", req.body);
 
-    // Check available slots before creating a booking
+    // Check available slots
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
       { parkingEntries: 1, fcmTokens: 1, platformfee: 1 }
@@ -73,34 +73,15 @@ exports.createBooking = async (req, res) => {
     };
 
     const aggregationResult = await Booking.aggregate([
-      {
-        $match: {
-          vendorId: vendorId,
-          status: "PENDING",
-        },
-      },
-      {
-        $group: {
-          _id: "$vehicleType",
-          count: { $sum: 1 },
-        },
-      },
+      { $match: { vendorId: vendorId, status: "PENDING" } },
+      { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
     ]);
 
-    let bookedSlots = {
-      Cars: 0,
-      Bikes: 0,
-      Others: 0,
-    };
-
+    let bookedSlots = { Cars: 0, Bikes: 0, Others: 0 };
     aggregationResult.forEach(({ _id, count }) => {
-      if (_id === "Car") {
-        bookedSlots.Cars = count;
-      } else if (_id === "Bike") {
-        bookedSlots.Bikes = count;
-      } else {
-        bookedSlots.Others = count;
-      }
+      if (_id === "Car") bookedSlots.Cars = count;
+      else if (_id === "Bike") bookedSlots.Bikes = count;
+      else bookedSlots.Others = count;
     });
 
     const availableSlots = {
@@ -108,47 +89,38 @@ exports.createBooking = async (req, res) => {
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
       Others: totalAvailableSlots.Others - bookedSlots.Others,
     };
-    console.log("Available slots:", availableSlots);
-    console.log("Booked slots:", bookedSlots);
 
-    if (vehicleType === "Car" && availableSlots.Cars <= 0) {
+    if (vehicleType === "Car" && availableSlots.Cars <= 0)
       return res.status(400).json({ message: "No available slots for Cars" });
-    } else if (vehicleType === "Bike" && availableSlots.Bikes <= 0) {
+    if (vehicleType === "Bike" && availableSlots.Bikes <= 0)
       return res.status(400).json({ message: "No available slots for Bikes" });
-    } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
+    if (vehicleType === "Others" && availableSlots.Others <= 0)
       return res.status(400).json({ message: "No available slots for Others" });
-    }
 
-    // Fetch GST and handling fee from Gstfee model
+    // Fetch GST and Handling Fee
     const gstFeeData = await Gstfee.findOne({});
     if (!gstFeeData) {
       return res.status(400).json({ message: "GST and handling fee data not found" });
     }
 
-    // Initialize booking financials
-    let bookingAmount = 0;
-    let totalAmount = 0;
-    let gstAmount = 0;
-    let handlingFee = 0;
-    let releaseFee = 0;
-    let receivableAmount = 0;
-    let payableAmount = 0;
+    // Financial calculations
+    const bookingAmount = parseFloat(amount) || 0;
+    const gstPercentage = parseFloat(gstFeeData.gst) || 0;
+    const gstAmount = (bookingAmount * gstPercentage) / 100;
 
-    // Calculate amounts
-    bookingAmount = Math.ceil(parseFloat(amount) || 0).toFixed(2);
-    gstAmount = parseFloat(gstFeeData.gst) || 0;
-    handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
-    totalAmount = (parseFloat(bookingAmount) + gstAmount + handlingFee).toFixed(2);
+    // Handling fee is fixed
+    const handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
 
-    // Platform fee calculation
+    const totalAmount = (bookingAmount + gstAmount + handlingFee).toFixed(2);
+
+    // Platform fee
     let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
-    platformFeePercentage = Math.ceil(platformFeePercentage);
     const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
-    releaseFee = platformFee.toFixed(2);
+    const releaseFee = platformFee.toFixed(2);
 
-    const receivable = parseFloat(totalAmount) - platformFee;
-    receivableAmount = receivable.toFixed(2);
-    payableAmount = receivableAmount;
+    // Receivable and payable
+    const receivableAmount = (parseFloat(totalAmount) - platformFee).toFixed(2);
+    const payableAmount = receivableAmount;
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -156,7 +128,7 @@ exports.createBooking = async (req, res) => {
       userid,
       vendorId,
       vendorName,
-      amount: bookingAmount,
+      amount: bookingAmount.toFixed(2),
       totalamout: totalAmount,
       gstamout: gstAmount.toFixed(2),
       handlingfee: handlingFee.toFixed(2),
@@ -194,165 +166,93 @@ exports.createBooking = async (req, res) => {
 
     // Vendor Notification
     const vendorNotification = new Notification({
-      vendorId: vendorId,
+      vendorId,
       userId: userid,
       bookingId: newBooking._id,
       title: "New Booking Received",
       message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
-      vehicleType: vehicleType,
-      vehicleNumber: vehicleNumber,
+      vehicleType,
+      vehicleNumber,
       createdAt: new Date(),
       read: false,
-      sts: sts,
+      sts,
       bookingtype: bookType,
       otp: otp.toString(),
       vendorname: vendorName,
-      parkingDate: parkingDate,
-      parkingTime: parkingTime,
+      parkingDate,
+      parkingTime,
       bookingdate: bookingDate,
       schedule: `${parkingDate} ${parkingTime}`,
       notificationdtime: `${bookingDate} ${bookingTime}`,
-      status: status,
+      status,
     });
 
     await vendorNotification.save();
 
     // User Notification
     const userNotification = new Notification({
-      vendorId: vendorId,
+      vendorId,
       userId: userid,
       bookingId: newBooking._id,
       title: "Booking Confirmed",
       message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
-      vehicleType: vehicleType,
-      vehicleNumber: vehicleNumber,
+      vehicleType,
+      vehicleNumber,
       createdAt: new Date(),
       read: false,
-      sts: sts,
+      sts,
       bookingtype: bookType,
       otp: otp.toString(),
       vendorname: vendorName,
-      parkingDate: parkingDate,
-      parkingTime: parkingTime,
+      parkingDate,
+      parkingTime,
       bookingdate: bookingDate,
       notificationdtime: `${bookingDate} ${bookingTime}`,
       schedule: `${parkingDate} ${parkingTime}`,
-      status: status,
+      status,
     });
 
     await userNotification.save();
 
-    // Vendor Notification Message
-    const vendorNotificationMessage = {
-      notification: {
-        title: "New Booking Received",
-        body: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
-      },
-      android: {
-        notification: {
-          sound: "default",
-          priority: "high",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-          },
-        },
-      },
-    };
-
-    // User Notification Message
-    const userNotificationMessage = {
-      notification: {
-        title: "Booking Confirmed",
-        body: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
-      },
-      data: {
-        bookingId: newBooking._id.toString(),
-        vehicleType,
-      },
-      android: {
-        notification: {
-          sound: "default",
-          priority: "high",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-          },
-        },
-      },
-    };
-
-    // Send Vendor Notifications
-    const vendorFcmTokens = vendorData.fcmTokens || [];
-    const vendorInvalidTokens = [];
-
-    if (vendorFcmTokens.length > 0) {
-      const vendorPromises = vendorFcmTokens.map(async (token) => {
+    // Send FCM Notifications (Vendor & User)
+    const sendFcmNotification = async (tokens, messageTemplate, model, idField) => {
+      const invalidTokens = [];
+      const promises = tokens.map(async (token) => {
         try {
-          const message = { ...vendorNotificationMessage, token };
-          const response = await admin.messaging().send(message);
-          console.log(`Vendor notification sent to token: ${token}`, response);
+          await admin.messaging().send({ ...messageTemplate, token });
         } catch (error) {
-          console.error(`Error sending vendor notification to token: ${token}`, error);
           if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
-            vendorInvalidTokens.push(token);
+            invalidTokens.push(token);
           }
         }
       });
-
-      await Promise.all(vendorPromises);
-
-      if (vendorInvalidTokens.length > 0) {
-        await vendorModel.updateOne(
-          { _id: vendorId },
-          { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
+      await Promise.all(promises);
+      if (invalidTokens.length > 0) {
+        await model.updateOne(
+          { _id: idField },
+          { $pull: { fcmTokens: { $in: invalidTokens } } }
         );
-        console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
       }
-    } else {
-      console.warn("No FCM tokens available for this vendor.");
+    };
+
+    if (vendorData.fcmTokens?.length > 0) {
+      const vendorFcmMessage = {
+        notification: { title: "New Booking Received", body: `New booking from ${personName}` },
+        android: { notification: { sound: "default", priority: "high" } },
+        apns: { payload: { aps: { sound: "default" } } },
+      };
+      await sendFcmNotification(vendorData.fcmTokens, vendorFcmMessage, vendorModel, vendorId);
     }
 
-    // Send User Notifications
     const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
-    if (user) {
-      const userFcmTokens = user.userfcmTokens || [];
-      const userInvalidTokens = [];
-
-      if (userFcmTokens.length > 0) {
-        const userPromises = userFcmTokens.map(async (token) => {
-          try {
-            const message = { ...userNotificationMessage, token };
-            const response = await admin.messaging().send(message);
-            console.log(`✅ User notification sent to ${token}`, response);
-          } catch (error) {
-            console.error(`❌ Error sending to user token: ${token}`, error);
-            if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
-              userInvalidTokens.push(token);
-            }
-          }
-        });
-
-        await Promise.all(userPromises);
-
-        if (userInvalidTokens.length > 0) {
-          await userModel.updateOne(
-            { uuid: userid },
-            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
-          );
-          console.log("🧹 Removed invalid user tokens:", userInvalidTokens);
-        }
-      } else {
-        console.warn("ℹ️ No FCM tokens for this user.");
-      }
-    } else {
-      console.warn("⚠️ User not found with UUID:", userid);
+    if (user?.userfcmTokens?.length > 0) {
+      const userFcmMessage = {
+        notification: { title: "Booking Confirmed", body: `Your booking with ${vendorName} is confirmed` },
+        data: { bookingId: newBooking._id.toString(), vehicleType },
+        android: { notification: { sound: "default", priority: "high" } },
+        apns: { payload: { aps: { sound: "default" } } },
+      };
+      await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid);
     }
 
     res.status(200).json({
@@ -378,6 +278,7 @@ exports.createBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.vendorcreateBooking = async (req, res) => {
   try {
     const {
