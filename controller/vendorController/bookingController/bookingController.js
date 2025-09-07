@@ -13,6 +13,11 @@ const Parkingcharges = require("../../../models/chargesSchema");
 
 // const moment = require("moment-timezone");
 
+
+
+const Gstfee = require("../../../models/gstfeeschema"); // Adjust path as per your project
+
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -46,7 +51,10 @@ exports.createBooking = async (req, res) => {
     console.log("Booking data:", req.body);
 
     // Check available slots before creating a booking
-    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
+    const vendorData = await vendorModel.findOne(
+      { _id: vendorId },
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1 }
+    );
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
@@ -111,17 +119,54 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: "No available slots for Others" });
     }
 
+    // Fetch GST and handling fee from Gstfee model
+    const gstFeeData = await Gstfee.findOne({});
+    if (!gstFeeData) {
+      return res.status(400).json({ message: "GST and handling fee data not found" });
+    }
+
+    // Initialize booking financials
+    let bookingAmount = 0;
+    let totalAmount = 0;
+    let gstAmount = 0;
+    let handlingFee = 0;
+    let releaseFee = 0;
+    let receivableAmount = 0;
+    let payableAmount = 0;
+
+    // Calculate amounts
+    bookingAmount = Math.ceil(parseFloat(amount) || 0).toFixed(2);
+    gstAmount = parseFloat(gstFeeData.gst) || 0;
+    handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
+    totalAmount = (parseFloat(bookingAmount) + gstAmount + handlingFee).toFixed(2);
+
+    // Platform fee calculation
+    let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    platformFeePercentage = Math.ceil(platformFeePercentage);
+    const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
+    releaseFee = platformFee.toFixed(2);
+
+    const receivable = parseFloat(totalAmount) - platformFee;
+    receivableAmount = receivable.toFixed(2);
+    payableAmount = receivableAmount;
+
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     const newBooking = new Booking({
       userid,
       vendorId,
-      amount,
+      vendorName,
+      amount: bookingAmount,
+      totalamout: totalAmount,
+      gstamout: gstAmount.toFixed(2),
+      handlingfee: handlingFee.toFixed(2),
+      releasefee: releaseFee,
+      recievableamount: receivableAmount,
+      payableamout: payableAmount,
       hour,
       personName,
-      vehicleType,
-      vendorName,
       mobileNumber,
+      vehicleType,
       carType,
       vehicleNumber,
       bookingDate,
@@ -139,7 +184,7 @@ exports.createBooking = async (req, res) => {
       cancelledTime: null,
       parkedDate,
       parkedTime,
-       settlemtstatus: "pending",
+      settlemtstatus: "pending",
       exitvehicledate,
       exitvehicletime,
       bookType,
@@ -147,6 +192,7 @@ exports.createBooking = async (req, res) => {
 
     await newBooking.save();
 
+    // Vendor Notification
     const vendorNotification = new Notification({
       vendorId: vendorId,
       userId: userid,
@@ -157,20 +203,21 @@ exports.createBooking = async (req, res) => {
       vehicleNumber: vehicleNumber,
       createdAt: new Date(),
       read: false,
-        sts: sts,
-  bookingtype: bookType,
-  otp: otp.toString(),
-  vendorname: vendorName,
-  parkingDate: parkingDate,
-  parkingTime: parkingTime,
-  bookingdate: bookingDate,
-  schedule: `${parkingDate} ${parkingTime}`,
-    notificationdtime:`${bookingDate} ${bookingTime}`,
-  status: status,
+      sts: sts,
+      bookingtype: bookType,
+      otp: otp.toString(),
+      vendorname: vendorName,
+      parkingDate: parkingDate,
+      parkingTime: parkingTime,
+      bookingdate: bookingDate,
+      schedule: `${parkingDate} ${parkingTime}`,
+      notificationdtime: `${bookingDate} ${bookingTime}`,
+      status: status,
     });
 
     await vendorNotification.save();
 
+    // User Notification
     const userNotification = new Notification({
       vendorId: vendorId,
       userId: userid,
@@ -182,19 +229,20 @@ exports.createBooking = async (req, res) => {
       createdAt: new Date(),
       read: false,
       sts: sts,
-  bookingtype: bookType,
-  otp: otp.toString(),
-  vendorname: vendorName,
-  parkingDate: parkingDate,
-  parkingTime: parkingTime,
-  bookingdate: bookingDate,
-  notificationdtime:`${bookingDate} ${bookingTime}`,
-  schedule: `${parkingDate} ${parkingTime}`,
-  status: status,
+      bookingtype: bookType,
+      otp: otp.toString(),
+      vendorname: vendorName,
+      parkingDate: parkingDate,
+      parkingTime: parkingTime,
+      bookingdate: bookingDate,
+      notificationdtime: `${bookingDate} ${bookingTime}`,
+      schedule: `${parkingDate} ${parkingTime}`,
+      status: status,
     });
 
     await userNotification.save();
 
+    // Vendor Notification Message
     const vendorNotificationMessage = {
       notification: {
         title: "New Booking Received",
@@ -202,20 +250,20 @@ exports.createBooking = async (req, res) => {
       },
       android: {
         notification: {
-          sound: 'default',
-          priority: 'high',
+          sound: "default",
+          priority: "high",
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: 'default',
-            // badge: 0,
+            sound: "default",
           },
         },
       },
     };
 
+    // User Notification Message
     const userNotificationMessage = {
       notification: {
         title: "Booking Confirmed",
@@ -227,20 +275,20 @@ exports.createBooking = async (req, res) => {
       },
       android: {
         notification: {
-          sound: 'default',
-          priority: 'high',
+          sound: "default",
+          priority: "high",
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: 'default',
-            // badge: 0,
+            sound: "default",
           },
         },
       },
     };
 
+    // Send Vendor Notifications
     const vendorFcmTokens = vendorData.fcmTokens || [];
     const vendorInvalidTokens = [];
 
@@ -252,7 +300,7 @@ exports.createBooking = async (req, res) => {
           console.log(`Vendor notification sent to token: ${token}`, response);
         } catch (error) {
           console.error(`Error sending vendor notification to token: ${token}`, error);
-          if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+          if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
             vendorInvalidTokens.push(token);
           }
         }
@@ -271,6 +319,7 @@ exports.createBooking = async (req, res) => {
       console.warn("No FCM tokens available for this vendor.");
     }
 
+    // Send User Notifications
     const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
@@ -284,7 +333,7 @@ exports.createBooking = async (req, res) => {
             console.log(`✅ User notification sent to ${token}`, response);
           } catch (error) {
             console.error(`❌ Error sending to user token: ${token}`, error);
-            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+            if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
               userInvalidTokens.push(token);
             }
           }
@@ -309,7 +358,17 @@ exports.createBooking = async (req, res) => {
     res.status(200).json({
       message: "Booking created successfully",
       bookingId: newBooking._id,
-      booking: newBooking._id,
+      booking: {
+        _id: newBooking._id,
+        amount: newBooking.amount,
+        totalamout: newBooking.totalamout,
+        gstamout: newBooking.gstamout,
+        handlingfee: newBooking.handlingfee,
+        releasefee: newBooking.releasefee,
+        recievableamount: newBooking.recievableamount,
+        payableamout: newBooking.payableamout,
+        subscriptionenddate: newBooking.subsctiptionenddate,
+      },
       otp,
       bookType,
       sts,
