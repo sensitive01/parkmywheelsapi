@@ -1895,10 +1895,16 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 // Suggested backend endpoint for renewal (add this to your Node.js exports)
 exports.renewSubscription = async (req, res) => {
   try {
-    const { additional_amount, gst_amount, handling_fee, total_additional, new_total_amount, new_subscription_enddate } = req.body;
+    const { 
+      gst_amount, 
+      handling_fee, 
+      total_additional, 
+      new_total_amount, 
+      new_subscription_enddate 
+    } = req.body;
 
-    if (additional_amount === undefined || new_subscription_enddate === undefined) {
-      return res.status(400).json({ error: "Additional amount and new end date are required" });
+    if (new_total_amount === undefined || new_subscription_enddate === undefined) {
+      return res.status(400).json({ error: "New total amount and new end date are required" });
     }
 
     const booking = await Booking.findById(req.params.id);
@@ -1906,68 +1912,89 @@ exports.renewSubscription = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Fetch vendor details to get platform fee percentage
+    // Fetch vendor details
     const vendor = await vendorModel.findById(booking.vendorId);
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
+    // Always round UP the platform fee %
     let platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
-    // Round up amounts to the next whole number
-    const roundedAdditional = Math.ceil(parseFloat(additional_amount) || 0);
-    const roundedGstAmount =
-      gst_amount !== undefined
-        ? Math.ceil(parseFloat(gst_amount) || 0)
-        : undefined;
-    const roundedHandlingFee =
-      handling_fee !== undefined
-        ? Math.ceil(parseFloat(handling_fee) || 0)
-        : undefined;
-    const roundedTotalAdditional = Math.ceil(parseFloat(total_additional) || roundedAdditional);
-    const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0);
+    // ✅ Round inputs
+    const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0); // base subscription
+    const roundedTotalAdditional = total_additional !== undefined 
+      ? Math.ceil(parseFloat(total_additional) || 0) 
+      : 0;
+    const roundedGstAmount = gst_amount !== undefined ? Math.ceil(parseFloat(gst_amount) || 0) : 0;
+    const roundedHandlingFee = handling_fee !== undefined ? Math.ceil(parseFloat(handling_fee) || 0) : 0;
 
-    // Calculate platform fee on total additional amount
-    const platformfee = (roundedTotalAdditional * platformFeePercentage) / 100;
+    // ✅ amount = only new subscription cost
+    booking.amount = (
+      parseFloat(booking.amount || 0) + roundedNewTotal
+    ).toFixed(2);
 
-    // Update booking fields
-    booking.amount = roundedNewTotal.toFixed(2);
+    // ✅ totalamout = base + additional charges
+    booking.totalamout = (
+      parseFloat(booking.totalamout || 0) + roundedNewTotal + roundedTotalAdditional
+    ).toFixed(2);
+
+    // ✅ Always update subscription end date
     booking.subsctiptionenddate = new_subscription_enddate;
 
-    // Accumulate optional fields
-    if (roundedGstAmount !== undefined) {
-      booking.gstamout = (parseFloat(booking.gstamout || 0) + roundedGstAmount).toFixed(2);
-    }
-    if (roundedHandlingFee !== undefined) {
-      booking.handlingfee = (parseFloat(booking.handlingfee || 0) + roundedHandlingFee).toFixed(2);
-    }
+    // ✅ Accumulate GST & handling
+    booking.gstamout = (
+      parseFloat(booking.gstamout || 0) + roundedGstAmount
+    ).toFixed(2);
 
-    // Accumulate platform fee and receivable amount
-    booking.releasefee = (parseFloat(booking.releasefee || 0) + platformfee).toFixed(2);
+    booking.handlingfee = (
+      parseFloat(booking.handlingfee || 0) + roundedHandlingFee
+    ).toFixed(2);
+
+    // ✅ Platform fee based only on additional
+    const platformfee = (roundedTotalAdditional * platformFeePercentage) / 100;
+    booking.releasefee = (
+      parseFloat(booking.releasefee || 0) + platformfee
+    ).toFixed(2);
+
+    // ✅ Receivable = total_additional - platform fee
     const additionalReceivable = roundedTotalAdditional - platformfee;
-    booking.recievableamount = (parseFloat(booking.recievableamount || 0) + additionalReceivable).toFixed(2);
+    booking.recievableamount = (
+      parseFloat(booking.recievableamount || 0) + additionalReceivable
+    ).toFixed(2);
+
+    // ✅ Payable = receivable
     booking.payableamout = booking.recievableamount;
+
+    // (Optional tracking for audits/debugging)
+    booking.lastRenewTotal = roundedNewTotal;
+    booking.lastAdditional = roundedTotalAdditional;
 
     const updatedBooking = await booking.save();
 
     res.status(200).json({
       message: "Subscription renewed successfully",
       booking: {
-        amount: updatedBooking.amount,
+        amount: updatedBooking.amount,             // ✅ only base
+        totalamout: updatedBooking.totalamout,     // ✅ base + additional
         gstamout: updatedBooking.gstamout,
         handlingfee: updatedBooking.handlingfee,
         releasefee: updatedBooking.releasefee,
         recievableamount: updatedBooking.recievableamount,
         payableamout: updatedBooking.payableamout,
         subscriptionenddate: updatedBooking.subsctiptionenddate,
+        lastRenewTotal: updatedBooking.lastRenewTotal,
+        lastAdditional: updatedBooking.lastAdditional,
       },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+
 
 exports.getParkedVehicleCount = async (req, res) => {
   try {
