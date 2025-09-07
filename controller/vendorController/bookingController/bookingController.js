@@ -352,8 +352,11 @@ exports.vendorcreateBooking = async (req, res) => {
 
     console.log("Booking data:", req.body);
 
-    // Check available slots before creating a booking
-    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
+    // ✅ Check available slots before creating a booking
+    const vendorData = await vendorModel.findOne(
+      { _id: vendorId },
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1 }
+    );
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
@@ -372,34 +375,16 @@ exports.vendorcreateBooking = async (req, res) => {
     };
 
     const aggregationResult = await Booking.aggregate([
-      {
-        $match: {
-          vendorId: vendorId,
-          status: "PENDING",
-        },
-      },
-      {
-        $group: {
-          _id: "$vehicleType",
-          count: { $sum: 1 },
-        },
-      },
+      { $match: { vendorId: vendorId, status: "PENDING" } },
+      { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
     ]);
 
-    let bookedSlots = {
-      Cars: 0,
-      Bikes: 0,
-      Others: 0,
-    };
+    let bookedSlots = { Cars: 0, Bikes: 0, Others: 0 };
 
     aggregationResult.forEach(({ _id, count }) => {
-      if (_id === "Car") {
-        bookedSlots.Cars = count;
-      } else if (_id === "Bike") {
-        bookedSlots.Bikes = count;
-      } else {
-        bookedSlots.Others = count;
-      }
+      if (_id === "Car") bookedSlots.Cars = count;
+      else if (_id === "Bike") bookedSlots.Bikes = count;
+      else bookedSlots.Others = count;
     });
 
     const availableSlots = {
@@ -407,8 +392,6 @@ exports.vendorcreateBooking = async (req, res) => {
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
       Others: totalAvailableSlots.Others - bookedSlots.Others,
     };
-    console.log("Available slots:", availableSlots);
-    console.log("Booked slots:", bookedSlots);
 
     if (vehicleType === "Car" && availableSlots.Cars <= 0) {
       return res.status(400).json({ message: "No available slots for Cars" });
@@ -418,17 +401,49 @@ exports.vendorcreateBooking = async (req, res) => {
       return res.status(400).json({ message: "No available slots for Others" });
     }
 
+    // ✅ Initialize booking financials
+    let bookingAmount = 0;
+    let totalAmount = 0;
+    let gstAmount = 0;
+    let handlingFee = 0;
+    let releaseFee = 0;
+    let receivableAmount = 0;
+    let payableAmount = 0;
+
+    // ✅ Calculate amounts (common for subscription & normal bookings)
+    const roundedAmount = Math.ceil(parseFloat(amount) || 0);
+
+    bookingAmount = roundedAmount.toFixed(2); // base amount
+    totalAmount = bookingAmount; // same as amount
+
+    // Platform fee calculation
+    let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    platformFeePercentage = Math.ceil(platformFeePercentage);
+
+    const platformFee = (roundedAmount * platformFeePercentage) / 100;
+    releaseFee = platformFee.toFixed(2);
+
+    const receivable = roundedAmount - platformFee;
+    receivableAmount = receivable.toFixed(2);
+    payableAmount = receivableAmount;
+
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     const newBooking = new Booking({
       userid,
       vendorId,
-      amount,
+      vendorName,
+      amount: bookingAmount,
+      totalamout: totalAmount,
+      gstamout: gstAmount,
+      handlingfee: handlingFee,
+      releasefee: releaseFee,
+      recievableamount: receivableAmount,
+      payableamout: payableAmount,
       hour,
       personName,
-      vehicleType,
-      vendorName,
       mobileNumber,
+      vehicleType,
       carType,
       vehicleNumber,
       bookingDate,
@@ -454,29 +469,30 @@ exports.vendorcreateBooking = async (req, res) => {
 
     await newBooking.save();
 
+    // ✅ Send notification (kept same as your code)
     const vendorNotification = new Notification({
       vendorId: vendorId,
       userId: userid,
       bookingId: newBooking._id,
-     title: "Booking Successful",
+      title: "Booking Successful",
       message: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${parkingTime}.`,
       vehicleType: vehicleType,
       vehicleNumber: vehicleNumber,
       createdAt: new Date(),
       read: false,
-        sts: sts,
-  bookingtype: bookType,
-  otp: otp.toString(),
-  vendorname: vendorName,
-  parkingDate: parkingDate,
-  parkingTime: parkingTime,
-  bookingdate: bookingDate,
-  schedule: `${parkingDate} ${parkingTime}`,
-    notificationdtime:`${bookingDate} ${bookingTime}`,
-  status: status,
+      sts: sts,
+      bookingtype: bookType,
+      otp: otp.toString(),
+      vendorname: vendorName,
+      parkingDate: parkingDate,
+      parkingTime: parkingTime,
+      bookingdate: bookingDate,
+      schedule: `${parkingDate} ${parkingTime}`,
+      notificationdtime: `${bookingDate} ${bookingTime}`,
+      status: status,
     });
 
-    await vendorNotification.save();
+      await vendorNotification.save();
 
    
 
@@ -584,12 +600,22 @@ if (mobileNumber) {
   }
 }
 
-
+    // ✅ Push + SMS notification (same as your code) ...
 
     res.status(200).json({
       message: "Booking created successfully",
       bookingId: newBooking._id,
-      booking: newBooking._id,
+      booking: {
+        _id: newBooking._id,
+        amount: newBooking.amount,
+        totalamout: newBooking.totalamout,
+        gstamout: newBooking.gstamout,
+        handlingfee: newBooking.handlingfee,
+        releasefee: newBooking.releasefee,
+        recievableamount: newBooking.recievableamount,
+        payableamout: newBooking.payableamout,
+        subscriptionenddate: newBooking.subsctiptionenddate,
+      },
       otp,
       bookType,
       sts,
