@@ -512,29 +512,31 @@ body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${pa
 
 if (mobileNumber) {
   // Clean mobile number
-  let cleanedMobile = mobileNumber.replace(/[^0-9]/g, '');
+  let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
   if (cleanedMobile.length === 10) {
-    cleanedMobile = '91' + cleanedMobile;
+    cleanedMobile = "91" + cleanedMobile;
   }
 
-  // Construct the raw message
-  // const smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
-  const encodedSms = encodeURIComponent(smsText);
-let smsText = "";
-let dltTemplateId = "";
+  // Declare variables first
+  let smsText = "";
+  let dltTemplateId = "";
 
-if (status?.toLowerCase() === "subscription") {
-  smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-  dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-} else {
-  smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
-  dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
-}
+  // Assign based on booking type
+  if (status?.toLowerCase() === "subscription") {
+    smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+    dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+  } else {
+    smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
+    dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
+  }
+
+  const encodedSms = encodeURIComponent(smsText);
+
   console.log("🔐 OTP:", otp);
   console.log("📤 SMS Text (raw):", smsText);
   console.log("📤 SMS Text (encoded):", encodedSms);
 
-  // Prepare VISPL SMS API params
+  // VISPL API Params
   const smsParams = {
     username: process.env.VISPL_USERNAME || "Vayusutha.trans",
     password: process.env.VISPL_PASSWORD || "pdizP",
@@ -542,30 +544,33 @@ if (status?.toLowerCase() === "subscription") {
     from: process.env.VISPL_SENDER_ID || "PRMYWH",
     to: cleanedMobile,
     text: smsText,
-  dltContentId: dltTemplateId,
+    dltContentId: dltTemplateId,
   };
 
   try {
     const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
       params: smsParams,
-      paramsSerializer: params => qs.stringify(params, { encode: true }),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Node.js)',
-      },
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
     });
 
     console.log("📩 VISPL SMS API Response:", smsResponse.data);
 
-    const smsStatus = smsResponse.data.STATUS || smsResponse.data.status || smsResponse.data.statusCode;
-    const isSuccess = smsStatus === "SUCCESS" || smsStatus === 200 || smsStatus === 2000;
+    const smsStatus =
+      smsResponse.data.STATUS ||
+      smsResponse.data.status ||
+      smsResponse.data.statusCode;
+
+    const isSuccess =
+      smsStatus === "SUCCESS" ||
+      smsStatus === 200 ||
+      smsStatus === 2000;
 
     if (!isSuccess) {
       console.warn("❌ SMS failed to send:", smsResponse.data);
-      // Continue without failing booking creation
     }
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
-    // Don't return error, just log it
   }
 }
 
