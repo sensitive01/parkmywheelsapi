@@ -522,7 +522,7 @@ if (mobileNumber) {
   let dltTemplateId = "";
 
   // Assign based on booking type
-  if (status?.toLowerCase() === "subscription") {
+  if (sts?.toLowerCase() === "Subscription") {
     smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
     dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
   } else {
