@@ -518,9 +518,18 @@ if (mobileNumber) {
   }
 
   // Construct the raw message
-  const smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
+  // const smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
   const encodedSms = encodeURIComponent(smsText);
+let smsText = "";
+let dltTemplateId = "";
 
+if (status?.toLowerCase() === "subscription") {
+  smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+  dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+} else {
+  smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
+  dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
+}
   console.log("🔐 OTP:", otp);
   console.log("📤 SMS Text (raw):", smsText);
   console.log("📤 SMS Text (encoded):", encodedSms);
@@ -533,7 +542,7 @@ if (mobileNumber) {
     from: process.env.VISPL_SENDER_ID || "PRMYWH",
     to: cleanedMobile,
     text: smsText,
-    dltContentId: process.env.VISPL_TEMPLAT_ID || "1007928794373968404",
+  dltContentId: dltTemplateId,
   };
 
   try {
