@@ -311,6 +311,7 @@ exports.vendorcreateBooking = async (req, res) => {
     } = req.body;
 
     console.log("Booking data:", req.body);
+   
 
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
@@ -522,7 +523,7 @@ if (mobileNumber) {
   let dltTemplateId = "";
 
   // Assign based on booking type
-  if (sts?.toLowerCase() === "Subscription") {
+ if ((sts || "").toLowerCase() === "subscription") {
     smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
     dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
   } else {
