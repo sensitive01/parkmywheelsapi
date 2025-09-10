@@ -123,7 +123,12 @@ exports.createBooking = async (req, res) => {
     const payableAmount = receivableAmount;
 
     const otp = Math.floor(100000 + Math.random() * 900000);
-
+   let subscriptionEndDate = null;
+    if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
+      const date = new Date(parkingDate);
+      date.setDate(date.getDate() + 30);
+      subscriptionEndDate = date.toISOString().split("T")[0]; // format: YYYY-MM-DD
+    }
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -160,6 +165,7 @@ exports.createBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+       subsctiptionenddate: subscriptionEndDate,
     });
 
     await newBooking.save();
