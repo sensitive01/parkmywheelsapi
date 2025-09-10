@@ -258,13 +258,21 @@ if (
   mobileNumber &&
   (sts || "").toLowerCase() === "subscription"
 ) {
+  console.log("✅ Mobile number and status validated.");
+
   let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
+  console.log("📱 Cleaned mobile number:", cleanedMobile);
+
   if (cleanedMobile.length === 10) {
     cleanedMobile = "91" + cleanedMobile;
+    console.log("📞 Mobile number after adding country code:", cleanedMobile);
   }
 
   const smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
   const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+
+  console.log("📄 SMS Text:", smsText);
+  console.log("🆔 DLT Template ID:", dltTemplateId);
 
   const smsParams = {
     username: process.env.VISPL_USERNAME || "Vayusutha.trans",
@@ -276,6 +284,8 @@ if (
     dltContentId: dltTemplateId,
   };
 
+  console.log("📦 SMS Params:", smsParams);
+
   try {
     const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
       params: smsParams,
@@ -283,10 +293,14 @@ if (
       headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
     });
 
+    console.log("📬 SMS API Response:", smsResponse.data);
+
     const smsStatus =
       smsResponse.data.STATUS ||
       smsResponse.data.status ||
       smsResponse.data.statusCode;
+
+    console.log("📊 SMS Status Code:", smsStatus);
 
     const isSuccess =
       smsStatus === "SUCCESS" ||
@@ -295,11 +309,16 @@ if (
 
     if (!isSuccess) {
       console.warn("❌ SMS failed to send:", smsResponse.data);
+    } else {
+      console.log("✅ SMS sent successfully!");
     }
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
+} else {
+  console.warn("⚠️ Either mobile number is missing or status is not 'subscription'.");
 }
+
 
     res.status(200).json({
       message: "Booking created successfully",
