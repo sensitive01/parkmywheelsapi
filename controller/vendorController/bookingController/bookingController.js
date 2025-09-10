@@ -214,8 +214,8 @@ exports.createBooking = async (req, res) => {
 
     await userNotification.save();
 
-    // Send FCM Notifications (Vendor & User)
-    const sendFcmNotification = async (tokens, messageTemplate, model, idField) => {
+    // Enhanced FCM notification function with support for different ID types
+    const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
       const invalidTokens = [];
       const promises = tokens.map(async (token) => {
         try {
@@ -229,19 +229,20 @@ exports.createBooking = async (req, res) => {
       await Promise.all(promises);
       if (invalidTokens.length > 0) {
         await model.updateOne(
-          { _id: idField },
+          { [idType]: idField },  // Use dynamic field name based on idType parameter
           { $pull: { fcmTokens: { $in: invalidTokens } } }
         );
       }
     };
 
+    // Send FCM Notifications (Vendor & User)
     if (vendorData.fcmTokens?.length > 0) {
       const vendorFcmMessage = {
         notification: { title: "New Booking Received", body: `New booking from ${personName}` },
         android: { notification: { sound: "default", priority: "high" } },
         apns: { payload: { aps: { sound: "default" } } },
       };
-      await sendFcmNotification(vendorData.fcmTokens, vendorFcmMessage, vendorModel, vendorId);
+      await sendFcmNotification(vendorData.fcmTokens, vendorFcmMessage, vendorModel, vendorId, '_id');
     }
 
     const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
@@ -252,73 +253,70 @@ exports.createBooking = async (req, res) => {
         android: { notification: { sound: "default", priority: "high" } },
         apns: { payload: { aps: { sound: "default" } } },
       };
-      await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid);
+      await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid, 'uuid');
     }
-if (
-  mobileNumber &&
-  (sts || "").toLowerCase() === "subscription"
-) {
-  console.log("✅ Mobile number and status validated.");
 
-  let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
-  console.log("📱 Cleaned mobile number:", cleanedMobile);
+    if (mobileNumber && (sts || "").toLowerCase() === "subscription") {
+      console.log("✅ Mobile number and status validated.");
 
-  if (cleanedMobile.length === 10) {
-    cleanedMobile = "91" + cleanedMobile;
-    console.log("📞 Mobile number after adding country code:", cleanedMobile);
-  }
+      let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
+      console.log("📱 Cleaned mobile number:", cleanedMobile);
 
-  const smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-  const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      if (cleanedMobile.length === 10) {
+        cleanedMobile = "91" + cleanedMobile;
+        console.log("📞 Mobile number after adding country code:", cleanedMobile);
+      }
 
-  console.log("📄 SMS Text:", smsText);
-  console.log("🆔 DLT Template ID:", dltTemplateId);
+      const smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
 
-  const smsParams = {
-    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
-    password: process.env.VISPL_PASSWORD || "pdizP",
-    unicode: "false",
-    from: process.env.VISPL_SENDER_ID || "PRMYWH",
-    to: cleanedMobile,
-    text: smsText,
-    dltContentId: dltTemplateId,
-  };
+      console.log("📄 SMS Text:", smsText);
+      console.log("🆔 DLT Template ID:", dltTemplateId);
 
-  console.log("📦 SMS Params:", smsParams);
+      const smsParams = {
+        username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+        password: process.env.VISPL_PASSWORD || "pdizP",
+        unicode: "false",
+        from: process.env.VISPL_SENDER_ID || "PRMYWH",
+        to: cleanedMobile,
+        text: smsText,
+        dltContentId: dltTemplateId,
+      };
 
-  try {
-    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-      params: smsParams,
-      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
-      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
-    });
+      console.log("📦 SMS Params:", smsParams);
 
-    console.log("📬 SMS API Response:", smsResponse.data);
+      try {
+        const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+          params: smsParams,
+          paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+          headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+        });
 
-    const smsStatus =
-      smsResponse.data.STATUS ||
-      smsResponse.data.status ||
-      smsResponse.data.statusCode;
+        console.log("📬 SMS API Response:", smsResponse.data);
 
-    console.log("📊 SMS Status Code:", smsStatus);
+        const smsStatus =
+          smsResponse.data.STATUS ||
+          smsResponse.data.status ||
+          smsResponse.data.statusCode;
 
-    const isSuccess =
-      smsStatus === "SUCCESS" ||
-      smsStatus === 200 ||
-      smsStatus === 2000;
+        console.log("📊 SMS Status Code:", smsStatus);
 
-    if (!isSuccess) {
-      console.warn("❌ SMS failed to send:", smsResponse.data);
+        const isSuccess =
+          smsStatus === "SUCCESS" ||
+          smsStatus === 200 ||
+          smsStatus === 2000;
+
+        if (!isSuccess) {
+          console.warn("❌ SMS failed to send:", smsResponse.data);
+        } else {
+          console.log("✅ SMS sent successfully!");
+        }
+      } catch (err) {
+        console.error("📛 SMS sending error:", err.message || err);
+      }
     } else {
-      console.log("✅ SMS sent successfully!");
+      console.warn("⚠️ Either mobile number is missing or status is not 'subscription'.");
     }
-  } catch (err) {
-    console.error("📛 SMS sending error:", err.message || err);
-  }
-} else {
-  console.warn("⚠️ Either mobile number is missing or status is not 'subscription'.");
-}
-
 
     res.status(200).json({
       message: "Booking created successfully",
