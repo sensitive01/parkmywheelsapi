@@ -254,6 +254,52 @@ exports.createBooking = async (req, res) => {
       };
       await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid);
     }
+if (
+  mobileNumber &&
+  (sts || "").toLowerCase() === "subscription"
+) {
+  let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
+  if (cleanedMobile.length === 10) {
+    cleanedMobile = "91" + cleanedMobile;
+  }
+
+  const smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+  const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+
+  const smsParams = {
+    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+    password: process.env.VISPL_PASSWORD || "pdizP",
+    unicode: "false",
+    from: process.env.VISPL_SENDER_ID || "PRMYWH",
+    to: cleanedMobile,
+    text: smsText,
+    dltContentId: dltTemplateId,
+  };
+
+  try {
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: smsParams,
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+    });
+
+    const smsStatus =
+      smsResponse.data.STATUS ||
+      smsResponse.data.status ||
+      smsResponse.data.statusCode;
+
+    const isSuccess =
+      smsStatus === "SUCCESS" ||
+      smsStatus === 200 ||
+      smsStatus === 2000;
+
+    if (!isSuccess) {
+      console.warn("❌ SMS failed to send:", smsResponse.data);
+    }
+  } catch (err) {
+    console.error("📛 SMS sending error:", err.message || err);
+  }
+}
 
     res.status(200).json({
       message: "Booking created successfully",
