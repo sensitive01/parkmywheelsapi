@@ -220,6 +220,15 @@ vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlement
 vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsBySettlementId);
 vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCharges);
 
+// --- Test endpoint to trigger 5-day reminders from Postman ---
+vendorRoute.get('/test-subscription-reminders', async (req, res) => {
+  try {
+    const result = await agenda.triggerFiveDaySubscriptionReminders();
+    res.status(200).json({ message: 'Triggered subscription reminders', ...result });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed triggering reminders', details: e?.message || e });
+  }
+});
 
 
 module.exports = vendorRoute;
