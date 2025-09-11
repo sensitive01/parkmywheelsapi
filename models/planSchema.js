@@ -16,6 +16,9 @@ const PlanSchema = new mongoose.Schema({
   amount: {
     type: String,
   },
+  subscriptionGivenTo: [{
+    type: String, // Array of vendor IDs
+  }],
   features: [{
     type: String,
   }],

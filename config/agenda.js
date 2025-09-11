@@ -12,6 +12,51 @@ const dbConnect = require('./dbConnect');
 
 dbConnect();
 
+// Reusable date parser: normalizes various input formats to Luxon DateTime in IST at start of day
+function parseEndDateIst(value) {
+  if (!value) return null;
+  const stringVal = String(value).trim();
+
+  // Epoch milliseconds or seconds
+  if (/^\d{13}$/.test(stringVal)) {
+    return DateTime.fromMillis(Number(stringVal), { zone: 'Asia/Kolkata' }).startOf('day');
+  }
+  if (/^\d{10}$/.test(stringVal)) {
+    return DateTime.fromSeconds(Number(stringVal), { zone: 'Asia/Kolkata' }).startOf('day');
+  }
+
+  // Try ISO
+  let dt = DateTime.fromISO(stringVal, { zone: 'Asia/Kolkata' });
+  if (dt.isValid) return dt.startOf('day');
+
+  // Try multiple common patterns
+  const patterns = [
+    'yyyy-MM-dd',
+    'yyyy/MM/dd',
+    'dd/MM/yyyy',
+    'MM/dd/yyyy',
+    'dd-MM-yyyy',
+    'MM-dd-yyyy',
+    'd/M/yyyy',
+    'M/d/yyyy',
+    'dd LLL yyyy',           // 05 Jan 2025
+    'LLL dd, yyyy',          // Jan 05, 2025
+    'ccc, dd LLL yyyy',     // Sun, 05 Jan 2025
+    'dd LLLL yyyy',          // 05 January 2025
+  ];
+  for (const fmt of patterns) {
+    dt = DateTime.fromFormat(stringVal, fmt, { zone: 'Asia/Kolkata' });
+    if (dt.isValid) return dt.startOf('day');
+  }
+
+  // Fallback: native Date
+  const jsDate = new Date(stringVal);
+  if (!isNaN(jsDate.getTime())) {
+    return DateTime.fromJSDate(jsDate, { zone: 'Asia/Kolkata' }).startOf('day');
+  }
+  return null;
+}
+
 // Cron job definition
 cron.schedule('0 0 * * *', async () => {  
   console.log(`[${new Date().toISOString()}] Running subscription decrement job...`);
@@ -69,51 +114,6 @@ async function triggerFiveDaySubscriptionReminders() {
       sts: { $regex: /^subscription$/i },
       subsctiptionenddate: { $exists: true, $ne: null, $ne: '' },
     });
-
-    // Helper: parse many formats -> DateTime in IST at start of day
-    const parseEndDateIst = (value) => {
-      if (!value) return null;
-      const stringVal = String(value).trim();
-
-      // Epoch milliseconds or seconds
-      if (/^\d{13}$/.test(stringVal)) {
-        return DateTime.fromMillis(Number(stringVal), { zone: 'Asia/Kolkata' }).startOf('day');
-      }
-      if (/^\d{10}$/.test(stringVal)) {
-        return DateTime.fromSeconds(Number(stringVal), { zone: 'Asia/Kolkata' }).startOf('day');
-      }
-
-      // Try ISO
-      let dt = DateTime.fromISO(stringVal, { zone: 'Asia/Kolkata' });
-      if (dt.isValid) return dt.startOf('day');
-
-      // Try multiple common patterns
-      const patterns = [
-        'yyyy-MM-dd',
-        'yyyy/MM/dd',
-        'dd/MM/yyyy',
-        'MM/dd/yyyy',
-        'dd-MM-yyyy',
-        'MM-dd-yyyy',
-        'd/M/yyyy',
-        'M/d/yyyy',
-        'dd LLL yyyy',           // 05 Jan 2025
-        'LLL dd, yyyy',          // Jan 05, 2025
-        "ccc, dd LLL yyyy",     // Sun, 05 Jan 2025
-        'dd LLLL yyyy',          // 05 January 2025
-      ];
-      for (const fmt of patterns) {
-        dt = DateTime.fromFormat(stringVal, fmt, { zone: 'Asia/Kolkata' });
-        if (dt.isValid) return dt.startOf('day');
-      }
-
-      // Fallback: native Date
-      const jsDate = new Date(stringVal);
-      if (!isNaN(jsDate.getTime())) {
-        return DateTime.fromJSDate(jsDate, { zone: 'Asia/Kolkata' }).startOf('day');
-      }
-      return null;
-    };
 
     const bookingsExpiring = [];
     for (const b of candidates) {
