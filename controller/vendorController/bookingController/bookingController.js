@@ -1794,15 +1794,31 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Fetch the user to get their mobile number
+    const user = await User.findOne({ uuid: id }, 'userMobile');
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const userMobile = user.userMobile;
+
+    // Find bookings where either userid matches or mobileNumber matches, excluding Subscription bookings
     const bookings = await Booking.find({
-      userid: id,
-      sts: { $ne: "Subscription" }, // Exclude Subscription bookings
+      $or: [
+        { userid: id },
+        { mobileNumber: userMobile }
+      ],
+      sts: { $ne: "Subscription" } // Exclude Subscription bookings
     });
 
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
 
+    // Filter and log bookings matched by mobileNumber only
+    const mobileMatchedBookings = bookings.filter(booking => booking.mobileNumber === userMobile && booking.userid !== id);
+    console.log("Bookings matched by mobile number only:", mobileMatchedBookings);
+
+    // Function to convert 12-hour time format to 24-hour format
     const convertTo24Hour = (time) => {
       if (!time) return '00:00';
       const [timePart, modifier] = time.split(' ');
@@ -1816,12 +1832,14 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
       return `${hours}:${minutes}`;
     };
 
+    // Sort bookings by bookingDate and bookingTime (descending)
     bookings.sort((a, b) => {
       const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
       const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
       return dateB - dateA;
     });
 
+    // Return all matched bookings in response
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
