@@ -642,6 +642,45 @@ if (mobileNumber) {
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
+       const matchedUser = await User.findOne({ userMobile: cleanedMobile });
+
+      if (matchedUser && matchedUser.userfcmTokens?.length > 0) {
+        const userNotificationMessage = {
+          notification: {
+            title: "Booking Confirmed",
+            body: `Your booking for ${vehicleNumber} at ${vendorName} on ${parkingDate} ${parkingTime} is confirmed.`,
+          },
+          android: { notification: { sound: 'default', priority: 'high' } },
+          apns: { payload: { aps: { sound: 'default' } } },
+        };
+
+        const userInvalidTokens = [];
+        const userNotificationPromises = matchedUser.userfcmTokens.map(async (token) => {
+          try {
+            const message = { ...userNotificationMessage, token };
+            const response = await admin.messaging().send(message);
+            console.log(`User notification sent to token: ${token}`, response);
+          } catch (error) {
+            console.error(`Error sending user notification to token: ${token}`, error);
+            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+              userInvalidTokens.push(token);
+            }
+          }
+        });
+
+        await Promise.all(userNotificationPromises);
+
+        if (userInvalidTokens.length > 0) {
+          await User.updateOne(
+            { _id: matchedUser._id },
+            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
+          );
+          console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+        }
+      } else {
+        console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+      }
+    
 }
 
     // ✅ Push + SMS notification (same as your code) ...
