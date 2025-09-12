@@ -1150,12 +1150,14 @@ exports.updateApproveBooking = async (req, res) => {
     };
 
     // Send notification to user
+    let sentToUserByUuid = false;
     const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
       const userInvalidTokens = [];
 
       if (userFcmTokens.length > 0) {
+        sentToUserByUuid = true;
         const userPromises = userFcmTokens.map(async (token) => {
           try {
             const message = { ...userNotificationMessage, token };
@@ -1183,6 +1185,46 @@ exports.updateApproveBooking = async (req, res) => {
       }
     } else {
       console.warn("⚠️ User not found with UUID:", booking.userid);
+    }
+
+    // Fallback: match by mobile number and send notification
+    if (!sentToUserByUuid) {
+      try {
+        const rawMobile = booking.mobileNumber || '';
+        const cleanedMobile = String(rawMobile).replace(/\D/g, '');
+        if (cleanedMobile) {
+          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
+          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+            const fallbackInvalidTokens = [];
+            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+              try {
+                const message = { ...userNotificationMessage, token };
+                const response = await admin.messaging().send(message);
+                console.log(`📲 Fallback (mobile) user notification sent to ${token}`, response);
+              } catch (error) {
+                console.error(`Error sending fallback (mobile) notification to token: ${token}`, error);
+                if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+                  fallbackInvalidTokens.push(token);
+                }
+              }
+            });
+
+            await Promise.all(fallbackPromises);
+
+            if (fallbackInvalidTokens.length > 0) {
+              await userModel.updateOne(
+                { userMobile: cleanedMobile },
+                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
+              );
+              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+            }
+          } else {
+            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback mobile notification error:", fallbackErr);
+      }
     }
 
     res.status(200).json({
@@ -1268,12 +1310,14 @@ exports.updateCancelBooking = async (req, res) => {
       },
     };
 
+    let sentToUserByUuid = false;
     const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
       const userInvalidTokens = [];
 
       if (userFcmTokens.length > 0) {
+        sentToUserByUuid = true;
         const userPromises = userFcmTokens.map(async (token) => {
           try {
             const message = { ...userNotificationMessage, token };
@@ -1301,6 +1345,46 @@ exports.updateCancelBooking = async (req, res) => {
       }
     } else {
       console.warn("⚠️ User not found with UUID:", booking.userid);
+    }
+
+    // Fallback: match by mobile number and send notification
+    if (!sentToUserByUuid) {
+      try {
+        const rawMobile = booking.mobileNumber || '';
+        const cleanedMobile = String(rawMobile).replace(/\D/g, '');
+        if (cleanedMobile) {
+          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
+          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+            const fallbackInvalidTokens = [];
+            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+              try {
+                const message = { ...userNotificationMessage, token };
+                const response = await admin.messaging().send(message);
+                console.log(`📲 Fallback (mobile) cancellation sent to ${token}`, response);
+              } catch (error) {
+                console.error(`Error sending fallback (mobile) cancellation to token: ${token}`, error);
+                if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+                  fallbackInvalidTokens.push(token);
+                }
+              }
+            });
+
+            await Promise.allSettled(fallbackPromises);
+
+            if (fallbackInvalidTokens.length > 0) {
+              await userModel.updateOne(
+                { userMobile: cleanedMobile },
+                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
+              );
+              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+            }
+          } else {
+            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback mobile cancellation notification error:", fallbackErr);
+      }
     }
 
     res.status(200).json({
@@ -1409,12 +1493,14 @@ exports.updateApprovedCancelBooking = async (req, res) => {
     };
 
     // Send push notification
+    let sentToUserByUuid = false;
     const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
       const userInvalidTokens = [];
 
       if (userFcmTokens.length > 0) {
+        sentToUserByUuid = true;
         const sendPromises = userFcmTokens.map(async (token) => {
           try {
             const message = { ...userNotificationMessage, token };
@@ -1442,6 +1528,46 @@ exports.updateApprovedCancelBooking = async (req, res) => {
       }
     } else {
       console.warn("⚠️ User not found with UUID:", booking.userid);
+    }
+
+    // Fallback: match by mobile number and send notification
+    if (!sentToUserByUuid) {
+      try {
+        const rawMobile = booking.mobileNumber || '';
+        const cleanedMobile = String(rawMobile).replace(/\D/g, '');
+        if (cleanedMobile) {
+          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
+          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+            const fallbackInvalidTokens = [];
+            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+              try {
+                const message = { ...userNotificationMessage, token };
+                const response = await admin.messaging().send(message);
+                console.log(`📲 Fallback (mobile) cancelled notification sent to ${token}`, response);
+              } catch (error) {
+                console.error(`Error sending fallback (mobile) cancelled notification to token: ${token}`, error);
+                if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+                  fallbackInvalidTokens.push(token);
+                }
+              }
+            });
+
+            await Promise.allSettled(fallbackPromises);
+
+            if (fallbackInvalidTokens.length > 0) {
+              await userModel.updateOne(
+                { userMobile: cleanedMobile },
+                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
+              );
+              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+            }
+          } else {
+            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback mobile cancelled notification error:", fallbackErr);
+      }
     }
 
     res.status(200).json({
@@ -1542,12 +1668,14 @@ exports.allowParking = async (req, res) => {
     };
 
     // Send push notification to the customer
+    let sentToUserByUuid = false;
     const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
       const userInvalidTokens = [];
 
       if (userFcmTokens.length > 0) {
+        sentToUserByUuid = true;
         const userPromises = userFcmTokens.map(async (token) => {
           try {
             const message = { ...userNotificationMessage, token };
@@ -1576,6 +1704,46 @@ exports.allowParking = async (req, res) => {
       }
     } else {
       console.warn("⚠️ Customer not found with UUID:", booking.userid);
+    }
+
+    // Fallback: match by mobile number and send notification
+    if (!sentToUserByUuid) {
+      try {
+        const rawMobile = booking.mobileNumber || '';
+        const cleanedMobile = String(rawMobile).replace(/\D/g, '');
+        if (cleanedMobile) {
+          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
+          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+            const fallbackInvalidTokens = [];
+            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+              try {
+                const message = { ...userNotificationMessage, token };
+                const response = await admin.messaging().send(message);
+                console.log(`📲 Fallback (mobile) parking started sent to ${token}`, response);
+              } catch (error) {
+                console.error(`Error sending fallback (mobile) parking started to token: ${token}`, error);
+                if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+                  fallbackInvalidTokens.push(token);
+                }
+              }
+            });
+
+            await Promise.all(fallbackPromises);
+
+            if (fallbackInvalidTokens.length > 0) {
+              await userModel.updateOne(
+                { userMobile: cleanedMobile },
+                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
+              );
+              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+            }
+          } else {
+            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback mobile parking started notification error:", fallbackErr);
+      }
     }
 
     // Send response
@@ -1673,12 +1841,14 @@ exports.directallowParking = async (req, res) => {
     };
 
     // Send push notification to the customer
+    let sentToUserByUuid = false;
     const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
     if (user) {
       const userFcmTokens = user.userfcmTokens || [];
       const userInvalidTokens = [];
 
       if (userFcmTokens.length > 0) {
+        sentToUserByUuid = true;
         const userPromises = userFcmTokens.map(async (token) => {
           try {
             const message = { ...userNotificationMessage, token };
@@ -1707,6 +1877,46 @@ exports.directallowParking = async (req, res) => {
       }
     } else {
       console.warn("⚠️ Customer not found with UUID:", booking.userid);
+    }
+
+    // Fallback: match by mobile number and send notification
+    if (!sentToUserByUuid) {
+      try {
+        const rawMobile = booking.mobileNumber || '';
+        const cleanedMobile = String(rawMobile).replace(/\D/g, '');
+        if (cleanedMobile) {
+          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
+          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+            const fallbackInvalidTokens = [];
+            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+              try {
+                const message = { ...userNotificationMessage, token };
+                const response = await admin.messaging().send(message);
+                console.log(`📲 Fallback (mobile) parking started sent to ${token}`, response);
+              } catch (error) {
+                console.error(`Error sending fallback (mobile) parking started to token: ${token}`, error);
+                if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+                  fallbackInvalidTokens.push(token);
+                }
+              }
+            });
+
+            await Promise.all(fallbackPromises);
+
+            if (fallbackInvalidTokens.length > 0) {
+              await userModel.updateOne(
+                { userMobile: cleanedMobile },
+                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
+              );
+              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+            }
+          } else {
+            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback mobile parking started notification error:", fallbackErr);
+      }
     }
 
     // Send response
