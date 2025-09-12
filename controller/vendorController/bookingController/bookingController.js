@@ -643,7 +643,7 @@ if (mobileNumber) {
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
-       const matchedUser = await User.findOne({ userMobile: cleanedMobile });
+       const matchedUser = await User.findOne({ userMobile: mobileNumber });
 
       if (matchedUser && matchedUser.userfcmTokens?.length > 0) {
         const userNotificationMessage = {
