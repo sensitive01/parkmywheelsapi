@@ -643,44 +643,89 @@ if (mobileNumber) {
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
-       const matchedUser = await User.findOne({ userMobile: mobileNumber });
+       // Find users by mobile number OR vehicle number
+       const matchedUsers = await User.find({
+         $or: [
+           { userMobile: mobileNumber },
+           { vehicleNumber: vehicleNumber }
+         ]
+       });
 
-      if (matchedUser && matchedUser.userfcmTokens?.length > 0) {
-        const userNotificationMessage = {
-          notification: {
-            title: "Booking Confirmed",
-            body: `Your booking for ${vehicleNumber} at ${vendorName} on ${parkingDate} ${parkingTime} is confirmed.`,
-          },
-          android: { notification: { sound: 'default', priority: 'high' } },
-          apns: { payload: { aps: { sound: 'default' } } },
-        };
+       if (matchedUsers && matchedUsers.length > 0) {
+         const userNotificationMessage = {
+           notification: {
+             title: "Booking Confirmed",
+             body: `Your booking for ${vehicleNumber} at ${vendorName} on ${parkingDate} ${parkingTime} is confirmed.`,
+           },
+           android: { notification: { sound: 'default', priority: 'high' } },
+           apns: { payload: { aps: { sound: 'default' } } },
+         };
 
-        const userInvalidTokens = [];
-        const userNotificationPromises = matchedUser.userfcmTokens.map(async (token) => {
-          try {
-            const message = { ...userNotificationMessage, token };
-            const response = await admin.messaging().send(message);
-            console.log(`User notification sent to token: ${token}`, response);
-          } catch (error) {
-            console.error(`Error sending user notification to token: ${token}`, error);
-            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
-              userInvalidTokens.push(token);
-            }
-          }
-        });
+         // Collect all FCM tokens from matched users
+         const allUserTokens = [];
+         const userTokenMap = new Map(); // To track which tokens belong to which user
 
-        await Promise.all(userNotificationPromises);
+         matchedUsers.forEach(user => {
+           if (user.userfcmTokens?.length > 0) {
+             user.userfcmTokens.forEach(token => {
+               allUserTokens.push(token);
+               userTokenMap.set(token, user._id);
+             });
+           }
+         });
 
-        if (userInvalidTokens.length > 0) {
-          await User.updateOne(
-            { _id: matchedUser._id },
-            { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
-          );
-          console.log("Removed invalid user FCM tokens:", userInvalidTokens);
-        }
-      } else {
-        console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
-      }
+         if (allUserTokens.length > 0) {
+           const userInvalidTokens = [];
+           const userNotificationPromises = allUserTokens.map(async (token) => {
+             try {
+               const message = { ...userNotificationMessage, token };
+               const response = await admin.messaging().send(message);
+               console.log(`User notification sent to token: ${token}`, response);
+             } catch (error) {
+               console.error(`Error sending user notification to token: ${token}`, error);
+               if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+                 userInvalidTokens.push(token);
+               }
+             }
+           });
+
+           await Promise.all(userNotificationPromises);
+
+           // Remove invalid tokens from respective users
+           if (userInvalidTokens.length > 0) {
+             const userUpdatePromises = [];
+             const tokensByUser = new Map();
+
+             // Group invalid tokens by user
+             userInvalidTokens.forEach(token => {
+               const userId = userTokenMap.get(token);
+               if (userId) {
+                 if (!tokensByUser.has(userId)) {
+                   tokensByUser.set(userId, []);
+                 }
+                 tokensByUser.get(userId).push(token);
+               }
+             });
+
+             // Update each user to remove their invalid tokens
+             for (const [userId, tokens] of tokensByUser) {
+               userUpdatePromises.push(
+                 User.updateOne(
+                   { _id: userId },
+                   { $pull: { userfcmTokens: { $in: tokens } } }
+                 )
+               );
+             }
+
+             await Promise.all(userUpdatePromises);
+             console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+           }
+         } else {
+           console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+         }
+       } else {
+         console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+       }
     
 }
 
@@ -1187,22 +1232,43 @@ exports.updateApproveBooking = async (req, res) => {
       console.warn("⚠️ User not found with UUID:", booking.userid);
     }
 
-    // Fallback: match by mobile number and send notification
+    // Fallback: match by mobile number OR vehicle number and send notification
     if (!sentToUserByUuid) {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        if (cleanedMobile) {
-          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
-          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+        
+        // Find users by mobile number OR vehicle number
+        const matchedUsers = await userModel.find({
+          $or: [
+            { userMobile: cleanedMobile },
+            { vehicleNumber: booking.vehicleNumber }
+          ]
+        }, { userfcmTokens: 1 });
+
+        if (matchedUsers && matchedUsers.length > 0) {
+          // Collect all FCM tokens from matched users
+          const allUserTokens = [];
+          const userTokenMap = new Map(); // To track which tokens belong to which user
+
+          matchedUsers.forEach(user => {
+            if (user.userfcmTokens?.length > 0) {
+              user.userfcmTokens.forEach(token => {
+                allUserTokens.push(token);
+                userTokenMap.set(token, user._id);
+              });
+            }
+          });
+
+          if (allUserTokens.length > 0) {
             const fallbackInvalidTokens = [];
-            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+            const fallbackPromises = allUserTokens.map(async (token) => {
               try {
                 const message = { ...userNotificationMessage, token };
                 const response = await admin.messaging().send(message);
-                console.log(`📲 Fallback (mobile) user notification sent to ${token}`, response);
+                console.log(`📲 Fallback (mobile/vehicle) user notification sent to ${token}`, response);
               } catch (error) {
-                console.error(`Error sending fallback (mobile) notification to token: ${token}`, error);
+                console.error(`Error sending fallback notification to token: ${token}`, error);
                 if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
                   fallbackInvalidTokens.push(token);
                 }
@@ -1211,19 +1277,43 @@ exports.updateApproveBooking = async (req, res) => {
 
             await Promise.all(fallbackPromises);
 
+            // Remove invalid tokens from respective users
             if (fallbackInvalidTokens.length > 0) {
-              await userModel.updateOne(
-                { userMobile: cleanedMobile },
-                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
-              );
-              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+              const userUpdatePromises = [];
+              const tokensByUser = new Map();
+
+              // Group invalid tokens by user
+              fallbackInvalidTokens.forEach(token => {
+                const userId = userTokenMap.get(token);
+                if (userId) {
+                  if (!tokensByUser.has(userId)) {
+                    tokensByUser.set(userId, []);
+                  }
+                  tokensByUser.get(userId).push(token);
+                }
+              });
+
+              // Update each user to remove their invalid tokens
+              for (const [userId, tokens] of tokensByUser) {
+                userUpdatePromises.push(
+                  userModel.updateOne(
+                    { _id: userId },
+                    { $pull: { userfcmTokens: { $in: tokens } } }
+                  )
+                );
+              }
+
+              await Promise.all(userUpdatePromises);
+              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
             }
           } else {
-            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
           }
+        } else {
+          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
         }
       } catch (fallbackErr) {
-        console.error("Fallback mobile notification error:", fallbackErr);
+        console.error("Fallback mobile/vehicle notification error:", fallbackErr);
       }
     }
 
