@@ -729,7 +729,6 @@ if (mobileNumber) {
     
 }
 
-    // ✅ Push + SMS notification (same as your code) ...
 
     res.status(200).json({
       message: "Booking created successfully",
@@ -1437,22 +1436,43 @@ exports.updateCancelBooking = async (req, res) => {
       console.warn("⚠️ User not found with UUID:", booking.userid);
     }
 
-    // Fallback: match by mobile number and send notification
+    // Fallback: match by mobile number OR vehicle number and send notification
     if (!sentToUserByUuid) {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        if (cleanedMobile) {
-          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
-          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+        
+        // Find users by mobile number OR vehicle number
+        const matchedUsers = await userModel.find({
+          $or: [
+            { userMobile: cleanedMobile },
+            { vehicleNumber: booking.vehicleNumber }
+          ]
+        }, { userfcmTokens: 1 });
+
+        if (matchedUsers && matchedUsers.length > 0) {
+          // Collect all FCM tokens from matched users
+          const allUserTokens = [];
+          const userTokenMap = new Map(); // To track which tokens belong to which user
+
+          matchedUsers.forEach(user => {
+            if (user.userfcmTokens?.length > 0) {
+              user.userfcmTokens.forEach(token => {
+                allUserTokens.push(token);
+                userTokenMap.set(token, user._id);
+              });
+            }
+          });
+
+          if (allUserTokens.length > 0) {
             const fallbackInvalidTokens = [];
-            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+            const fallbackPromises = allUserTokens.map(async (token) => {
               try {
                 const message = { ...userNotificationMessage, token };
                 const response = await admin.messaging().send(message);
-                console.log(`📲 Fallback (mobile) cancellation sent to ${token}`, response);
+                console.log(`📲 Fallback (mobile/vehicle) cancellation sent to ${token}`, response);
               } catch (error) {
-                console.error(`Error sending fallback (mobile) cancellation to token: ${token}`, error);
+                console.error(`Error sending fallback cancellation to token: ${token}`, error);
                 if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
                   fallbackInvalidTokens.push(token);
                 }
@@ -1461,19 +1481,43 @@ exports.updateCancelBooking = async (req, res) => {
 
             await Promise.allSettled(fallbackPromises);
 
+            // Remove invalid tokens from respective users
             if (fallbackInvalidTokens.length > 0) {
-              await userModel.updateOne(
-                { userMobile: cleanedMobile },
-                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
-              );
-              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+              const userUpdatePromises = [];
+              const tokensByUser = new Map();
+
+              // Group invalid tokens by user
+              fallbackInvalidTokens.forEach(token => {
+                const userId = userTokenMap.get(token);
+                if (userId) {
+                  if (!tokensByUser.has(userId)) {
+                    tokensByUser.set(userId, []);
+                  }
+                  tokensByUser.get(userId).push(token);
+                }
+              });
+
+              // Update each user to remove their invalid tokens
+              for (const [userId, tokens] of tokensByUser) {
+                userUpdatePromises.push(
+                  userModel.updateOne(
+                    { _id: userId },
+                    { $pull: { userfcmTokens: { $in: tokens } } }
+                  )
+                );
+              }
+
+              await Promise.all(userUpdatePromises);
+              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
             }
           } else {
-            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
           }
+        } else {
+          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
         }
       } catch (fallbackErr) {
-        console.error("Fallback mobile cancellation notification error:", fallbackErr);
+        console.error("Fallback mobile/vehicle cancellation notification error:", fallbackErr);
       }
     }
 
@@ -1620,22 +1664,43 @@ exports.updateApprovedCancelBooking = async (req, res) => {
       console.warn("⚠️ User not found with UUID:", booking.userid);
     }
 
-    // Fallback: match by mobile number and send notification
+    // Fallback: match by mobile number OR vehicle number and send notification
     if (!sentToUserByUuid) {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        if (cleanedMobile) {
-          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
-          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+        
+        // Find users by mobile number OR vehicle number
+        const matchedUsers = await userModel.find({
+          $or: [
+            { userMobile: cleanedMobile },
+            { vehicleNumber: booking.vehicleNumber }
+          ]
+        }, { userfcmTokens: 1 });
+
+        if (matchedUsers && matchedUsers.length > 0) {
+          // Collect all FCM tokens from matched users
+          const allUserTokens = [];
+          const userTokenMap = new Map(); // To track which tokens belong to which user
+
+          matchedUsers.forEach(user => {
+            if (user.userfcmTokens?.length > 0) {
+              user.userfcmTokens.forEach(token => {
+                allUserTokens.push(token);
+                userTokenMap.set(token, user._id);
+              });
+            }
+          });
+
+          if (allUserTokens.length > 0) {
             const fallbackInvalidTokens = [];
-            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+            const fallbackPromises = allUserTokens.map(async (token) => {
               try {
                 const message = { ...userNotificationMessage, token };
                 const response = await admin.messaging().send(message);
-                console.log(`📲 Fallback (mobile) cancelled notification sent to ${token}`, response);
+                console.log(`📲 Fallback (mobile/vehicle) cancelled notification sent to ${token}`, response);
               } catch (error) {
-                console.error(`Error sending fallback (mobile) cancelled notification to token: ${token}`, error);
+                console.error(`Error sending fallback cancelled notification to token: ${token}`, error);
                 if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
                   fallbackInvalidTokens.push(token);
                 }
@@ -1644,19 +1709,43 @@ exports.updateApprovedCancelBooking = async (req, res) => {
 
             await Promise.allSettled(fallbackPromises);
 
+            // Remove invalid tokens from respective users
             if (fallbackInvalidTokens.length > 0) {
-              await userModel.updateOne(
-                { userMobile: cleanedMobile },
-                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
-              );
-              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+              const userUpdatePromises = [];
+              const tokensByUser = new Map();
+
+              // Group invalid tokens by user
+              fallbackInvalidTokens.forEach(token => {
+                const userId = userTokenMap.get(token);
+                if (userId) {
+                  if (!tokensByUser.has(userId)) {
+                    tokensByUser.set(userId, []);
+                  }
+                  tokensByUser.get(userId).push(token);
+                }
+              });
+
+              // Update each user to remove their invalid tokens
+              for (const [userId, tokens] of tokensByUser) {
+                userUpdatePromises.push(
+                  userModel.updateOne(
+                    { _id: userId },
+                    { $pull: { userfcmTokens: { $in: tokens } } }
+                  )
+                );
+              }
+
+              await Promise.all(userUpdatePromises);
+              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
             }
           } else {
-            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
           }
+        } else {
+          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
         }
       } catch (fallbackErr) {
-        console.error("Fallback mobile cancelled notification error:", fallbackErr);
+        console.error("Fallback mobile/vehicle cancelled notification error:", fallbackErr);
       }
     }
 
@@ -1796,22 +1885,43 @@ exports.allowParking = async (req, res) => {
       console.warn("⚠️ Customer not found with UUID:", booking.userid);
     }
 
-    // Fallback: match by mobile number and send notification
+    // Fallback: match by mobile number OR vehicle number and send notification
     if (!sentToUserByUuid) {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        if (cleanedMobile) {
-          const matchedUserByMobile = await userModel.findOne({ userMobile: cleanedMobile }, { userfcmTokens: 1 });
-          if (matchedUserByMobile && matchedUserByMobile.userfcmTokens?.length > 0) {
+        
+        // Find users by mobile number OR vehicle number
+        const matchedUsers = await userModel.find({
+          $or: [
+            { userMobile: cleanedMobile },
+            { vehicleNumber: booking.vehicleNumber }
+          ]
+        }, { userfcmTokens: 1 });
+
+        if (matchedUsers && matchedUsers.length > 0) {
+          // Collect all FCM tokens from matched users
+          const allUserTokens = [];
+          const userTokenMap = new Map(); // To track which tokens belong to which user
+
+          matchedUsers.forEach(user => {
+            if (user.userfcmTokens?.length > 0) {
+              user.userfcmTokens.forEach(token => {
+                allUserTokens.push(token);
+                userTokenMap.set(token, user._id);
+              });
+            }
+          });
+
+          if (allUserTokens.length > 0) {
             const fallbackInvalidTokens = [];
-            const fallbackPromises = matchedUserByMobile.userfcmTokens.map(async (token) => {
+            const fallbackPromises = allUserTokens.map(async (token) => {
               try {
                 const message = { ...userNotificationMessage, token };
                 const response = await admin.messaging().send(message);
-                console.log(`📲 Fallback (mobile) parking started sent to ${token}`, response);
+                console.log(`📲 Fallback (mobile/vehicle) parking started sent to ${token}`, response);
               } catch (error) {
-                console.error(`Error sending fallback (mobile) parking started to token: ${token}`, error);
+                console.error(`Error sending fallback parking started to token: ${token}`, error);
                 if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
                   fallbackInvalidTokens.push(token);
                 }
@@ -1820,19 +1930,43 @@ exports.allowParking = async (req, res) => {
 
             await Promise.all(fallbackPromises);
 
+            // Remove invalid tokens from respective users
             if (fallbackInvalidTokens.length > 0) {
-              await userModel.updateOne(
-                { userMobile: cleanedMobile },
-                { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
-              );
-              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+              const userUpdatePromises = [];
+              const tokensByUser = new Map();
+
+              // Group invalid tokens by user
+              fallbackInvalidTokens.forEach(token => {
+                const userId = userTokenMap.get(token);
+                if (userId) {
+                  if (!tokensByUser.has(userId)) {
+                    tokensByUser.set(userId, []);
+                  }
+                  tokensByUser.get(userId).push(token);
+                }
+              });
+
+              // Update each user to remove their invalid tokens
+              for (const [userId, tokens] of tokensByUser) {
+                userUpdatePromises.push(
+                  userModel.updateOne(
+                    { _id: userId },
+                    { $pull: { userfcmTokens: { $in: tokens } } }
+                  )
+                );
+              }
+
+              await Promise.all(userUpdatePromises);
+              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
             }
           } else {
-            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
           }
+        } else {
+          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
         }
       } catch (fallbackErr) {
-        console.error("Fallback mobile parking started notification error:", fallbackErr);
+        console.error("Fallback mobile/vehicle parking started notification error:", fallbackErr);
       }
     }
 
@@ -2132,10 +2266,15 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
       return `${hours}:${minutes}`;
     };
 
-    // Sort bookings by bookingDate and bookingTime (descending)
+    // Sort bookings by bookingDate and bookingTime (descending): latest first
     bookings.sort((a, b) => {
-      const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
-      const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
+      const safeDateA = (a.bookingDate || '01-01-1970').split('-').reverse().join('-');
+      const safeTimeA = convertTo24Hour(a.bookingTime || '00:00');
+      const safeDateB = (b.bookingDate || '01-01-1970').split('-').reverse().join('-');
+      const safeTimeB = convertTo24Hour(b.bookingTime || '00:00');
+
+      const dateA = new Date(`${safeDateA}T${safeTimeA}`);
+      const dateB = new Date(`${safeDateB}T${safeTimeB}`);
       return dateB - dateA;
     });
 
