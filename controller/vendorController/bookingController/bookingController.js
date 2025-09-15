@@ -2252,31 +2252,47 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
     const mobileMatchedBookings = bookings.filter(booking => booking.mobileNumber === userMobile && booking.userid !== id);
     console.log("Bookings matched by mobile number only:", mobileMatchedBookings);
 
-    // Function to convert 12-hour time format to 24-hour format
-    const convertTo24Hour = (time) => {
-      if (!time) return '00:00';
-      const [timePart, modifier] = time.split(' ');
-      let [hours, minutes] = timePart.split(':');
-      if (modifier === 'PM' && hours !== '12') {
-        hours = parseInt(hours, 10) + 12;
+    // Robust timestamp generator (handles various date/time formats)
+    const getSortTimestamp = (booking) => {
+      const dateStr = booking.bookingDate || '';
+      const timeStr = booking.bookingTime || '';
+
+      // Try common patterns strictly
+      const patterns = [
+        'DD-MM-YYYY hh:mm A',
+        'DD/MM/YYYY hh:mm A',
+        'DD-MM-YYYY HH:mm',
+        'DD/MM/YYYY HH:mm',
+        'YYYY-MM-DD HH:mm',
+        'YYYY/MM/DD HH:mm',
+        'DD-MM-YYYY',
+        'DD/MM/YYYY',
+        'YYYY-MM-DD',
+        'YYYY/MM/DD'
+      ];
+
+      const combined = `${dateStr} ${timeStr}`.trim();
+      let m = moment(combined, patterns, true);
+
+      if (!m.isValid()) {
+        // Try date-only
+        m = moment(dateStr, patterns, true);
       }
-      if (modifier === 'AM' && hours === '12') {
-        hours = '00';
+
+      if (!m.isValid()) {
+        // Fallback to createdAt if available
+        if (booking.createdAt) {
+          const created = moment(booking.createdAt);
+          if (created.isValid()) return created.valueOf();
+        }
+        return 0;
       }
-      return `${hours}:${minutes}`;
+
+      return m.valueOf();
     };
 
-    // Sort bookings by bookingDate and bookingTime (descending): latest first
-    bookings.sort((a, b) => {
-      const safeDateA = (a.bookingDate || '01-01-1970').split('-').reverse().join('-');
-      const safeTimeA = convertTo24Hour(a.bookingTime || '00:00');
-      const safeDateB = (b.bookingDate || '01-01-1970').split('-').reverse().join('-');
-      const safeTimeB = convertTo24Hour(b.bookingTime || '00:00');
-
-      const dateA = new Date(`${safeDateA}T${safeTimeA}`);
-      const dateB = new Date(`${safeDateB}T${safeTimeB}`);
-      return dateB - dateA;
-    });
+    // Sort bookings by parsed timestamp (descending): latest first
+    bookings.sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a));
 
     // Return all matched bookings in response
     res.status(200).json({ bookings });
