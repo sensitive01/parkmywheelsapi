@@ -58,7 +58,7 @@ const parseEndDateIst = (value) => {
 // ------------------------------------------------------------------
 // Cron job definition
 // ------------------------------------------------------------------
-cron.schedule("59 23 * * *", async () => {
+cron.schedule("36 0 * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running subscription decrement job...`);
 
   try {
