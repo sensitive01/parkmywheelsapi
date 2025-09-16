@@ -139,7 +139,7 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 // Cron Job 2: Vendor Trial and Subscription Check (Daily at 11:59 PM)
-cron.schedule("36 0 * * *", async () => {
+cron.schedule("38 0 * * *", async () => {
   console.log("⏰ Running daily vendor trial + subscription check...");
 
   try {
