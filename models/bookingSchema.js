@@ -53,6 +53,7 @@ const bookingSchema = new mongoose.Schema(
       type: String,
      
     },
+    reminderSent: { type: Boolean, default: false },
      releasefee: {
       type: String,
      

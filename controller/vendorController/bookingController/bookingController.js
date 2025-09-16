@@ -381,7 +381,6 @@ exports.vendorcreateBooking = async (req, res) => {
     } = req.body;
 
     console.log("Booking data:", req.body);
-   
 
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
@@ -441,11 +440,10 @@ exports.vendorcreateBooking = async (req, res) => {
     let receivableAmount = 0;
     let payableAmount = 0;
 
-    // ✅ Calculate amounts (common for subscription & normal bookings)
+    // ✅ Calculate amounts
     const roundedAmount = Math.ceil(parseFloat(amount) || 0);
-
-    bookingAmount = roundedAmount.toFixed(2); // base amount
-    totalAmount = bookingAmount; // same as amount
+    bookingAmount = roundedAmount.toFixed(2);
+    totalAmount = bookingAmount;
 
     // Platform fee calculation
     let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
@@ -500,7 +498,149 @@ exports.vendorcreateBooking = async (req, res) => {
 
     await newBooking.save();
 
-    // ✅ Send notification (kept same as your code)
+    // ✅ Send notifications for subscription bookings
+    if ((sts || "").toLowerCase() === "subscription") {
+      // Vendor notification for subscription start
+      const vendorSubscriptionNotification = {
+        notification: {
+          title: "Subscription Booking Started",
+          body: `${personName}'s subscription booking has started.`,
+        },
+        android: {
+          notification: {
+            sound: "default",
+            priority: "high",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+            },
+          },
+        },
+      };
+
+      const vendorFcmTokens = vendorData.fcmTokens || [];
+      const vendorInvalidTokens = [];
+
+      if (vendorFcmTokens.length > 0) {
+        const vendorPromises = vendorFcmTokens.map(async (token) => {
+          try {
+            const message = { ...vendorSubscriptionNotification, token };
+            const response = await admin.messaging().send(message);
+            console.log(`Vendor subscription notification sent to token: ${token}`, response);
+          } catch (error) {
+            console.error(`Error sending vendor subscription notification to token: ${token}`, error);
+            if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+              vendorInvalidTokens.push(token);
+            }
+          }
+        });
+
+        await Promise.all(vendorPromises);
+
+        if (vendorInvalidTokens.length > 0) {
+          await vendorModel.updateOne(
+            { _id: vendorId },
+            { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
+          );
+          console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
+        }
+      } else {
+        console.warn("No FCM tokens available for this vendor for subscription notification.");
+      }
+
+      // Customer notification for subscription start
+      const matchedUsers = await User.find({
+        $or: [{ userMobile: mobileNumber }, { vehicleNumber: vehicleNumber }],
+      });
+
+      if (matchedUsers && matchedUsers.length > 0) {
+        const userSubscriptionNotification = {
+          notification: {
+            title: "Subscription Parking Started",
+            body: `Your subscription parking at ${vendorName} has started.`,
+          },
+          android: {
+            notification: {
+              sound: "default",
+              priority: "high",
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+              },
+            },
+          },
+        };
+
+        const allUserTokens = [];
+        const userTokenMap = new Map();
+
+        matchedUsers.forEach((user) => {
+          if (user.userfcmTokens?.length > 0) {
+            user.userfcmTokens.forEach((token) => {
+              allUserTokens.push(token);
+              userTokenMap.set(token, user._id);
+            });
+          }
+        });
+
+        if (allUserTokens.length > 0) {
+          const userInvalidTokens = [];
+          const userNotificationPromises = allUserTokens.map(async (token) => {
+            try {
+              const message = { ...userSubscriptionNotification, token };
+              const response = await admin.messaging().send(message);
+              console.log(`User subscription notification sent to token: ${token}`, response);
+            } catch (error) {
+              console.error(`Error sending user subscription notification to token: ${token}`, error);
+              if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                userInvalidTokens.push(token);
+              }
+            }
+          });
+
+          await Promise.all(userNotificationPromises);
+
+          if (userInvalidTokens.length > 0) {
+            const userUpdatePromises = [];
+            const tokensByUser = new Map();
+
+            userInvalidTokens.forEach((token) => {
+              const userId = userTokenMap.get(token);
+              if (userId) {
+                if (!tokensByUser.has(userId)) {
+                  tokensByUser.set(userId, []);
+                }
+                tokensByUser.get(userId).push(token);
+              }
+            });
+
+            for (const [userId, tokens] of tokensByUser) {
+              userUpdatePromises.push(
+                User.updateOne(
+                  { _id: userId },
+                  { $pull: { userfcmTokens: { $in: tokens } } }
+                )
+              );
+            }
+
+            await Promise.all(userUpdatePromises);
+            console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+          }
+        } else {
+          console.warn(`No FCM tokens found for matched users with mobile: ${mobileNumber} or vehicle: ${vehicleNumber}`);
+        }
+      } else {
+        console.warn(`No matching user found for mobile: ${mobileNumber} or vehicle: ${vehicleNumber}`);
+      }
+    }
+
+    // ✅ Existing notification for booking success
     const vendorNotification = new Notification({
       vendorId: vendorId,
       userId: userid,
@@ -523,33 +663,27 @@ exports.vendorcreateBooking = async (req, res) => {
       status: status,
     });
 
-      await vendorNotification.save();
-
-   
+    await vendorNotification.save();
 
     const vendorNotificationMessage = {
       notification: {
-     title: "Booking Successful",
-body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${parkingTime}.`
-
+        title: "Booking Successful",
+        body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${parkingTime}.`,
       },
       android: {
         notification: {
-          sound: 'default',
-          priority: 'high',
+          sound: "default",
+          priority: "high",
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: 'default',
-            // badge: 0,
+            sound: "default",
           },
         },
       },
     };
-
-
 
     const vendorFcmTokens = vendorData.fcmTokens || [];
     const vendorInvalidTokens = [];
@@ -562,7 +696,7 @@ body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${pa
           console.log(`Vendor notification sent to token: ${token}`, response);
         } catch (error) {
           console.error(`Error sending vendor notification to token: ${token}`, error);
-          if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+          if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
             vendorInvalidTokens.push(token);
           }
         }
@@ -581,154 +715,146 @@ body: `Booking successful for vehicle ${vehicleNumber} on ${parkingDate} at ${pa
       console.warn("No FCM tokens available for this vendor.");
     }
 
-if (mobileNumber) {
-  // Clean mobile number
-  let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
-  if (cleanedMobile.length === 10) {
-    cleanedMobile = "91" + cleanedMobile;
-  }
+    if (mobileNumber) {
+      // Clean mobile number
+      let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
+      if (cleanedMobile.length === 10) {
+        cleanedMobile = "91" + cleanedMobile;
+      }
 
-  // Declare variables first
-  let smsText = "";
-  let dltTemplateId = "";
+      let smsText = "";
+      let dltTemplateId = "";
 
-  // Assign based on booking type
- if ((sts || "").toLowerCase() === "subscription") {
-    smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-    dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-  } else {
-    smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
-    dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
-  }
+      if ((sts || "").toLowerCase() === "subscription") {
+        smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+        dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      } else {
+        smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
+        dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
+      }
 
-  const encodedSms = encodeURIComponent(smsText);
+      const encodedSms = encodeURIComponent(smsText);
 
-  console.log("🔐 OTP:", otp);
-  console.log("📤 SMS Text (raw):", smsText);
-  console.log("📤 SMS Text (encoded):", encodedSms);
+      console.log("🔐 OTP:", otp);
+      console.log("📤 SMS Text (raw):", smsText);
+      console.log("📤 SMS Text (encoded):", encodedSms);
 
-  // VISPL API Params
-  const smsParams = {
-    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
-    password: process.env.VISPL_PASSWORD || "pdizP",
-    unicode: "false",
-    from: process.env.VISPL_SENDER_ID || "PRMYWH",
-    to: cleanedMobile,
-    text: smsText,
-    dltContentId: dltTemplateId,
-  };
+      const smsParams = {
+        username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+        password: process.env.VISPL_PASSWORD || "pdizP",
+        unicode: "false",
+        from: process.env.VISPL_SENDER_ID || "PRMYWH",
+        to: cleanedMobile,
+        text: smsText,
+        dltContentId: dltTemplateId,
+      };
 
-  try {
-    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-      params: smsParams,
-      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
-      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
-    });
+      try {
+        const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+          params: smsParams,
+          paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+          headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+        });
 
-    console.log("📩 VISPL SMS API Response:", smsResponse.data);
+        console.log("📩 VISPL SMS API Response:", smsResponse.data);
 
-    const smsStatus =
-      smsResponse.data.STATUS ||
-      smsResponse.data.status ||
-      smsResponse.data.statusCode;
+        const smsStatus =
+          smsResponse.data.STATUS ||
+          smsResponse.data.status ||
+          smsResponse.data.statusCode;
 
-    const isSuccess =
-      smsStatus === "SUCCESS" ||
-      smsStatus === 200 ||
-      smsStatus === 2000;
+        const isSuccess =
+          smsStatus === "SUCCESS" ||
+          smsStatus === 200 ||
+          smsStatus === 2000;
 
-    if (!isSuccess) {
-      console.warn("❌ SMS failed to send:", smsResponse.data);
+        if (!isSuccess) {
+          console.warn("❌ SMS failed to send:", smsResponse.data);
+        }
+      } catch (err) {
+        console.error("📛 SMS sending error:", err.message || err);
+      }
+
+      const matchedUsers = await User.find({
+        $or: [{ userMobile: mobileNumber }, { vehicleNumber: vehicleNumber }],
+      });
+
+      if (matchedUsers && matchedUsers.length > 0) {
+        const userNotificationMessage = {
+          notification: {
+            title: "Booking Confirmed",
+            body: `Your booking for ${vehicleNumber} at ${vendorName} on ${parkingDate} ${parkingTime} is confirmed.`,
+          },
+          android: {
+            notification: { sound: "default", priority: "high" },
+          },
+          apns: {
+            payload: { aps: { sound: "default" } },
+          },
+        };
+
+        const allUserTokens = [];
+        const userTokenMap = new Map();
+
+        matchedUsers.forEach((user) => {
+          if (user.userfcmTokens?.length > 0) {
+            user.userfcmTokens.forEach((token) => {
+              allUserTokens.push(token);
+              userTokenMap.set(token, user._id);
+            });
+          }
+        });
+
+        if (allUserTokens.length > 0) {
+          const userInvalidTokens = [];
+          const userNotificationPromises = allUserTokens.map(async (token) => {
+            try {
+              const message = { ...userNotificationMessage, token };
+              const response = await admin.messaging().send(message);
+              console.log(`User notification sent to token: ${token}`, response);
+            } catch (error) {
+              console.error(`Error sending user notification to token: ${token}`, error);
+              if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                userInvalidTokens.push(token);
+              }
+            }
+          });
+
+          await Promise.all(userNotificationPromises);
+
+          if (userInvalidTokens.length > 0) {
+            const userUpdatePromises = [];
+            const tokensByUser = new Map();
+
+            userInvalidTokens.forEach((token) => {
+              const userId = userTokenMap.get(token);
+              if (userId) {
+                if (!tokensByUser.has(userId)) {
+                  tokensByUser.set(userId, []);
+                }
+                tokensByUser.get(userId).push(token);
+              }
+            });
+
+            for (const [userId, tokens] of tokensByUser) {
+              userUpdatePromises.push(
+                User.updateOne(
+                  { _id: userId },
+                  { $pull: { userfcmTokens: { $in: tokens } } }
+                )
+              );
+            }
+
+            await Promise.all(userUpdatePromises);
+            console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+          }
+        } else {
+          console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+        }
+      } else {
+        console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+      }
     }
-  } catch (err) {
-    console.error("📛 SMS sending error:", err.message || err);
-  }
-       // Find users by mobile number OR vehicle number
-       const matchedUsers = await User.find({
-         $or: [
-           { userMobile: mobileNumber },
-           { vehicleNumber: vehicleNumber }
-         ]
-       });
-
-       if (matchedUsers && matchedUsers.length > 0) {
-         const userNotificationMessage = {
-           notification: {
-             title: "Booking Confirmed",
-             body: `Your booking for ${vehicleNumber} at ${vendorName} on ${parkingDate} ${parkingTime} is confirmed.`,
-           },
-           android: { notification: { sound: 'default', priority: 'high' } },
-           apns: { payload: { aps: { sound: 'default' } } },
-         };
-
-         // Collect all FCM tokens from matched users
-         const allUserTokens = [];
-         const userTokenMap = new Map(); // To track which tokens belong to which user
-
-         matchedUsers.forEach(user => {
-           if (user.userfcmTokens?.length > 0) {
-             user.userfcmTokens.forEach(token => {
-               allUserTokens.push(token);
-               userTokenMap.set(token, user._id);
-             });
-           }
-         });
-
-         if (allUserTokens.length > 0) {
-           const userInvalidTokens = [];
-           const userNotificationPromises = allUserTokens.map(async (token) => {
-             try {
-               const message = { ...userNotificationMessage, token };
-               const response = await admin.messaging().send(message);
-               console.log(`User notification sent to token: ${token}`, response);
-             } catch (error) {
-               console.error(`Error sending user notification to token: ${token}`, error);
-               if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
-                 userInvalidTokens.push(token);
-               }
-             }
-           });
-
-           await Promise.all(userNotificationPromises);
-
-           // Remove invalid tokens from respective users
-           if (userInvalidTokens.length > 0) {
-             const userUpdatePromises = [];
-             const tokensByUser = new Map();
-
-             // Group invalid tokens by user
-             userInvalidTokens.forEach(token => {
-               const userId = userTokenMap.get(token);
-               if (userId) {
-                 if (!tokensByUser.has(userId)) {
-                   tokensByUser.set(userId, []);
-                 }
-                 tokensByUser.get(userId).push(token);
-               }
-             });
-
-             // Update each user to remove their invalid tokens
-             for (const [userId, tokens] of tokensByUser) {
-               userUpdatePromises.push(
-                 User.updateOne(
-                   { _id: userId },
-                   { $pull: { userfcmTokens: { $in: tokens } } }
-                 )
-               );
-             }
-
-             await Promise.all(userUpdatePromises);
-             console.log("Removed invalid user FCM tokens:", userInvalidTokens);
-           }
-         } else {
-           console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
-         }
-       } else {
-         console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
-       }
-    
-}
-
 
     res.status(200).json({
       message: "Booking created successfully",
@@ -1051,13 +1177,13 @@ exports.userupdateCancelBooking = async (req, res) => {
       { new: true }
     );
 
-    // Create a new notification for the vendor
+    // Notification to Vendor: "[Customer Name] has cancelled their booking for [Date & Time]."
     const newNotificationForVendor = new Notification({
-      vendorId: booking.vendorId, // Corrected from 'existingBooking' to 'booking'
-      userId: null,
+      vendorId: booking.vendorId,
+      userId: booking.userid,
       bookingId: updatedBooking._id,
-      title: "Booking Cancel Alert",
-      message: `Booking for ${updatedBooking.vehicleNumber} (${updatedBooking.vehicleType}) has been Cancelled.`,
+      title: "Booking Cancelled by Customer",
+      message: `${booking.personName || "A customer"} has cancelled their booking for ${booking.bookingDate || cancelledDate} at ${booking.bookingTime || cancelledTime}.`,
       vehicleType: updatedBooking.vehicleType,
       vehicleNumber: updatedBooking.vehicleNumber,
       sts: updatedBooking.sts,
@@ -1079,8 +1205,8 @@ exports.userupdateCancelBooking = async (req, res) => {
           const response = await admin.messaging().send({
             token: token,
             notification: {
-              title: "Booking Cancelled Alert",
-              body: `The booking for ${updatedBooking.vehicleNumber} has been Cancelled.`,
+              title: "Booking Cancelled by Customer",
+              body: `${booking.personName || "A customer"} has cancelled their booking for ${booking.bookingDate || cancelledDate} at ${booking.bookingTime || cancelledTime}.`,
             },
             data: {
               bookingId: updatedBooking._id.toString(),
@@ -1119,7 +1245,6 @@ exports.userupdateCancelBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 exports.updateApproveBooking = async (req, res) => {
   try {
     console.log("BOOKING ID", req.params);
