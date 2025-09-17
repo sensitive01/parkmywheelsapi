@@ -54,7 +54,124 @@ const parseEndDateIst = (value) => {
   }
   return null;
 };
+const completeExpiredSubscriptions = async () => {
+  try {
+    const nowIst = DateTime.now().setZone("Asia/Kolkata").startOf("day");
 
+    const candidates = await Booking.find({
+      sts: { $regex: /^subscription$/i },
+      subsctiptionenddate: { $exists: true, $ne: null, $ne: "" },
+      status: { $ne: "COMPLETED" }, // Only process non-completed bookings
+    });
+
+    const bookingsToComplete = [];
+    for (const b of candidates) {
+      const endDtIst = parseEndDateIst(b.subsctiptionenddate);
+      if (!endDtIst) continue;
+      if (endDtIst.hasSame(nowIst, "day")) bookingsToComplete.push(b);
+    }
+
+    if (bookingsToComplete.length) {
+      console.log(
+        `[${new Date().toISOString()}] Found ${bookingsToComplete.length} subscription bookings expiring today (IST ${nowIst.toISODate()}).`
+      );
+    }
+
+    for (const booking of bookingsToComplete) {
+      const { _id: bookingId, userid: userId, vendorId, vehicleNumber, vehicleType, personName } = booking;
+
+      // Update booking status and exit details
+      const exitDate = nowIst.toFormat("yyyy-MM-dd");
+      const exitTime = nowIst.toFormat("HH:mm");
+
+      try {
+        await Booking.updateOne(
+          { _id: bookingId },
+          {
+            $set: {
+              status: "COMPLETED",
+              exitvehicledate: exitDate,
+              exitvehicletime: exitTime,
+            },
+          }
+        );
+        console.log(
+          `[${new Date().toISOString()}] Booking ${bookingId} marked as COMPLETED. Exit date: ${exitDate}, Exit time: ${exitTime}`
+        );
+
+        // Send notification to user
+        const title = "Subscription Expired";
+        const message = `Dear ${personName || "User"}, Your ParkMyWheels subscription for vehicle ${
+          vehicleNumber || ""
+        } has expired on ${exitDate}. Thank you for using our service!`;
+
+        try {
+          const notif = new Notification({
+            vendorId,
+            userId,
+            bookingId: String(bookingId),
+            title,
+            message,
+            vehicleType,
+            vehicleNumber,
+            sts: "subscription",
+            bookingtype: booking.bookType || "subscription",
+            status: "info",
+            notificationdtime: `${exitDate} 00:00`,
+          });
+          await notif.save();
+          console.log(`[${new Date().toISOString()}] Notification saved for booking ${bookingId}`);
+        } catch (err) {
+          console.error(`[${new Date().toISOString()}] Failed saving notification for booking ${bookingId}:`, err);
+        }
+
+        // Send FCM notification
+        try {
+          const user = await User.findOne({ uuid: userId }, { userfcmTokens: 1 });
+          const tokens = user?.userfcmTokens || [];
+          if (tokens.length) {
+            const payload = {
+              notification: { title, body: message },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+              data: { bookingId: String(bookingId), type: "subscription_expired" },
+            };
+
+            const invalidTokens = [];
+            for (const token of tokens) {
+              try {
+                await admin.messaging().send({ ...payload, token });
+              } catch (sendErr) {
+                console.error(
+                  `[${new Date().toISOString()}] FCM send error for token ${token}:`,
+                  sendErr?.errorInfo?.code || sendErr?.message || sendErr
+                );
+                if (sendErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token);
+                }
+              }
+            }
+
+            if (invalidTokens.length) {
+              await User.updateOne({ uuid: userId }, { $pull: { userfcmTokens: { $in: invalidTokens } } });
+              console.log(`[${new Date().toISOString()}] Removed invalid user FCM tokens:`, invalidTokens);
+            }
+          }
+        } catch (fcmErr) {
+          console.error(`[${new Date().toISOString()}] Error sending FCM for booking ${bookingId}:`, fcmErr);
+        }
+      } catch (updateErr) {
+        console.error(`[${new Date().toISOString()}] Error updating booking ${bookingId}:`, updateErr);
+      }
+    }
+    return { targetDate: nowIst.toISODate(), count: bookingsToComplete.length };
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] Error while processing expired subscriptions:`, err);
+    throw err;
+  }
+};
+
+// ----------------------------
 // ------------------------------------------------------------------
 // Cron job definition
 // ------------------------------------------------------------------
@@ -86,6 +203,7 @@ cron.schedule("59 23 * * *", async () => {
 
   try {
     await triggerSevenDaySubscriptionReminders();
+    await completeExpiredSubscriptions();
     await triggerFiveDaySubscriptionReminders();
   } catch (err) {
     console.error(`[${new Date().toISOString()}] Error while processing subscription notifications:`, err);

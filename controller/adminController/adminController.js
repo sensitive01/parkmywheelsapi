@@ -7,6 +7,7 @@ const Booking = require("../../models/bookingSchema");
 const VendorHelpSupport = require("../../models/userhelp");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
+const Vendor = require("../../models/venderSchema");
 // const agenda = require("../../config/agenda");
 const { v4: uuidv4 } = require('uuid');
 
@@ -906,10 +907,10 @@ const closeChat = async (req, res) => {
     const { helpRequestId } = req.params;
     const { adminId } = req.body;
 
-    const helpRequest = await VendorHelpSupport.findById(helpRequestId);
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId).populate("vendorId"); 
     if (!helpRequest) {
       return res.status(404).json({ message: "Help request not found." });
-    }   
+    }
 
     // Update status to "Completed"
     helpRequest.status = "Completed";
@@ -918,9 +919,36 @@ const closeChat = async (req, res) => {
 
     await helpRequest.save();
 
-    res.status(200).json({ 
-      message: "Chat closed successfully.", 
-      status: helpRequest.status
+    // 🔔 Send push notification
+    if (helpRequest.vendorid && helpRequest.vendorid.fcmTokens.length > 0) {
+      const payload = {
+        notification: {
+          title: "Support Ticket Update",
+          body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
+        },
+        data: {
+          type: "support_ticket_update",
+          helpRequestId: helpRequest._id.toString(),
+        },
+      };
+
+      const tokens = helpRequest.vendorid.fcmTokens;
+
+      try {
+        await adminModel.messaging().sendEachForMulticast({
+          tokens,
+          notification: payload.notification,
+          data: payload.data,
+        });
+        console.log("Notification sent to:", tokens);
+      } catch (notifErr) {
+        console.error("Error sending notification:", notifErr);
+      }
+    }
+
+    res.status(200).json({
+      message: "Chat closed successfully and notification sent.",
+      status: helpRequest.status,
     });
   } catch (error) {
     console.error("Error in closeChat:", error);

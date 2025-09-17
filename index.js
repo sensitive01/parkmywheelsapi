@@ -10,6 +10,7 @@ const Booking = require("./models/bookingSchema");
 const userModel = require("./models/userModel");
 const Notification = require("./models/notificationschema");
 const Vendor = require("./models/venderSchema");
+const Version = require("./models/versionSchema"); // <-- create this schema
 
 // Configuration and Routes
 const { PORT } = require("./config/variables.js");
@@ -187,6 +188,62 @@ cron.schedule("59 23 * * *", async () => {
 }, {
   timezone: "Asia/Kolkata",
 });
+async function getPlayStoreVersion(packageName) {
+  try {
+    const url = `https://play.google.com/store/apps/details?id=${packageName}&hl=en&gl=US`;
+    const response = await fetch(url);
+    const html = await response.text();
+
+    const versionMatch = html.match(/Current Version.*?>([\d.]+)</s);
+    return versionMatch ? versionMatch[1] : null;
+  } catch (err) {
+    console.error("Error fetching Play Store version:", err);
+    return null;
+  }
+}
+
+async function sendUpdateNotification() {
+  const message = {
+    notification: {
+      title: "App Update Available 🚀",
+      body: "A new version of ParkMyWheels is available. Update now for the best experience.",
+    },
+    topic: "allUsers",
+  };
+
+  try {
+    await admin.messaging().send(message);
+    console.log("✅ Update notification sent successfully!");
+  } catch (err) {
+    console.error("❌ Error sending notification:", err);
+  }
+}
+
+cron.schedule(
+  "0 12 * * *",
+  async () => {
+    const packageName = "com.park.mywheels"; // <-- replace with real package name
+    const playstoreVersion = await getPlayStoreVersion(packageName);
+
+    if (!playstoreVersion) return;
+
+    let dbVersion = await Version.findOne();
+    if (!dbVersion) {
+      dbVersion = new Version({ version: playstoreVersion });
+      await dbVersion.save();
+      return;
+    }
+
+    if (dbVersion.version !== playstoreVersion) {
+      console.log(`📢 New version detected: ${playstoreVersion}`);
+      await Version.updateOne({}, { version: playstoreVersion });
+      await sendUpdateNotification();
+    } else {
+      console.log("ℹ️ No new version found.");
+    }
+  },
+  { timezone: "Asia/Kolkata" }
+);
 
 // Start Server
 app.listen(PORT, () => {

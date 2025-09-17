@@ -119,8 +119,8 @@ const verifyKycStatus = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
+    // Find KYC details
     const kycDetails = await KycDetails.findOne({ vendorId });
-
     if (!kycDetails) {
       return res.status(404).json({ message: 'KYC details not found' });
     }
@@ -130,9 +130,36 @@ const verifyKycStatus = async (req, res) => {
       return res.status(400).json({ message: 'KYC is already verified' });
     }
 
-    // Update status to Verified
+    // Update KYC status to Verified
     kycDetails.status = 'Verified';
     await kycDetails.save();
+
+    // Find vendor to get fcmTokens
+    const vendor = await Vendor.findOne({ vendorId });
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    // Send push notification if fcmTokens exist
+    if (vendor.fcmTokens && vendor.fcmTokens.length > 0) {
+      const message = {
+        notification: {
+          title: 'KYC Verification',
+          body: 'Your documents have been verified.',
+        },
+        tokens: vendor.fcmTokens, // Multi-device support
+      };
+
+      try {
+        await admin.messaging().sendMulticast(message);
+        console.log('Notification sent successfully to vendor:', vendorId);
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError.message);
+        // Continue execution even if notification fails
+      }
+    } else {
+      console.log('No FCM tokens found for vendor:', vendorId);
+    }
 
     res.status(200).json({ message: 'KYC verified successfully', data: kycDetails });
   } catch (error) {
@@ -140,7 +167,6 @@ const verifyKycStatus = async (req, res) => {
     res.status(500).json({ message: 'Error verifying KYC', error: error.message });
   }
 };
-
 
 
 module.exports = {
