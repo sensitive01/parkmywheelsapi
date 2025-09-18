@@ -174,6 +174,79 @@ const completeExpiredSubscriptions = async () => {
 // ----------------------------
 // ------------------------------------------------------------------
 // Cron job definition
+const cancelPendingBookings = async () => {
+  try {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    
+    // Find pending bookings created more than 10 minutes ago
+    const pendingBookings = await Booking.find({
+      status: "PENDING",
+      createdAt: { $lte: tenMinutesAgo }
+    });
+
+    console.log(`[${new Date().toISOString()}] Found ${pendingBookings.length} pending bookings older than 10 minutes`);
+
+    // Update each booking to cancelled status
+    for (const booking of pendingBookings) {
+      const now = new Date();
+      const cancelledDate = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      const cancelledTime = now.toTimeString().split(' ')[0]; // Format: HH:MM:SS
+      
+      await Booking.updateOne(
+        { _id: booking._id },
+        {
+          $set: {
+            status: "cancelled",
+            cancelledStatus: "auto-cancelled (vendor unresponsive)",
+            cancelledDate,
+            cancelledTime
+          }
+        }
+      );
+
+      console.log(`[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled due to vendor unresponsiveness`);
+
+      // 🔹 Fetch customer details
+      const customer = await User.findOne({ uuid: booking.userid });
+      if (customer && customer.userfcmTokens?.length > 0) {
+        // Pick latest token (or loop over all)
+        const token = customer.userfcmTokens[0];
+
+        const message = {
+          token,
+          notification: {
+            title: "Booking Cancelled",
+            body: "Your vendor hasn’t responded. You may rebook another spot or contact support.",
+          },
+          data: {
+            bookingId: booking._id.toString(),
+            status: "cancelled",
+            reason: "vendor_unresponsive"
+          }
+        };
+
+        try {
+          await admin.messaging().send(message);
+          console.log(`[${new Date().toISOString()}] Notification sent to customer ${customer.userMobile} for booking ${booking._id}`);
+        } catch (err) {
+          console.error("Error sending FCM notification:", err);
+        }
+      }
+    }
+
+    return { cancelledCount: pendingBookings.length };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error cancelling unresponsive bookings:`, error);
+    throw error;
+  }
+};
+// Schedule the job to run every minute (you can adjust this frequency)
+cron.schedule("* * * * *", async () => {
+  console.log(`[${new Date().toISOString()}] Running pending booking cancellation check...`);
+  await cancelPendingBookings();
+});
+
+console.log("Pending booking cancellation cron job scheduled.");
 // ------------------------------------------------------------------
 cron.schedule("59 23 * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running subscription decrement job...`);
