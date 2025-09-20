@@ -297,9 +297,20 @@ const myspacereg = async (req, res) => {
       }
     }
 
+    // ✅ Define default 24-hour business hours for all days
+    const defaultBusinessHours = [
+      { day: "Monday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+      { day: "Tuesday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+      { day: "Wednesday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+      { day: "Thursday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+      { day: "Friday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+      { day: "Saturday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+      { day: "Sunday", openTime: "00:00", closeTime: "23:59", is24Hours: true, isClosed: false },
+    ];
+
     const newVendor = new vendorModel({
       vendorName,
-      spaceid, 
+      spaceid,
       latitude,
       longitude,
       landMark: landmark,
@@ -310,9 +321,9 @@ const myspacereg = async (req, res) => {
       subscriptionenddate: "",
       status: "pending",
       visibility: false,
-   
-      password: password || " ",  
+      password: password || " ",
       image: uploadedImageUrl,
+      businessHours: defaultBusinessHours, // ✅ add business hours
     });
 
     // ✅ First Save (Mongoose will generate _id)
@@ -326,10 +337,10 @@ const myspacereg = async (req, res) => {
 
     console.log("Space Created successfully");
 
-    return res.status(201).json({ 
-      message: "New Space registered successfully", 
+    return res.status(201).json({
+      message: "New Space registered successfully",
       vendorDetails: newVendor,
-      vendorId: newVendor.vendorId  // ✅ Return vendorId
+      vendorId: newVendor.vendorId, // ✅ Return vendorId
     });
 
   } catch (err) {
