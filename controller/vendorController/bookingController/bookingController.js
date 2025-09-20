@@ -2599,6 +2599,42 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.exitvendorsub = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // ✅ Get India date & time (without moment.js)
+    const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const [datePart, timePart] = nowInIndia.split(", "); // "DD/MM/YYYY", "HH:MM:SS AM/PM"
+
+    // ✅ Convert DD/MM/YYYY → DD-MM-YYYY
+    const [day, month, year] = datePart.split("/");
+    const exitvehicledate = `${day}-${month}-${year}`;
+    const exitvehicletime = timePart;
+
+    // ✅ Only update status + exit date/time
+    booking.status = "COMPLETED";
+    booking.exitvehicledate = exitvehicledate;
+    booking.exitvehicletime = exitvehicletime;
+
+    const updatedBooking = await booking.save();
+
+    res.status(200).json({
+      message: "Booking marked as completed",
+      booking: {
+        exitvehicledate: updatedBooking.exitvehicledate,
+        exitvehicletime: updatedBooking.exitvehicletime,
+        status: updatedBooking.status,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 
 // Suggested backend endpoint for renewal (add this to your Node.js exports)
 exports.renewSubscription = async (req, res) => {

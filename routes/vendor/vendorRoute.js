@@ -55,7 +55,7 @@ vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
 vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour);
 vendorRoute.put("/renewmonthl/:id", bookingController.renewSubscription);
-
+vendorRoute.put("/exitvendorsubscription/:id", bookingController.exitvendorsub);
 //kdhfhd
 vendorRoute.get("/fetch/:vendorId", bookingController.vendorfetch);
 // vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
