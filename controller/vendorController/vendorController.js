@@ -211,6 +211,17 @@ const vendorSignup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Define default 24-hour business hours for all days
+    const defaultBusinessHours = [
+      { day: 'Monday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false },
+      { day: 'Tuesday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false },
+      { day: 'Wednesday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false },
+      { day: 'Thursday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false },
+      { day: 'Friday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false },
+      { day: 'Saturday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false },
+      { day: 'Sunday', openTime: '00:00', closeTime: '23:59', is24Hours: true, isClosed: false }
+    ];
+
     const newVendor = new vendorModel({
       vendorName,
       contacts: parsedContacts,
@@ -223,17 +234,16 @@ const vendorSignup = async (req, res) => {
       subscriptionleft: 0,
       subscriptionenddate: "",
       password: hashedPassword,
-      status: "pending", // Explicitly set status to pending
+      status: "pending",
       platformfee: "",
       visibility: false,
-  
+      businessHours: defaultBusinessHours, // Add default 24-hour business hours
       image: uploadedImageUrl || "",
     });
 
     await newVendor.save();
 
     newVendor.vendorId = newVendor._id.toString();
-
     await newVendor.save();
 
     return res.status(201).json({
@@ -250,6 +260,7 @@ const vendorSignup = async (req, res) => {
         subscription: newVendor.subscription, 
         subscriptionleft: newVendor.subscriptionleft,
         subscriptionenddate: newVendor.subscriptionenddate,
+        businessHours: newVendor.businessHours, // Include business hours in response
       },
     });
   } catch (err) {
