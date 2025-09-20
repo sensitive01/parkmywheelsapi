@@ -177,34 +177,50 @@ const completeExpiredSubscriptions = async () => {
 const cancelPendingBookings = async () => {
   try {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    
+
     // Find pending bookings created more than 10 minutes ago
     const pendingBookings = await Booking.find({
       status: "PENDING",
       createdAt: { $lte: tenMinutesAgo }
     });
 
-    console.log(`[${new Date().toISOString()}] Found ${pendingBookings.length} pending bookings older than 10 minutes`);
+    console.log(
+      `[${new Date().toISOString()}] Found ${pendingBookings.length} pending bookings older than 10 minutes`
+    );
 
     // Update each booking to cancelled status
     for (const booking of pendingBookings) {
       const now = new Date();
-      const cancelledDate = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      const cancelledTime = now.toTimeString().split(' ')[0]; // Format: HH:MM:SS
-      
+
+      // Format date as DD-MM-YYYY
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-based
+      const year = now.getFullYear();
+      const cancelledDate = `${day}-${month}-${year}`;
+
+      // Format time as hh:mm:ss AM/PM
+      let hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12; // Convert to 12-hour format
+      const cancelledTime = `${String(hours).padStart(2, "0")}:${minutes}:${seconds} ${ampm}`;
+
       await Booking.updateOne(
         { _id: booking._id },
         {
           $set: {
-            status: "cancelled",
-            cancelledStatus: "auto-cancelled (vendor unresponsive)",
+            status: "Cancelled",
+            cancelledStatus: "NoShow",
             cancelledDate,
             cancelledTime
           }
         }
       );
 
-      console.log(`[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled due to vendor unresponsiveness`);
+      console.log(
+        `[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled due to vendor unresponsiveness`
+      );
 
       // 🔹 Fetch customer details
       const customer = await User.findOne({ uuid: booking.userid });
@@ -216,18 +232,20 @@ const cancelPendingBookings = async () => {
           token,
           notification: {
             title: "Booking Cancelled",
-            body: "Your vendor hasn’t responded. You may rebook another spot or contact support.",
+            body: "Your vendor hasn’t responded. You may rebook another spot or contact support."
           },
           data: {
             bookingId: booking._id.toString(),
-            status: "cancelled",
+            status: "Cancelled",
             reason: "vendor_unresponsive"
           }
         };
 
         try {
           await admin.messaging().send(message);
-          console.log(`[${new Date().toISOString()}] Notification sent to customer ${customer.userMobile} for booking ${booking._id}`);
+          console.log(
+            `[${new Date().toISOString()}] Notification sent to customer ${customer.userMobile} for booking ${booking._id}`
+          );
         } catch (err) {
           console.error("Error sending FCM notification:", err);
         }
@@ -236,10 +254,14 @@ const cancelPendingBookings = async () => {
 
     return { cancelledCount: pendingBookings.length };
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Error cancelling unresponsive bookings:`, error);
+    console.error(
+      `[${new Date().toISOString()}] Error cancelling unresponsive bookings:`,
+      error
+    );
     throw error;
   }
 };
+
 // Schedule the job to run every minute (you can adjust this frequency)
 cron.schedule("* * * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running pending booking cancellation check...`);
