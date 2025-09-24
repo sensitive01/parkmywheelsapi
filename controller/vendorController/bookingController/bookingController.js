@@ -108,28 +108,24 @@ exports.createBooking = async (req, res) => {
     const bookingAmount = parseFloat(amount) || 0;
     const gstPercentage = parseFloat(gstFeeData.gst) || 0;
     const gstAmount = (bookingAmount * gstPercentage) / 100;
-
-    // Handling fee is fixed
     const handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
-
     const totalAmount = (bookingAmount + gstAmount + handlingFee).toFixed(2);
 
-    // Platform fee
     let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
     const releaseFee = platformFee.toFixed(2);
-
-    // Receivable and payable
     const receivableAmount = (parseFloat(totalAmount) - platformFee).toFixed(2);
     const payableAmount = receivableAmount;
 
     const otp = Math.floor(100000 + Math.random() * 900000);
-   let subscriptionEndDate = null;
+
+    let subscriptionEndDate = null;
     if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
       const date = new Date(parkingDate);
       date.setDate(date.getDate() + 30);
-      subscriptionEndDate = date.toISOString().split("T")[0]; // format: YYYY-MM-DD
+      subscriptionEndDate = date.toISOString().split("T")[0];
     }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -166,7 +162,7 @@ exports.createBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
-       subsctiptionenddate: subscriptionEndDate,
+      subsctiptionenddate: subscriptionEndDate,
     });
 
     await newBooking.save();
@@ -221,7 +217,7 @@ exports.createBooking = async (req, res) => {
 
     await userNotification.save();
 
-    // Enhanced FCM notification function with support for different ID types
+    // FCM Notifications
     const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
       const invalidTokens = [];
       const promises = tokens.map(async (token) => {
@@ -236,13 +232,12 @@ exports.createBooking = async (req, res) => {
       await Promise.all(promises);
       if (invalidTokens.length > 0) {
         await model.updateOne(
-          { [idType]: idField },  // Use dynamic field name based on idType parameter
+          { [idType]: idField },
           { $pull: { fcmTokens: { $in: invalidTokens } } }
         );
       }
     };
 
-    // Send FCM Notifications (Vendor & User)
     if (vendorData.fcmTokens?.length > 0) {
       const vendorFcmMessage = {
         notification: { title: "New Booking Received", body: `New booking from ${personName}` },
@@ -263,66 +258,22 @@ exports.createBooking = async (req, res) => {
       await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid, 'uuid');
     }
 
+    // --- Subscription SMS Handling ---
     if (mobileNumber && (sts || "").toLowerCase() === "subscription") {
-      console.log("✅ Mobile number and status validated.");
-
       let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
-      console.log("📱 Cleaned mobile number:", cleanedMobile);
-
       if (cleanedMobile.length === 10) {
         cleanedMobile = "91" + cleanedMobile;
-        console.log("📞 Mobile number after adding country code:", cleanedMobile);
       }
 
-      const smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-      const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      // 1️⃣ First subscription SMS
+      const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
-      console.log("📄 SMS Text:", smsText);
-      console.log("🆔 DLT Template ID:", dltTemplateId);
-
-      const smsParams = {
-        username: process.env.VISPL_USERNAME || "Vayusutha.trans",
-        password: process.env.VISPL_PASSWORD || "pdizP",
-        unicode: "false",
-        from: process.env.VISPL_SENDER_ID || "PRMYWH",
-        to: cleanedMobile,
-        text: smsText,
-        dltContentId: dltTemplateId,
-      };
-
-      console.log("📦 SMS Params:", smsParams);
-
-      try {
-        const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-          params: smsParams,
-          paramsSerializer: (params) => qs.stringify(params, { encode: true }),
-          headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
-        });
-
-        console.log("📬 SMS API Response:", smsResponse.data);
-
-        const smsStatus =
-          smsResponse.data.STATUS ||
-          smsResponse.data.status ||
-          smsResponse.data.statusCode;
-
-        console.log("📊 SMS Status Code:", smsStatus);
-
-        const isSuccess =
-          smsStatus === "SUCCESS" ||
-          smsStatus === 200 ||
-          smsStatus === 2000;
-
-        if (!isSuccess) {
-          console.warn("❌ SMS failed to send:", smsResponse.data);
-        } else {
-          console.log("✅ SMS sent successfully!");
-        }
-      } catch (err) {
-        console.error("📛 SMS sending error:", err.message || err);
-      }
-    } else {
-      console.warn("⚠️ Either mobile number is missing or status is not 'subscription'.");
+      // 2️⃣ Second subscription receipt SMS
+      const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
+      const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
+      await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
     }
 
     res.status(200).json({
@@ -348,6 +299,32 @@ exports.createBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 📦 Common SMS sender
+async function sendSMS(to, text, dltContentId) {
+  const smsParams = {
+    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+    password: process.env.VISPL_PASSWORD || "pdizP",
+    unicode: "false",
+    from: process.env.VISPL_SENDER_ID || "PRMYWH",
+    to,
+    text,
+    dltContentId,
+  };
+
+  try {
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: smsParams,
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+    });
+
+    console.log("📬 SMS API Response:", smsResponse.data);
+  } catch (err) {
+    console.error("📛 SMS sending error:", err.message || err);
+  }
+}
+
 
 exports.vendorcreateBooking = async (req, res) => {
   try {
@@ -722,57 +699,22 @@ exports.vendorcreateBooking = async (req, res) => {
         cleanedMobile = "91" + cleanedMobile;
       }
 
-      let smsText = "";
-      let dltTemplateId = "";
-
+      // --- Subscription SMS Handling ---
       if ((sts || "").toLowerCase() === "subscription") {
-        smsText = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-        dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+        // 1️⃣ First subscription SMS
+        let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+        let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+        await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+
+        // 2️⃣ Second subscription receipt SMS
+        let smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
+        let dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
+        await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
       } else {
-        smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
-        dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
-      }
-
-      const encodedSms = encodeURIComponent(smsText);
-
-      console.log("🔐 OTP:", otp);
-      console.log("📤 SMS Text (raw):", smsText);
-      console.log("📤 SMS Text (encoded):", encodedSms);
-
-      const smsParams = {
-        username: process.env.VISPL_USERNAME || "Vayusutha.trans",
-        password: process.env.VISPL_PASSWORD || "pdizP",
-        unicode: "false",
-        from: process.env.VISPL_SENDER_ID || "PRMYWH",
-        to: cleanedMobile,
-        text: smsText,
-        dltContentId: dltTemplateId,
-      };
-
-      try {
-        const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-          params: smsParams,
-          paramsSerializer: (params) => qs.stringify(params, { encode: true }),
-          headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
-        });
-
-        console.log("📩 VISPL SMS API Response:", smsResponse.data);
-
-        const smsStatus =
-          smsResponse.data.STATUS ||
-          smsResponse.data.status ||
-          smsResponse.data.statusCode;
-
-        const isSuccess =
-          smsStatus === "SUCCESS" ||
-          smsStatus === 200 ||
-          smsStatus === 2000;
-
-        if (!isSuccess) {
-          console.warn("❌ SMS failed to send:", smsResponse.data);
-        }
-      } catch (err) {
-        console.error("📛 SMS sending error:", err.message || err);
+        // Non-subscription SMS
+        let smsText = `Hi, your vehicle spot at ${vendorName} on ${parkingDate} at ${parkingTime} for your vehicle: ${vehicleNumber} is confirmed. Drive in & park smart with ParkMyWheels.`;
+        let dltTemplateId = process.env.VISPL_TEMPLATE_ID_BOOKING || "YOUR_BOOKING_TEMPLATE_ID";
+        await sendSMS(cleanedMobile, smsText, dltTemplateId);
       }
 
       const matchedUsers = await User.find({
@@ -880,6 +822,30 @@ exports.vendorcreateBooking = async (req, res) => {
   }
 };
 
+// 📦 Common SMS sender
+async function sendSMS(to, text, dltContentId) {
+  const smsParams = {
+    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+    password: process.env.VISPL_PASSWORD || "pdizP",
+    unicode: "false",
+    from: process.env.VISPL_SENDER_ID || "PRMYWH",
+    to,
+    text,
+    dltContentId,
+  };
+
+  try {
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: smsParams,
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+    });
+
+    console.log("📬 SMS API Response:", smsResponse.data);
+  } catch (err) {
+    console.error("📛 SMS sending error:", err.message || err);
+  }
+}
 exports.getBookingsByStatus = async (req, res) => {
   try {
     const { status } = req.params;
@@ -926,7 +892,7 @@ exports.livecreateBooking = async (req, res) => {
     const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
     if (!vendorData) return res.status(404).json({ message: "Vendor not found" });
 
-const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
+    const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       const type = entry.type.trim();
       acc[type] = parseInt(entry.count) || 0;
       return acc;
@@ -985,9 +951,17 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       return res.status(400).json({ message: "No available slots for Others" });
     }
 
-
     // Step 2: Generate OTP and create booking
     const otp = Math.floor(100000 + Math.random() * 900000);
+
+    // Calculate subscription end date for subscriptions
+    let subscriptionEndDate = null;
+    if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
+      const date = new Date(parkingDate);
+      date.setDate(date.getDate() + 30);
+      subscriptionEndDate = date.toISOString().split("T")[0];
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -1018,6 +992,7 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      subsctiptionenddate: subscriptionEndDate,
     });
 
     await newBooking.save();
@@ -1028,7 +1003,7 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       userId: userid,
       bookingId: newBooking._id,
       title: "Vehicle Parked",
-      message: `New booking Strated from ${personName} for ${parkingDate} at ${parkingTime}`,
+      message: `New booking started from ${personName} for ${parkingDate} at ${parkingTime}`,
       vehicleType,
       vehicleNumber,
       createdAt: new Date(),
@@ -1049,7 +1024,7 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       vendorId,
       userId: userid,
       bookingId: newBooking._id,
-      title: "Vehicle Parked ",
+      title: "Vehicle Parked",
       message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
       vehicleType,
       vehicleNumber,
@@ -1076,8 +1051,8 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
         title: "New Booking Received",
         body: `New booking from ${personName} for ${parkingDate} at ${parkingTime}`,
       },
-      android: { notification: { sound: 'default', priority: 'high' } },
-      apns: { payload: { aps: { sound: 'default' } } },
+      android: { notification: { sound: "default", priority: "high" } },
+      apns: { payload: { aps: { sound: "default" } } },
     };
 
     const userNotificationMessage = {
@@ -1085,8 +1060,8 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
         title: "Booking Confirmed",
         body: `Booking with ${vendorName} confirmed for ${parkingDate} at ${parkingTime}`,
       },
-      android: { notification: { sound: 'default', priority: 'high' } },
-      apns: { payload: { aps: { sound: 'default' } } },
+      android: { notification: { sound: "default", priority: "high" } },
+      apns: { payload: { aps: { sound: "default" } } },
     };
 
     // Step 5: Send Vendor Notifications via FCM
@@ -1098,7 +1073,7 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
         try {
           await admin.messaging().send({ ...vendorNotificationMessage, token });
         } catch (error) {
-          if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+          if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
             vendorInvalidTokens.push(token);
           }
         }
@@ -1123,7 +1098,7 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
           try {
             await admin.messaging().send({ ...userNotificationMessage, token });
           } catch (error) {
-            if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
+            if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
               userInvalidTokens.push(token);
             }
           }
@@ -1136,6 +1111,24 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
           );
         }
       }
+    }
+
+    // Step 7: Send SMS for subscription bookings
+    if (mobileNumber && (sts || "").toLowerCase() === "subscription") {
+      let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
+      if (cleanedMobile.length === 10) {
+        cleanedMobile = "91" + cleanedMobile;
+      }
+
+      // 1️⃣ First subscription SMS
+      const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subscriptionEndDate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+
+      // 2️⃣ Second subscription receipt SMS
+      const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${subscriptionEndDate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
+      const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
+      await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
     }
 
     // ✅ Response
@@ -1152,6 +1145,31 @@ const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 📦 Common SMS sender
+async function sendSMS(to, text, dltContentId) {
+  const smsParams = {
+    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+    password: process.env.VISPL_PASSWORD || "pdizP",
+    unicode: "false",
+    from: process.env.VISPL_SENDER_ID || "PRMYWH",
+    to,
+    text,
+    dltContentId,
+  };
+
+  try {
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: smsParams,
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+    });
+
+    console.log("📬 SMS API Response:", smsResponse.data);
+  } catch (err) {
+    console.error("📛 SMS sending error:", err.message || err);
+  }
+}
 
 exports.userupdateCancelBooking = async (req, res) => {
   try {
