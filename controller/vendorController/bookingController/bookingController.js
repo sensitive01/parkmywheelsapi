@@ -121,11 +121,11 @@ exports.createBooking = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     let subscriptionEndDate = null;
-    if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
-      const date = new Date(parkingDate);
-      date.setDate(date.getDate() + 30);
-      subscriptionEndDate = date.toISOString().split("T")[0];
-    }
+if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
+  const date = parseDDMMYYYY(parkingDate); // ✅ safe parser
+  date.setDate(date.getDate() + 30);
+  subscriptionEndDate = date.toISOString().split("T")[0];
+}
 
     const newBooking = new Booking({
       userid,
