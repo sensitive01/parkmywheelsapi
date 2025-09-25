@@ -47,6 +47,7 @@ exports.createBooking = async (req, res) => {
       parkedDate = null,
       parkedTime = null,
       bookType,
+      invoice,
     } = req.body;
 
     console.log("Booking data:", req.body);
@@ -138,6 +139,7 @@ exports.createBooking = async (req, res) => {
       recievableamount: receivableAmount,
       payableamout: payableAmount,
       hour,
+        invoice, 
       personName,
       mobileNumber,
       vehicleType,
@@ -271,7 +273,7 @@ exports.createBooking = async (req, res) => {
       await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
       // 2️⃣ Second subscription receipt SMS
-      const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
+      const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking.invoice}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
       const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
       await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
     }
@@ -280,6 +282,7 @@ exports.createBooking = async (req, res) => {
       message: "Booking created successfully",
       bookingId: newBooking._id,
       booking: {
+        invoice: newBooking.invoice,
         _id: newBooking._id,
         amount: newBooking.amount,
         totalamout: newBooking.totalamout,

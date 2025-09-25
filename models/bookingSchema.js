@@ -116,6 +116,10 @@ type: String,
       type: String,
       
     },
+        invoice: {
+      type: String,
+      default: "",
+    },
       settlemtstatus: {
       type: String,
       
