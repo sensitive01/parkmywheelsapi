@@ -18,6 +18,20 @@ const User = require("../../../models/userModel");
 
 const Gstfee = require("../../../models/gstfeeschema"); // Adjust path as per your project
 
+// 📌 Parse "DD-MM-YYYY" string safely
+function parseDDMMYYYY(dateStr) {
+  if (!dateStr) return null;
+
+  // Match DD-MM-YYYY
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dateStr);
+  if (match) {
+    const [_, day, month, year] = match;
+    return new Date(`${year}-${month}-${day}`); // ✅ JS accepts YYYY-MM-DD
+  }
+
+  // Fallback: try letting JS parse it
+  return new Date(dateStr);
+}
 
 exports.createBooking = async (req, res) => {
   try {
