@@ -85,49 +85,46 @@ const getUserPlan = async (req, res) => {
         if (userId) {
             console.log("Fetching plans for user:", userId);
 
-            // Find vendor
+            // Find vendor (or user) details
             const vendor = await Vendor.findOne({ vendorId: userId });
             if (!vendor) {
                 return res.status(404).json({ message: "Vendor not found" });
             }
 
-            // Trial user amount filter
-            const isTrialUser = vendor.trial === "true";
-            const amountFilter = isTrialUser ? { amount: { $ne: 0 } } : {};
+            console.log("User found:", vendor.vendorName, "Trial:", vendor.trial);
 
-            // Always fetch unassigned plans
-            const unassignedPlans = await planModel.find({
+            // Determine amount filter: exclude free plans only if trial is NOT active
+            let amountFilter = {};
+            if (vendor.trial !== "true") {
+                amountFilter.amount = { $ne: "0" };
+            }
+
+            console.log("Amount filter:", amountFilter);
+
+            // Fetch plans where subscriptionGivenTo includes userId OR empty/missing
+            plans = await planModel.find({
                 ...baseQuery,
-                subscriptionGivenTo: { $exists: true, $size: 0 },
+                $or: [
+                    { subscriptionGivenTo: userId },                        // Assigned plans
+                    { subscriptionGivenTo: { $exists: true, $eq: [] } },    // Empty array
+                    { subscriptionGivenTo: { $exists: false } },            // Missing field
+                ],
                 ...amountFilter,
-            });
+            }).sort({ createdAt: -1 });
 
-            // Fetch assigned plans for this user
-            const assignedPlans = await planModel.find({
-                ...baseQuery,
-                subscriptionGivenTo: userId,
-                ...amountFilter,
-            });
+            console.log("Plans retrieved:", plans);
 
-            // Combine both
-            plans = [...assignedPlans, ...unassignedPlans];
-
-            // Optional: Remove duplicates if any (just in case)
-            const seen = new Set();
-            plans = plans.filter(plan => {
-                if (seen.has(plan._id.toString())) return false;
-                seen.add(plan._id.toString());
-                return true;
-            });
         } else {
             // Admin or no userId → return all enabled plans
             plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+            console.log("All plans retrieved:", plans);
         }
 
         res.status(200).json({
             message: "Plans retrieved successfully",
             plans,
         });
+
     } catch (err) {
         console.error("Error in retrieving plans", err);
         res.status(500).json({
@@ -136,7 +133,6 @@ const getUserPlan = async (req, res) => {
         });
     }
 };
-
 
 const getvendorplan = async (req, res) => {
   try {
@@ -151,7 +147,7 @@ const getvendorplan = async (req, res) => {
     if (req.params.vendorid || req.query.vendorid) {
       const vendorid = req.params.vendorid || req.query.vendorid;
 
-      console.log("Fetching plans for vendorid in subscriptionGivenTo or empty subscriptionGivenTo:", vendorid);
+      console.log("Fetching plans for vendorid:", vendorid);
 
       // Get vendor details
       const vendor = await Vendor.findOne({ vendorId: vendorid });
@@ -159,43 +155,51 @@ const getvendorplan = async (req, res) => {
         return res.status(404).json({ message: "Vendor not found" });
       }
 
-      // Build additional filter based on trial
+      console.log("Vendor found:", vendor.vendorName, "Trial:", vendor.trial);
+
+      // Build amount filter
       let amountFilter = {};
-      if (vendor.trial === "true") {
-        amountFilter.amount = { $ne: "0" }; // Exclude free plans (amount is String type)
+      if (vendor.trial !== "true") {
+        amountFilter.amount = { $ne: "0" }; // Exclude free plans for non-trial vendors
       }
 
-      // Query for plans where subscriptionGivenTo includes vendorid or is empty
+      console.log("Amount filter applied:", amountFilter);
+
+      // Query for plans
       plans = await planModel
         .find({
           ...baseQuery,
           $or: [
-            { subscriptionGivenTo: vendorid }, // Plans where vendorid is in subscriptionGivenTo
-            { subscriptionGivenTo: { $size: 0 } }, // Plans with empty subscriptionGivenTo
+            { subscriptionGivenTo: vendorid },                        // Plans where vendor is subscribed
+            { subscriptionGivenTo: { $exists: true, $eq: [] } },       // Empty array
+            { subscriptionGivenTo: { $exists: false } },               // Field missing
           ],
           ...amountFilter,
         })
         .sort({ createdAt: -1 });
 
-    } else {
-      // No vendorid provided → fetch all enabled vendor plans
-      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
-    }
+      console.log("Plans retrieved:", plans);
 
-    console.log("Retrieved Plans:", plans);
+    } else {
+      // No vendorid → fetch all enabled vendor plans
+      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+      console.log("All plans retrieved:", plans);
+    }
 
     res.status(200).json({
       message: "Plans retrieved successfully",
       plans,
     });
+
   } catch (err) {
-    console.error("Error in retrieving plans", err);
+    console.error("Error in retrieving plans:", err);
     res.status(500).json({
       message: "Error in retrieving plans",
       error: err.message,
     });
   }
 };
+
 
 
 
