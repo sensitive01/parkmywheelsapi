@@ -2647,7 +2647,7 @@ async function sendSMS(to, text, dltContentId) {
   const smsParams = {
     username: process.env.VISPL_USERNAME || "Vayusutha.trans",
     password: process.env.VISPL_PASSWORD || "pdizP",
-    unicode: "false",
+    unicode: "true", // enable for ₹ symbol
     from: process.env.VISPL_SENDER_ID || "PRMYWH",
     to,
     text,
@@ -2655,17 +2655,18 @@ async function sendSMS(to, text, dltContentId) {
   };
 
   try {
-    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-      params: smsParams,
-      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
-      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
-    });
+    const smsResponse = await axios.post(
+      "https://pgapi.vispl.in/fe/api/v1/send",
+      qs.stringify(smsParams),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
 
     console.log("📬 SMS API Response:", smsResponse.data);
   } catch (err) {
-    console.error("📛 SMS sending error:", err.message || err);
+    console.error("📛 SMS sending error:", err.response?.data || err.message || err);
   }
 }
+
 exports.exitvendorsub = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
