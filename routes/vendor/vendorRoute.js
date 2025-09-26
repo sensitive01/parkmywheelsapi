@@ -49,6 +49,9 @@ vendorRoute.get("/getparkedbooking/:id", bookingController.getBookingsparked);
 
 vendorRoute.get("/subget/:id", bookingController.withoutsubgetBookingsByuserid);
 vendorRoute.get("/getbookinguserid/:id", bookingController.getBookingsByuserid);
+
+vendorRoute.get("/fetchmonthlybook/:id", bookingController.fetchmonthlysubuser);
+
 vendorRoute.get("/getbooking/:id", bookingController.getBookingById);
 vendorRoute.get("/bookings", bookingController.getAllBookings);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);

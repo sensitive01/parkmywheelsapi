@@ -10,9 +10,9 @@ const Notification = require("../../../models/notificationschema"); // Adjust th
 const { v4: uuidv4 } = require('uuid');
 const qs = require("qs");
 const Parkingcharges = require("../../../models/chargesSchema");
-
+const Vehicle = require("../../../models/vehicleModel");
 const User = require("../../../models/userModel");
-// const moment = require("moment-timezone");
+
 
 
 
@@ -2350,9 +2350,27 @@ exports.getBookingsparked = async (req, res) => {
 };
 exports.getBookingsByuserid = async (req, res) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
 
-    const bookings = await Booking.find({ userid: id });
+    // Fetch user's mobile number
+    const user = await User.findOne({ uuid: id }, "userMobile");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const userMobile = user.userMobile;
+
+    // Fetch user's vehicles
+    const vehicles = await Vehicle.find({ userId: id }, "vehicleNo");
+    const vehicleNumbers = vehicles.map(v => v.vehicleNo);
+
+    // Fetch bookings by userid OR mobileNumber OR vehicleNumber
+    const bookings = await Booking.find({
+      $or: [
+        { userid: id },
+        { mobileNumber: userMobile },
+        { vehicleNumber: { $in: vehicleNumbers } }
+      ]
+    });
 
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ message: "No bookings found for this user" });
@@ -2371,90 +2389,149 @@ exports.getBookingsByuserid = async (req, res) => {
       return `${hours}:${minutes}`;
     };
 
+    // Sort by bookingDate + bookingTime (latest first)
     bookings.sort((a, b) => {
       const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
       const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
-      return dateB - dateA; // Change from dateA - dateB to dateB - dateA
+      return dateB - dateA;
     });
-    
-  
 
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-exports.withoutsubgetBookingsByuserid = async (req, res) => {
+
+
+exports.fetchmonthlysubuser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch the user to get their mobile number
-    const user = await User.findOne({ uuid: id }, 'userMobile');
+    // Fetch user's mobile number
+    const user = await User.findOne({ uuid: id }, "userMobile");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     const userMobile = user.userMobile;
 
-    // Find bookings where either userid matches or mobileNumber matches, excluding Subscription bookings
+    // Fetch user's vehicles
+    const vehicles = await Vehicle.find({ userId: id }, "vehicleNo");
+    const vehicleNumbers = vehicles.map(v => v.vehicleNo);
+
+    // Fetch bookings that are Subscription type only
     const bookings = await Booking.find({
+      sts: "Subscription",
       $or: [
         { userid: id },
-        { mobileNumber: userMobile }
-      ],
-      sts: { $ne: "Subscription" } // Exclude Subscription bookings
+        { mobileNumber: userMobile },
+        { vehicleNumber: { $in: vehicleNumbers } }
+      ]
+    });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(200).json({ message: "No subscription bookings found for this user" });
+    }
+
+    const convertTo24Hour = (time) => {
+      if (!time) return '00:00'; 
+      const [timePart, modifier] = time.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      if (modifier === 'PM' && hours !== '12') hours = parseInt(hours, 10) + 12;
+      if (modifier === 'AM' && hours === '12') hours = '00';
+      return `${hours}:${minutes}`;
+    };
+
+    // Sort by bookingDate + bookingTime (latest first)
+    bookings.sort((a, b) => {
+      const dateA = new Date(`${a.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(a.bookingTime)}`);
+      const dateB = new Date(`${b.bookingDate.split('-').reverse().join('-')}T${convertTo24Hour(b.bookingTime)}`);
+      return dateB - dateA;
+    });
+
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.withoutsubgetBookingsByuserid = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the user to get their mobile number
+    const user = await User.findOne({ uuid: id }, "userMobile");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const userMobile = user.userMobile;
+
+    // Fetch user's vehicles to get vehicle numbers
+    const vehicles = await Vehicle.find({ userId: id }, "vehicleNo");
+    const vehicleNumbers = vehicles.map(v => v.vehicleNo);
+
+    // Find bookings where:
+    // 1. userid matches OR
+    // 2. mobileNumber matches OR
+    // 3. vehicleNumber matches user's vehicles
+    // Excluding Subscription bookings
+    const bookings = await Booking.find({
+      $and: [
+        { sts: { $ne: "Subscription" } },
+        {
+          $or: [
+            { userid: id },
+            { mobileNumber: userMobile },
+            { vehicleNumber: { $in: vehicleNumbers } }
+          ]
+        }
+      ]
     });
 
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ message: "No bookings found for this user" });
     }
 
-    // Filter and log bookings matched by mobileNumber only
-    const mobileMatchedBookings = bookings.filter(booking => booking.mobileNumber === userMobile && booking.userid !== id);
+    // Log bookings matched by mobile number only
+    const mobileMatchedBookings = bookings.filter(
+      booking => booking.mobileNumber === userMobile && booking.userid !== id
+    );
     console.log("Bookings matched by mobile number only:", mobileMatchedBookings);
 
     // Robust timestamp generator (handles various date/time formats)
     const getSortTimestamp = (booking) => {
-      const dateStr = booking.bookingDate || '';
-      const timeStr = booking.bookingTime || '';
-
-      // Try common patterns strictly
+      const dateStr = booking.bookingDate || "";
+      const timeStr = booking.bookingTime || "";
       const patterns = [
-        'DD-MM-YYYY hh:mm A',
-        'DD/MM/YYYY hh:mm A',
-        'DD-MM-YYYY HH:mm',
-        'DD/MM/YYYY HH:mm',
-        'YYYY-MM-DD HH:mm',
-        'YYYY/MM/DD HH:mm',
-        'DD-MM-YYYY',
-        'DD/MM/YYYY',
-        'YYYY-MM-DD',
-        'YYYY/MM/DD'
+        "DD-MM-YYYY hh:mm A",
+        "DD/MM/YYYY hh:mm A",
+        "DD-MM-YYYY HH:mm",
+        "DD/MM/YYYY HH:mm",
+        "YYYY-MM-DD HH:mm",
+        "YYYY/MM/DD HH:mm",
+        "DD-MM-YYYY",
+        "DD/MM/YYYY",
+        "YYYY-MM-DD",
+        "YYYY/MM/DD"
       ];
-
       const combined = `${dateStr} ${timeStr}`.trim();
       let m = moment(combined, patterns, true);
-
       if (!m.isValid()) {
-        // Try date-only
         m = moment(dateStr, patterns, true);
       }
-
       if (!m.isValid()) {
-        // Fallback to createdAt if available
         if (booking.createdAt) {
           const created = moment(booking.createdAt);
           if (created.isValid()) return created.valueOf();
         }
         return 0;
       }
-
       return m.valueOf();
     };
 
     // Sort bookings by parsed timestamp (descending): latest first
     bookings.sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a));
 
-    // Return all matched bookings in response
+    // Return all matched bookings
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });

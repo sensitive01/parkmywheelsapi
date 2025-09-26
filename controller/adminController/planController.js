@@ -74,65 +74,69 @@ const addNewPlan = async (req, res) => {
   };
   
 const getUserPlan = async (req, res) => {
-    try {
-        console.log("User Role:", req.user?.role);
+  try {
+    console.log("User Role:", req.user?.role);
 
-        const baseQuery = { status: "enable", role: "user" };
-        const userId = req.params.vendorid || req.query.vendorid;
+    // Base filter for enabled user plans
+    const baseQuery = { status: "enable", role: "user" };
 
-        let plans = [];
+    const userId = req.params.vendorid || req.query.vendorid; // vendorId passed for user context
+    let plans = [];
 
-        if (userId) {
-            console.log("Fetching plans for user:", userId);
+    if (userId) {
+      console.log("Fetching plans for user:", userId);
 
-            // Find vendor (or user) details
-            const vendor = await Vendor.findOne({ vendorId: userId });
-            if (!vendor) {
-                return res.status(404).json({ message: "Vendor not found" });
-            }
+      // Fetch the vendor/user details
+      const vendor = await Vendor.findOne({ vendorId: userId });
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
 
-            console.log("User found:", vendor.vendorName, "Trial:", vendor.trial);
+      console.log("User found:", vendor.vendorName, "Trial:", vendor.trial);
 
-            // Determine amount filter: exclude free plans only if trial is NOT active
-            let amountFilter = {};
-            if (vendor.trial !== "true") {
-                amountFilter.amount = { $ne: "0" };
-            }
+      // Determine amount filter: only exclude free plans if trial is active
+      let amountFilter = {};
+      if (vendor.trial && vendor.trial !== "false") {
+        amountFilter.amount = { $ne: "0" }; // exclude free plans
+      }
+      // If trial is "false" → include all plans
 
-            console.log("Amount filter:", amountFilter);
+      console.log("Amount filter:", amountFilter);
 
-            // Fetch plans where subscriptionGivenTo includes userId OR empty/missing
-            plans = await planModel.find({
-                ...baseQuery,
-                $or: [
-                    { subscriptionGivenTo: userId },                        // Assigned plans
-                    { subscriptionGivenTo: { $exists: true, $eq: [] } },    // Empty array
-                    { subscriptionGivenTo: { $exists: false } },            // Missing field
-                ],
-                ...amountFilter,
-            }).sort({ createdAt: -1 });
+      // Fetch plans where subscriptionGivenTo includes userId OR empty/missing
+      plans = await planModel
+        .find({
+          ...baseQuery,
+          $or: [
+            { subscriptionGivenTo: userId },                       // Assigned plans
+            { subscriptionGivenTo: { $exists: true, $eq: [] } },   // Empty array
+            { subscriptionGivenTo: { $exists: false } },           // Missing field
+          ],
+          ...amountFilter,
+        })
+        .sort({ createdAt: -1 });
 
-            console.log("Plans retrieved:", plans);
-
-        } else {
-            // Admin or no userId → return all enabled plans
-            plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
-            console.log("All plans retrieved:", plans);
-        }
-
-        res.status(200).json({
-            message: "Plans retrieved successfully",
-            plans,
-        });
-
-    } catch (err) {
-        console.error("Error in retrieving plans", err);
-        res.status(500).json({
-            message: "Error in retrieving plans",
-            error: err.message,
-        });
+      console.log("Plans retrieved:", plans);
+    } else {
+      // No userId → fetch all enabled user plans
+      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+      console.log("All plans retrieved:", plans);
     }
+
+    res.status(200).json({
+      message: "Plans retrieved successfully",
+      plans,
+    });
+
+  } catch (err) {
+    console.error("Error in retrieving plans:", err);
+    res.status(500).json({
+      message: "Error in retrieving plans",
+      error: err.message,
+    });
+  }
 };
+
 
 const getvendorplan = async (req, res) => {
   try {
@@ -144,9 +148,9 @@ const getvendorplan = async (req, res) => {
     let plans = [];
 
     // Check if vendorid is provided
-    if (req.params.vendorid || req.query.vendorid) {
-      const vendorid = req.params.vendorid || req.query.vendorid;
+    const vendorid = req.params.vendorid || req.query.vendorid;
 
+    if (vendorid) {
       console.log("Fetching plans for vendorid:", vendorid);
 
       // Get vendor details
@@ -157,11 +161,13 @@ const getvendorplan = async (req, res) => {
 
       console.log("Vendor found:", vendor.vendorName, "Trial:", vendor.trial);
 
-      // Build amount filter
+      // Build amount filter based on trial status
       let amountFilter = {};
-      if (vendor.trial !== "true") {
-        amountFilter.amount = { $ne: "0" }; // Exclude free plans for non-trial vendors
+      if (vendor.trial && vendor.trial !== "false") {
+        // Vendor is on trial → exclude free plans (amount = 0)
+        amountFilter.amount = { $ne: "0" };
       }
+      // If trial is "false" → show all plans, including free ones
 
       console.log("Amount filter applied:", amountFilter);
 
@@ -199,6 +205,7 @@ const getvendorplan = async (req, res) => {
     });
   }
 };
+
 
 
 
