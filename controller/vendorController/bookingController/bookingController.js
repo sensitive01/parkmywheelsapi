@@ -2613,7 +2613,15 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     booking.payableamout = receivableAmount.toFixed(2);
 
     const updatedBooking = await booking.save();
+    if (updatedBooking.mobileNumber) {
+      const smsText = `Hi ${updatedBooking.personName || "Customer"}, your vehicle ${updatedBooking.vehicleNumber} has exited from ${updatedBooking.vendorName} on ${updatedBooking.exitvehicledate}. Parking duration ${updatedBooking.hour} hrs. Amount paid ₹${updatedBooking.totalamout}. Thank you for parking with ParkMyWheels.`;
 
+      await sendSMS(
+        updatedBooking.mobileNumber,
+        smsText,
+        process.env.VISPL_TEMPLATE_ID_EXIT || "1207163034300843873"
+      );
+    }
     res.status(200).json({
       message: "Booking updated successfully",
       booking: {
@@ -2634,6 +2642,30 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+async function sendSMS(to, text, dltContentId) {
+  const smsParams = {
+    username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+    password: process.env.VISPL_PASSWORD || "pdizP",
+    unicode: "false",
+    from: process.env.VISPL_SENDER_ID || "PRMYWH",
+    to,
+    text,
+    dltContentId,
+  };
+
+  try {
+    const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+      params: smsParams,
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+      headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
+    });
+
+    console.log("📬 SMS API Response:", smsResponse.data);
+  } catch (err) {
+    console.error("📛 SMS sending error:", err.message || err);
+  }
+}
 exports.exitvendorsub = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
