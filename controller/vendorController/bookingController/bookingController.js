@@ -3569,6 +3569,8 @@ exports.getReceivableAmountByUser = async (req, res) => {
     }
 
     const bookings = completedBookings.map((booking) => ({
+      invoice:booking.invoice || null,
+      username: booking.personName || null,
       _id: booking._id,
       userid: booking.userid || null,
       bookingDate: booking.bookingDate,
@@ -3637,6 +3639,8 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       const platformfee = parseFloat(booking.platformfee) || 0;
 
       return {
+           invoice:booking.invoice || null,
+      username: booking.personName || null,
        _id: booking._id,
       userid: booking.userid || null,
       bookingDate: booking.bookingDate,
