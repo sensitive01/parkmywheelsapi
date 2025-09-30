@@ -236,6 +236,7 @@ const vendorSignup = async (req, res) => {
       password: hashedPassword,
       status: "pending",
       platformfee: "",
+      newuser: "false",
       visibility: false,
       businessHours: defaultBusinessHours, // Add default 24-hour business hours
       image: uploadedImageUrl || "",
@@ -256,6 +257,7 @@ const vendorSignup = async (req, res) => {
         longitude: newVendor.longitude,
         landmark: newVendor.landMark,
         address: newVendor.address,
+        newuser: newVendor.newuser,
         image: newVendor.image,
         subscription: newVendor.subscription, 
         subscriptionleft: newVendor.subscriptionleft,
@@ -537,12 +539,58 @@ const vendorLogin = async (req, res) => {
       latitude: vendor.latitude,
       longitude: vendor.longitude,
       address: vendor.address,
+      newuser: vendor.newuser,
     });
   } catch (err) {
     console.error("Error in vendor login", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+const updateVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.body; // Assuming vendorId is sent in the request body
+
+    // Validate vendorId
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    // Find the vendor by vendorId and update newuser to "true"
+    const updatedVendor = await vendorModel.findOneAndUpdate(
+      { vendorId }, // Query to find the vendor
+      { newuser: "true" }, // Update the newuser field
+      { new: true, runValidators: true } // Options: return updated document, run schema validators
+    );
+
+    // Check if vendor exists
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    return res.status(200).json({
+      message: "Vendor updated successfully",
+      vendorDetails: {
+        vendorId: updatedVendor.vendorId,
+        vendorName: updatedVendor.vendorName,
+        contacts: updatedVendor.contacts,
+        latitude: updatedVendor.latitude,
+        longitude: updatedVendor.longitude,
+        landMark: updatedVendor.landMark,
+        address: updatedVendor.address,
+        image: updatedVendor.image,
+        subscription: updatedVendor.subscription,
+        subscriptionleft: updatedVendor.subscriptionleft,
+        subscriptionenddate: updatedVendor.subscriptionenddate,
+        businessHours: updatedVendor.businessHours,
+        newuser: updatedVendor.newuser, // Include updated newuser field
+      },
+    });
+  } catch (err) {
+    console.error("Error in vendor update", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 
 const fetchVendorData = async (req, res) => {
@@ -1268,5 +1316,6 @@ module.exports = {
   fetchsinglespacedata,
   fetchAllVendorDetails,
   updateVendorStatus,
+  updateVendor,
   addExtraDaysToSubscription,
 };

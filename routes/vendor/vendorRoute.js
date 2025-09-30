@@ -124,6 +124,8 @@ vendorRoute.post(
   vendorController.vendorSignup
 );
 vendorRoute.post("/login", vendorController.vendorLogin);
+vendorRoute.put("/newuser", vendorController.updateVendor);
+
 
 vendorRoute.post("/profilepass", vendorController.vendoridlogin);
 vendorRoute.get("/fetchspacedata", vendorController.fetchsinglespacedata);
