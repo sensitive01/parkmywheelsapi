@@ -195,6 +195,7 @@ const userVerification = async (req, res) => {
     if (!userData) {
       return res.status(404).json({ message: "User is not registered, please sign up." });
     }
+    console.log("User found:", { mobile, uuid: userData.uuid, _id: userData._id });
 
     // Validate password
     const isPasswordValid = await bcrypt.compare(password, userData.userPassword);
@@ -206,35 +207,75 @@ const userVerification = async (req, res) => {
     if (userfcmToken && (!userData.userfcmTokens || !userData.userfcmTokens.includes(userfcmToken))) {
       await userModel.updateOne(
         { _id: userData._id },
-        { $addToSet: { userfcmTokens: userfcmToken } } // Atomic operation to prevent duplicates
+        { $addToSet: { userfcmTokens: userfcmToken } }
       );
+      console.log("User FCM token updated:", { userfcmToken });
     }
 
-    // Associate FCM token with vendor if spaceid exists
-    if (userfcmToken && userData.spaceid) {
+    // Determine uuid for response and vendor matching
+    const userUuid = userData.uuid || userData._id.toString();
+    console.log("UUID for response and vendor matching:", userUuid);
+
+    // Associate FCM token with ALL vendors matching spaceid = userUuid
+    if (userfcmToken) {
       try {
-        const vendor = await vendorModel.findOne({ spaceid: userData.spaceid });
-        if (vendor && !vendor.fcmTokens.includes(userfcmToken)) {
-          await vendorModel.updateOne(
-            { _id: vendor._id },
-            { $addToSet: { fcmTokens: userfcmToken } }
-          );
+        console.log("Looking for ALL vendors with spaceid matching UUID:", userUuid);
+        const vendors = await vendorModel.find({ spaceid: userUuid });
+        
+        if (vendors.length > 0) {
+          console.log(`Found ${vendors.length} vendors matching spaceid: ${userUuid}`);
+          
+          let updatedCount = 0;
+          let skippedCount = 0;
+
+          // Loop through each matching vendor
+          for (const vendor of vendors) {
+            console.log("Processing vendor:", { vendorId: vendor._id, spaceid: vendor.spaceid, existingFcmTokens: vendor.fcmTokens });
+            
+            if (!vendor.fcmTokens.includes(userfcmToken)) {
+              // Update this vendor
+              await vendorModel.updateOne(
+                { _id: vendor._id },
+                { $addToSet: { fcmTokens: userfcmToken } }
+              );
+              updatedCount++;
+              console.log("✅ Vendor FCM token updated:", { userfcmToken, vendorId: vendor._id, spaceid: vendor.spaceid });
+              
+              // Fetch updated vendor to log fcmTokens
+              const updatedVendor = await vendorModel.findOne({ _id: vendor._id });
+              console.log("Updated vendor FCM tokens for spaceid", vendor.spaceid, ":", updatedVendor.fcmTokens);
+            } else {
+              skippedCount++;
+              console.log("⏭️ FCM token already exists in vendor:", { userfcmToken, spaceid: vendor.spaceid });
+            }
+          }
+
+          console.log(`Summary for UUID ${userUuid}: ${updatedCount} vendors updated, ${skippedCount} vendors skipped.`);
+        } else {
+          console.log("❌ No vendors found matching spaceid:", userUuid);
         }
       } catch (vendorError) {
-        console.error("Error updating vendor FCM token:", vendorError);
-        // Continue login even if vendor update fails, but log the issue
+        console.error("Error updating vendor FCM tokens:", {
+          error: vendorError.message,
+          stack: vendorError.stack,
+          userfcmToken,
+          spaceid: userUuid,
+          matchedVendorsCount: vendors?.length || 0
+        });
       }
+    } else {
+      console.log("No FCM token provided for vendor update.");
     }
 
     const role = userData.role === "user" ? "user" : "admin";
     return res.status(200).json({
       message: "Login successful.",
-      id: userData.uuid || userData._id.toString(), // Fallback to _id
+      id: userUuid,
       role: role,
     });
 
   } catch (err) {
-    console.error("Verification error:", err);
+    console.error("Verification error:", { error: err.message, stack: err.stack });
     return res.status(500).json({ message: "Internal server error." });
   }
 };
