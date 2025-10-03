@@ -181,42 +181,55 @@ const userSignUp = async (req, res) => {
 const userVerification = async (req, res) => {
   try {
     const { mobile, password, userfcmToken } = req.body;
-    const userData = await userModel.findOne({ userMobile: mobile });
 
+    // Validate inputs
+    if (!mobile || !password) {
+      return res.status(400).json({ message: "Mobile and password are required." });
+    }
+    if (userfcmToken && typeof userfcmToken !== "string") {
+      return res.status(400).json({ message: "Invalid FCM token format." });
+    }
+
+    // Find user
+    const userData = await userModel.findOne({ userMobile: mobile });
     if (!userData) {
       return res.status(404).json({ message: "User is not registered, please sign up." });
     }
 
+    // Validate password
     const isPasswordValid = await bcrypt.compare(password, userData.userPassword);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Entered password is incorrect." });
     }
 
-    // Handle FCM token - user collection
+    // Handle FCM token for user
     if (userfcmToken && (!userData.userfcmTokens || !userData.userfcmTokens.includes(userfcmToken))) {
-      if (!userData.userfcmTokens) {
-        userData.userfcmTokens = [];
-      }
-      userData.userfcmTokens.push(userfcmToken);
-      await userData.save();
+      await userModel.updateOne(
+        { _id: userData._id },
+        { $addToSet: { userfcmTokens: userfcmToken } } // Atomic operation to prevent duplicates
+      );
     }
 
-    // ✅ Associate user's FCM token with vendor (if applicable)
+    // Associate FCM token with vendor if spaceid exists
     if (userfcmToken && userData.spaceid) {
-      const vendor = await vendorModel.findOne({ spaceid: userData.spaceid });
-
-      if (vendor) {
-        if (!vendor.fcmTokens.includes(userfcmToken)) {
-          vendor.fcmTokens.push(userfcmToken);
-          await vendor.save();
+      try {
+        const vendor = await vendorModel.findOne({ spaceid: userData.spaceid });
+        if (vendor && !vendor.fcmTokens.includes(userfcmToken)) {
+          await vendorModel.updateOne(
+            { _id: vendor._id },
+            { $addToSet: { fcmTokens: userfcmToken } }
+          );
         }
+      } catch (vendorError) {
+        console.error("Error updating vendor FCM token:", vendorError);
+        // Continue login even if vendor update fails, but log the issue
       }
     }
 
     const role = userData.role === "user" ? "user" : "admin";
     return res.status(200).json({
       message: "Login successful.",
-      id: userData.uuid,
+      id: userData.uuid || userData._id.toString(), // Fallback to _id
       role: role,
     });
 
