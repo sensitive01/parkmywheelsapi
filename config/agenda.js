@@ -176,36 +176,68 @@ const completeExpiredSubscriptions = async () => {
 // Cron job definition
 const cancelPendingBookings = async () => {
   try {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const now = new Date();
 
-    // Find pending bookings created more than 10 minutes ago
-    const pendingBookings = await Booking.find({
-      status: "PENDING",
-      createdAt: { $lte: tenMinutesAgo }
-    });
+    // Get all pending bookings
+    const pendingBookings = await Booking.find({ status: "PENDING" });
 
     console.log(
-      `[${new Date().toISOString()}] Found ${pendingBookings.length} pending bookings older than 10 minutes`
+      `[${new Date().toISOString()}] Found ${pendingBookings.length} pending bookings to check`
     );
 
-    // Update each booking to cancelled status
+    const bookingsToCancel = [];
+
     for (const booking of pendingBookings) {
+      if (!booking.parkedDate || !booking.parkedTime) {
+        console.warn(
+          `[${new Date().toISOString()}] Booking ${booking._id} missing parkedDate or parkedTime, skipping...`
+        );
+        continue;
+      }
+
+      // 🔹 Combine parkedDate + parkedTime → DateTime
+      // Assuming parkedDate is "DD-MM-YYYY" and parkedTime is "hh:mm AM/PM"
+      const parkedDateTimeStr = `${booking.parkingDate} ${booking.parkingTime}`;
+      const parkedDateTime = new Date(parkedDateTimeStr);
+
+      if (isNaN(parkedDateTime.getTime())) {
+        console.warn(
+          `[${new Date().toISOString()}] Booking ${booking._id} has invalid parkedDateTime: ${parkedDateTimeStr}`
+        );
+        continue;
+      }
+
+      // 🔹 Expiry = parkedDateTime + 1 hour
+      const expiryTime = new Date(parkedDateTime.getTime() + 60 * 60 * 1000);
+
+      // 🔹 If current time > expiryTime → cancel booking
+      if (now > expiryTime) {
+        bookingsToCancel.push(booking);
+      }
+    }
+
+    console.log(
+      `[${new Date().toISOString()}] Found ${bookingsToCancel.length} pending bookings older than 1 hour from parked time`
+    );
+
+    for (const booking of bookingsToCancel) {
       const now = new Date();
 
-      // Format date as DD-MM-YYYY
+      // Format cancel date
       const day = String(now.getDate()).padStart(2, "0");
       const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-based
       const year = now.getFullYear();
       const cancelledDate = `${day}-${month}-${year}`;
 
-      // Format time as hh:mm:ss AM/PM
+      // Format cancel time
       let hours = now.getHours();
       const minutes = String(now.getMinutes()).padStart(2, "0");
       const seconds = String(now.getSeconds()).padStart(2, "0");
       const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12 || 12; // Convert to 12-hour format
+      hours = hours % 12 || 12;
       const cancelledTime = `${String(hours).padStart(2, "0")}:${minutes}:${seconds} ${ampm}`;
 
+      // Update booking status
       await Booking.updateOne(
         { _id: booking._id },
         {
@@ -213,32 +245,31 @@ const cancelPendingBookings = async () => {
             status: "Cancelled",
             cancelledStatus: "NoShow",
             cancelledDate,
-            cancelledTime
-          }
+            cancelledTime,
+          },
         }
       );
 
       console.log(
-        `[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled due to vendor unresponsiveness`
+        `[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled (pending > 1 hr after parked time)`
       );
 
-      // 🔹 Fetch customer details
+      // 🔔 Send notification to user
       const customer = await User.findOne({ uuid: booking.userid });
       if (customer && customer.userfcmTokens?.length > 0) {
-        // Pick latest token (or loop over all)
         const token = customer.userfcmTokens[0];
 
         const message = {
           token,
           notification: {
             title: "Booking Cancelled",
-            body: "Your vendor hasn’t responded. You may rebook another spot or contact support."
+            body: "Your booking was auto-cancelled since it remained pending more than 1 hour after parked time.",
           },
           data: {
             bookingId: booking._id.toString(),
             status: "Cancelled",
-            reason: "vendor_unresponsive"
-          }
+            reason: "no_show",
+          },
         };
 
         try {
@@ -247,12 +278,12 @@ const cancelPendingBookings = async () => {
             `[${new Date().toISOString()}] Notification sent to customer ${customer.userMobile} for booking ${booking._id}`
           );
         } catch (err) {
-          console.error("Error sending FCM notification:", err);
+          console.error("❌ Error sending FCM notification:", err);
         }
       }
     }
 
-    return { cancelledCount: pendingBookings.length };
+    return { cancelledCount: bookingsToCancel.length };
   } catch (error) {
     console.error(
       `[${new Date().toISOString()}] Error cancelling unresponsive bookings:`,
@@ -261,6 +292,7 @@ const cancelPendingBookings = async () => {
     throw error;
   }
 };
+
 
 // Schedule the job to run every minute (you can adjust this frequency)
 cron.schedule("* * * * *", async () => {
