@@ -3572,6 +3572,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
       invoice:booking.invoice || null,
       username: booking.personName || null,
       _id: booking._id,
+      invoiceid: booking.invoiceid || null,
       userid: booking.userid || null,
       bookingDate: booking.bookingDate,
       parkingDate: booking.parkingDate,
@@ -3640,6 +3641,7 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       const platformfee = parseFloat(booking.platformfee) || 0;
 
       return {
+        invoiceid: booking.invoiceid || null,
            invoice:booking.invoice || null,
       username: booking.personName || null,
        _id: booking._id,
