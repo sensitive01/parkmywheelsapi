@@ -907,20 +907,17 @@ const closeChat = async (req, res) => {
     const { helpRequestId } = req.params;
     const { adminId } = req.body;
 
-    const helpRequest = await VendorHelpSupport.findById(helpRequestId).populate("vendorId"); 
-    if (!helpRequest) {
-      return res.status(404).json({ message: "Help request not found." });
-    }
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId).populate("vendorId");
+    if (!helpRequest) return res.status(404).json({ message: "Help request not found." });
 
-    // Update status to "Completed"
     helpRequest.status = "Completed";
     helpRequest.closedAt = new Date();
     helpRequest.closedBy = adminId;
-
     await helpRequest.save();
 
-    // 🔔 Send push notification
-    if (helpRequest.vendorid && helpRequest.vendorid.fcmTokens.length > 0) {
+    // ✅ Push notification
+    if (helpRequest.vendorId && helpRequest.vendorId.fcmTokens?.length > 0) {
+      const tokens = helpRequest.vendorId.fcmTokens;
       const payload = {
         notification: {
           title: "Support Ticket Update",
@@ -932,15 +929,13 @@ const closeChat = async (req, res) => {
         },
       };
 
-      const tokens = helpRequest.vendorid.fcmTokens;
-
       try {
-        await adminModel.messaging().sendEachForMulticast({
+        const response = await admin.messaging().sendEachForMulticast({
           tokens,
           notification: payload.notification,
           data: payload.data,
         });
-        console.log("Notification sent to:", tokens);
+        console.log("Notification sent:", response.successCount, "successes");
       } catch (notifErr) {
         console.error("Error sending notification:", notifErr);
       }
@@ -955,7 +950,6 @@ const closeChat = async (req, res) => {
     res.status(500).json({ message: "Error closing chat", error: error.message });
   }
 };
-
 const getVendorCount = async (req, res) => {
   try {
     const count = await vendorModel.countDocuments();
