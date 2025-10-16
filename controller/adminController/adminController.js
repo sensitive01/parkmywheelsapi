@@ -923,7 +923,7 @@ const closeChat = async (req, res) => {
 
     // ✅ Determine the correct vendor reference
     const vendor =
-      helpRequest.vendorId || helpRequest.vendorid || null;
+      helpRequest?.vendorid || helpRequest?.vendorid || null;
 
     if (vendor && vendor.fcmTokens?.length > 0) {
       const tokens = vendor.fcmTokens;
