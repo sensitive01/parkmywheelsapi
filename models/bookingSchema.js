@@ -30,6 +30,9 @@ const bookingSchema = new mongoose.Schema(
     personName: {
       type: String
     },
+       invoiceid: {
+      type: String
+    },
     mobileNumber: {
       type: String
     },
@@ -140,6 +143,19 @@ type: String,
   { timestamps: true }
   
 );
+
+// Pre-save middleware to generate invoiceid
+bookingSchema.pre('save', function(next) {
+  if (this.isNew && !this.invoiceid) {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2); // Last two digits of year
+    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // Month as 2 digits
+    const day = now.getDate().toString().padStart(2, '0'); // Day as 2 digits
+    const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
+    this.invoiceid = `PMW${year}${month}${day}${randomNum}`;
+  }
+  next();
+});
 
 
 
