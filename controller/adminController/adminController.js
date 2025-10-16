@@ -916,8 +916,8 @@ const closeChat = async (req, res) => {
     await helpRequest.save();
 
     // ✅ Push notification
-    if (helpRequest.vendorId && helpRequest.vendorId.fcmTokens?.length > 0) {
-      const tokens = helpRequest.vendorId.fcmTokens;
+    if (helpRequest.vendorid && helpRequest.vendorid.fcmTokens?.length > 0) {
+      const tokens = helpRequest.vendorid.fcmTokens;
       const payload = {
         notification: {
           title: "Support Ticket Update",
@@ -930,7 +930,7 @@ const closeChat = async (req, res) => {
       };
 
       try {
-        const response = await admin.messaging().sendEachForMulticast({
+        const response = await adminId.messaging().sendEachForMulticast({
           tokens,
           notification: payload.notification,
           data: payload.data,
