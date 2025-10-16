@@ -10,6 +10,7 @@ const generateOTP = require("../../utils/generateOTP");
 const Vendor = require("../../models/venderSchema");
 // const agenda = require("../../config/agenda");
 const { v4: uuidv4 } = require('uuid');
+const admin = require("../../config/firebaseAdmin");
 
 const vendorForgotPassword = async (req, res) => {
     try {
@@ -916,8 +917,8 @@ const closeChat = async (req, res) => {
     await helpRequest.save();
 
     // ✅ Push notification
-    if (helpRequest.vendorid && helpRequest.vendorid.fcmTokens?.length > 0) {
-      const tokens = helpRequest.vendorid.fcmTokens;
+    if (helpRequest.vendorId && helpRequest.vendorId.fcmTokens?.length > 0) {
+      const tokens = helpRequest.vendorId.fcmTokens;
       const payload = {
         notification: {
           title: "Support Ticket Update",
@@ -930,7 +931,7 @@ const closeChat = async (req, res) => {
       };
 
       try {
-        const response = await adminId.messaging().sendEachForMulticast({
+        const response = await admin.messaging().sendEachForMulticast({
           tokens,
           notification: payload.notification,
           data: payload.data,
