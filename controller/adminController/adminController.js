@@ -10,6 +10,7 @@ const generateOTP = require("../../utils/generateOTP");
 const Vendor = require("../../models/venderSchema");
 // const agenda = require("../../config/agenda");
 const { v4: uuidv4 } = require('uuid');
+const admin = require("../../config/firebaseAdmin");
 
 const vendorForgotPassword = async (req, res) => {
     try {
@@ -907,20 +908,26 @@ const closeChat = async (req, res) => {
     const { helpRequestId } = req.params;
     const { adminId } = req.body;
 
-    const helpRequest = await VendorHelpSupport.findById(helpRequestId).populate("vendorId"); 
-    if (!helpRequest) {
-      return res.status(404).json({ message: "Help request not found." });
-    }
+    // Populate both possible vendor fields
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId)
+      .populate("vendorId")
+      .populate("vendorid");
 
-    // Update status to "Completed"
+    if (!helpRequest)
+      return res.status(404).json({ message: "Help request not found." });
+
     helpRequest.status = "Completed";
     helpRequest.closedAt = new Date();
     helpRequest.closedBy = adminId;
-
     await helpRequest.save();
 
-    // 🔔 Send push notification
-    if (helpRequest.vendorid && helpRequest.vendorid.fcmTokens.length > 0) {
+    // ✅ Determine the correct vendor reference
+    const vendor =
+      helpRequest.vendorId || helpRequest.vendorid || null;
+
+    if (vendor && vendor.fcmTokens?.length > 0) {
+      const tokens = vendor.fcmTokens;
+
       const payload = {
         notification: {
           title: "Support Ticket Update",
@@ -932,18 +939,18 @@ const closeChat = async (req, res) => {
         },
       };
 
-      const tokens = helpRequest.vendorid.fcmTokens;
-
       try {
-        await adminModel.messaging().sendEachForMulticast({
+        const response = await admin.messaging().sendEachForMulticast({
           tokens,
           notification: payload.notification,
           data: payload.data,
         });
-        console.log("Notification sent to:", tokens);
+        console.log("Notification sent:", response.successCount, "successes");
       } catch (notifErr) {
         console.error("Error sending notification:", notifErr);
       }
+    } else {
+      console.log("No FCM tokens found for vendor.");
     }
 
     res.status(200).json({
