@@ -446,15 +446,22 @@ const triggerFiveDaySubscriptionReminders = async () => {
     const nowIst = DateTime.now().setZone("Asia/Kolkata").startOf("day");
     const targetIst = nowIst.plus({ days: 5 });
 
+    console.log(`[${new Date().toISOString()}] Running 5-day subscription reminder check for target date: ${targetIst.toISODate()}`);
+
     const candidates = await Booking.find({
       sts: { $regex: /^subscription$/i },
       subsctiptionenddate: { $exists: true, $ne: null, $ne: "" },
     });
+    console.log(`[${new Date().toISOString()}] Found ${candidates.length} candidate bookings for 5-day reminders.`);
 
     const bookingsExpiring = [];
     for (const b of candidates) {
+      console.log(`[${new Date().toISOString()}] Checking booking ${b._id}, end date: ${b.subsctiptionenddate}`);
       const endDtIst = parseEndDateIst(b.subsctiptionenddate);
-      if (!endDtIst) continue;
+      if (!endDtIst) {
+        console.log(`[${new Date().toISOString()}] Failed to parse end date for booking ${b._id}`);
+        continue;
+      }
       if (endDtIst.hasSame(targetIst, "day")) bookingsExpiring.push(b);
     }
 
