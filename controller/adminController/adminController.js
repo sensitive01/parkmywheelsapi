@@ -923,50 +923,70 @@ const closeChat = async (req, res) => {
     // Check vendorid properly - vendorid is a string field, not ObjectId reference
     const vendorIdString = helpRequest?.vendorid || null;
 
+    console.log("🔍 Debug closeChat:", {
+      helpRequestId: helpRequest._id,
+      vendorid: vendorIdString,
+      status: helpRequest.status
+    });
+
     if (vendorIdString) {
       // Since vendorid is a string, we need to find the vendor by vendorId field
+      console.log("🔍 Searching for vendor with vendorId:", vendorIdString);
       const vendorDoc = await Vendor.findOne({ vendorId: vendorIdString });
-      if (vendorDoc && vendorDoc.fcmTokens?.length > 0) {
-        const tokens = vendorDoc.fcmTokens;
 
-        const payload = {
-          notification: {
-            title: "Support Ticket Update",
-            body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
-          },
-          data: {
-            type: "support_ticket_update",
-            helpRequestId: helpRequest._id.toString(),
-          },
-        };
+      if (vendorDoc) {
+        console.log("✅ Vendor found:", {
+          vendorId: vendorDoc.vendorId,
+          fcmTokensCount: vendorDoc.fcmTokens?.length || 0,
+          fcmTokens: vendorDoc.fcmTokens
+        });
 
-        try {
-          // Fix: Use correct Firebase Admin SDK method
-          const response = await admin.messaging().sendMulticast({
-            tokens,
-            notification: payload.notification,
-            data: payload.data,
-          });
+        if (vendorDoc.fcmTokens?.length > 0) {
+          const tokens = vendorDoc.fcmTokens;
 
-          // Add better logging
-          console.log(`Notification status: ${response.successCount} succeeded, ${response.failureCount} failed`);
+          const payload = {
+            notification: {
+              title: "Support Ticket Update",
+              body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
+            },
+            data: {
+              type: "support_ticket_update",
+              helpRequestId: helpRequest._id.toString(),
+            },
+          };
 
-          // Log individual failures if any
-          if (response.failureCount > 0) {
-            response.responses.forEach((resp, idx) => {
-              if (!resp.success) {
-                console.error(`Failed to send to token ${tokens[idx]}:`, resp.error);
-              }
+          console.log("📱 Sending notification to tokens:", tokens);
+
+          try {
+            // Fix: Use correct Firebase Admin SDK method
+            const response = await admin.messaging().sendMulticast({
+              tokens,
+              notification: payload.notification,
+              data: payload.data,
             });
+
+            // Add better logging
+            console.log(`✅ Notification status: ${response.successCount} succeeded, ${response.failureCount} failed`);
+
+            // Log individual failures if any
+            if (response.failureCount > 0) {
+              response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                  console.error(`❌ Failed to send to token ${tokens[idx]}:`, resp.error);
+                }
+              });
+            }
+          } catch (notifErr) {
+            console.error("❌ Error sending notification:", notifErr);
           }
-        } catch (notifErr) {
-          console.error("Error sending notification:", notifErr);
+        } else {
+          console.log("⚠️ Vendor found but no FCM tokens available");
         }
+      } else {
+        console.log("❌ Vendor not found with vendorId:", vendorIdString);
       }
     } else {
-      console.log("No vendorid found in help request or no FCM tokens found for vendor:", {
-        vendorid: vendorIdString,
-      });
+      console.log("❌ No vendorid found in help request");
     }
 
     res.status(200).json({
