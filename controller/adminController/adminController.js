@@ -908,10 +908,8 @@ const closeChat = async (req, res) => {
     const { helpRequestId } = req.params;
     const { adminId } = req.body;
 
-    // Populate both possible vendor fields
-    const helpRequest = await VendorHelpSupport.findById(helpRequestId)
-      .populate("vendorId")
-      .populate("vendorid");
+    // Find the help request (no need to populate since vendorid is just a string)
+    const helpRequest = await VendorHelpSupport.findById(helpRequestId);
 
     if (!helpRequest) {
       return res.status(404).json({ message: "Help request not found." });
@@ -922,49 +920,52 @@ const closeChat = async (req, res) => {
     helpRequest.closedBy = adminId;
     await helpRequest.save();
 
-    // Fix: Check both vendorId and vendorid properly
-    const vendor = helpRequest?.vendorId || helpRequest?.vendorid || null;
+    // Check vendorid properly - vendorid is a string field, not ObjectId reference
+    const vendorIdString = helpRequest?.vendorid || null;
 
-    if (vendor && vendor.fcmTokens?.length > 0) {
-      const tokens = vendor.fcmTokens;
+    if (vendorIdString) {
+      // Since vendorid is a string, we need to find the vendor by vendorId field
+      const vendorDoc = await Vendor.findOne({ vendorId: vendorIdString });
+      if (vendorDoc && vendorDoc.fcmTokens?.length > 0) {
+        const tokens = vendorDoc.fcmTokens;
 
-      const payload = {
-        notification: {
-          title: "Support Ticket Update",
-          body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
-        },
-        data: {
-          type: "support_ticket_update",
-          helpRequestId: helpRequest._id.toString(),
-        },
-      };
+        const payload = {
+          notification: {
+            title: "Support Ticket Update",
+            body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
+          },
+          data: {
+            type: "support_ticket_update",
+            helpRequestId: helpRequest._id.toString(),
+          },
+        };
 
-      try {
-        // Fix: Use correct Firebase Admin SDK method
-        const response = await admin.messaging().sendMulticast({
-          tokens,
-          notification: payload.notification,
-          data: payload.data,
-        });
-
-        // Add better logging
-        console.log(`Notification status: ${response.successCount} succeeded, ${response.failureCount} failed`);
-        
-        // Log individual failures if any
-        if (response.failureCount > 0) {
-          response.responses.forEach((resp, idx) => {
-            if (!resp.success) {
-              console.error(`Failed to send to token ${tokens[idx]}:`, resp.error);
-            }
+        try {
+          // Fix: Use correct Firebase Admin SDK method
+          const response = await admin.messaging().sendMulticast({
+            tokens,
+            notification: payload.notification,
+            data: payload.data,
           });
+
+          // Add better logging
+          console.log(`Notification status: ${response.successCount} succeeded, ${response.failureCount} failed`);
+
+          // Log individual failures if any
+          if (response.failureCount > 0) {
+            response.responses.forEach((resp, idx) => {
+              if (!resp.success) {
+                console.error(`Failed to send to token ${tokens[idx]}:`, resp.error);
+              }
+            });
+          }
+        } catch (notifErr) {
+          console.error("Error sending notification:", notifErr);
         }
-      } catch (notifErr) {
-        console.error("Error sending notification:", notifErr);
       }
     } else {
-      console.log("No FCM tokens found for vendor:", {
-        vendorId: vendor?._id,
-        tokensLength: vendor?.fcmTokens?.length
+      console.log("No vendorid found in help request or no FCM tokens found for vendor:", {
+        vendorid: vendorIdString,
       });
     }
 
