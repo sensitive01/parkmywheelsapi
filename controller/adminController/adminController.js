@@ -913,17 +913,17 @@ const closeChat = async (req, res) => {
       .populate("vendorId")
       .populate("vendorid");
 
-    if (!helpRequest)
+    if (!helpRequest) {
       return res.status(404).json({ message: "Help request not found." });
+    }
 
     helpRequest.status = "Completed";
     helpRequest.closedAt = new Date();
     helpRequest.closedBy = adminId;
     await helpRequest.save();
 
-    // ✅ Determine the correct vendor reference
-    const vendor =
-      helpRequest?.vendorid || helpRequest?.vendorid || null;
+    // Fix: Check both vendorId and vendorid properly
+    const vendor = helpRequest?.vendorId || helpRequest?.vendorid || null;
 
     if (vendor && vendor.fcmTokens?.length > 0) {
       const tokens = vendor.fcmTokens;
@@ -940,17 +940,32 @@ const closeChat = async (req, res) => {
       };
 
       try {
-        const response = await admin.messaging().sendEachForMulticast({
+        // Fix: Use correct Firebase Admin SDK method
+        const response = await admin.messaging().sendMulticast({
           tokens,
           notification: payload.notification,
           data: payload.data,
         });
-        console.log("Notification sent:", response.successCount, "successes");
+
+        // Add better logging
+        console.log(`Notification status: ${response.successCount} succeeded, ${response.failureCount} failed`);
+        
+        // Log individual failures if any
+        if (response.failureCount > 0) {
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              console.error(`Failed to send to token ${tokens[idx]}:`, resp.error);
+            }
+          });
+        }
       } catch (notifErr) {
         console.error("Error sending notification:", notifErr);
       }
     } else {
-      console.log("No FCM tokens found for vendor.");
+      console.log("No FCM tokens found for vendor:", {
+        vendorId: vendor?._id,
+        tokensLength: vendor?.fcmTokens?.length
+      });
     }
 
     res.status(200).json({
