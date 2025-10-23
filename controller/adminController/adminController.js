@@ -930,9 +930,9 @@ const closeChat = async (req, res) => {
     });
 
     if (vendorIdString) {
-      // Since vendorid is a string, we need to find the vendor by vendorId field
-      console.log("🔍 Searching for vendor with vendorId:", vendorIdString);
-      const vendorDoc = await Vendor.findOne({ vendorId: vendorIdString });
+      // Since vendorid contains the MongoDB ObjectId of the vendor, find by _id
+      console.log("🔍 Searching for vendor with _id:", vendorIdString);
+      const vendorDoc = await Vendor.findById(vendorIdString);
 
       if (vendorDoc) {
         console.log("✅ Vendor found:", {
