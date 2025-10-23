@@ -1,5 +1,7 @@
 const { uploadImage } = require("../../../config/cloudinary");
 const KycDetails = require('../../../models/kycSchema');
+const Vendor = require('../../../models/venderSchema');
+const admin = require('../../../config/firebaseAdmin');
 
 const createKycData = async (req, res) => {
   try {
@@ -142,19 +144,31 @@ const verifyKycStatus = async (req, res) => {
 
     // Send push notification if fcmTokens exist
     if (vendor.fcmTokens && vendor.fcmTokens.length > 0) {
-      const message = {
-        notification: {
-          title: 'KYC Verification',
-          body: 'Your documents have been verified.',
-        },
-        tokens: vendor.fcmTokens, // Multi-device support
-      };
+      const tokens = vendor.fcmTokens;
+
+      console.log("📱 Sending KYC verification notification to tokens:", tokens);
 
       try {
-        await admin.messaging().sendMulticast(message);
-        console.log('Notification sent successfully to vendor:', vendorId);
+        const promises = tokens.map(async (token) => {
+          try {
+            await admin.messaging().send({
+              notification: {
+                title: 'KYC Verification',
+                body: 'Your documents have been verified.',
+              },
+              token: token
+            });
+            console.log(`✅ KYC notification sent successfully to token: ${token.substring(0, 50)}...`);
+          } catch (error) {
+            console.error(`❌ Failed to send KYC notification to token ${token.substring(0, 50)}...:`, error.message);
+          }
+        });
+
+        await Promise.all(promises);
+        console.log(`✅ KYC notifications processed. Sent to ${tokens.length} device(s)`);
+
       } catch (notificationError) {
-        console.error('Error sending notification:', notificationError.message);
+        console.error('Error sending KYC notifications:', notificationError.message);
         // Continue execution even if notification fails
       }
     } else {

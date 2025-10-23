@@ -944,40 +944,34 @@ const closeChat = async (req, res) => {
         if (vendorDoc.fcmTokens?.length > 0) {
           const tokens = vendorDoc.fcmTokens;
 
-          const payload = {
-            notification: {
-              title: "Support Ticket Update",
-              body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
-            },
-            data: {
-              type: "support_ticket_update",
-              helpRequestId: helpRequest._id.toString(),
-            },
-          };
-
           console.log("📱 Sending notification to tokens:", tokens);
 
           try {
-            // Fix: Use correct Firebase Admin SDK method
-            const response = await admin.messaging().sendMulticast({
-              tokens,
-              notification: payload.notification,
-              data: payload.data,
+            // Fix: Use same method as working booking code
+            const promises = tokens.map(async (token) => {
+              try {
+                await admin.messaging().send({
+                  notification: {
+                    title: "Support Ticket Update",
+                    body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
+                  },
+                  data: {
+                    type: "support_ticket_update",
+                    helpRequestId: helpRequest._id.toString(),
+                  },
+                  token: token
+                });
+                console.log(`✅ Notification sent successfully to token: ${token.substring(0, 50)}...`);
+              } catch (error) {
+                console.error(`❌ Failed to send to token ${token.substring(0, 50)}...:`, error.message);
+              }
             });
 
-            // Add better logging
-            console.log(`✅ Notification status: ${response.successCount} succeeded, ${response.failureCount} failed`);
+            await Promise.all(promises);
+            console.log(`✅ All notifications processed. Sent to ${tokens.length} device(s)`);
 
-            // Log individual failures if any
-            if (response.failureCount > 0) {
-              response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                  console.error(`❌ Failed to send to token ${tokens[idx]}:`, resp.error);
-                }
-              });
-            }
           } catch (notifErr) {
-            console.error("❌ Error sending notification:", notifErr);
+            console.error("❌ Error sending notifications:", notifErr);
           }
         } else {
           console.log("⚠️ Vendor found but no FCM tokens available");
