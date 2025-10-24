@@ -551,7 +551,7 @@ console.log("Pending booking cancellation cron job scheduled.");
 // ------------------------------------------------------------------
 // Daily subscription reminders 
 // ------------------------------------------------------------------
-cron.schedule("15 13 * * *", async () => {
+cron.schedule("25 15 * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running daily subscription reminder check at 4:05 PM IST...`);
 
   try {
