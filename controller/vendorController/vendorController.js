@@ -1245,6 +1245,46 @@ const updateVendorPlatformFee = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+const updateValidity = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    const { day } = req.body;
+
+
+    const vendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { subscriptionleft: day },
+      { new: true } 
+    );
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Vendor subscription validity updated successfully",
+      vendor: {
+        id: vendor._id,
+        vendorId: vendor.vendorId,
+        vendorName: vendor.vendorName,
+        subscriptionleft: vendor.subscriptionleft,
+       
+      },
+    });
+  } catch (err) {
+    console.error("Error updating subscription validity:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+
+
 const vendoridlogin = async (req, res) => {
   try {
     const { vendorId, password } = req.body;
@@ -1286,6 +1326,7 @@ const vendoridlogin = async (req, res) => {
   }
 };
 module.exports = {
+  updateValidity,
   vendoridlogin,
   updateVendorPlatformFee,
   updateVendorVisibilityOnly,
