@@ -178,6 +178,8 @@ vendorRoute.get("/getallkyc", kycController.getallKycData);
 vendorRoute.put('/verifykyc/:vendorId', kycController.verifyKycStatus);
 
 vendorRoute.put('/updateplatformfee/:id', vendorController.updateVendorPlatformFee);
+vendorRoute.put('/updatevaliditydays/:id', vendorController.updateValidity);
+
 
 vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
 vendorRoute.get("/gethelpvendor/:vendorid", helpfeedbackController.getVendorHelpSupportRequests);
