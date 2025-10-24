@@ -109,4 +109,12 @@ adminRoute.put(
    upload.single("image"), 
    adminController.UpdateVendorDataByAdmin);
 
+
+adminRoute.get("/get-vendor-and-user-data", adminController.getVendorAndUserData)
+adminRoute.get("/fetch-subscription-list/:planId", adminController.getPlanList)
+adminRoute.get("/fetch-subscriber-list/:vendorId", adminController.getMySubscriberListList)
+
+
+
+
 module.exports = adminRoute;

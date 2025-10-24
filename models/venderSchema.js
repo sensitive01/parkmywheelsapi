@@ -59,7 +59,7 @@ contacts: [
    
     fcmTokens: { type: [String], default: [] },
     status: { type: String, default: "pending" },
-    platformfee: { type: String, default: "" },
+    handlingFee: { type: String, default: "" },
     parkingEntries: [{
       type: {
         type: String,

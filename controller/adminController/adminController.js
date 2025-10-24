@@ -1450,7 +1450,118 @@ const UpdateVendorDataByAdmin = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
+
+const getVendorAndUserData = async (req, res) => {
+  try {
+    const vendorData = await vendorModel.find({}, { vendorName: 1 });
+    const userData = await userModel.find({}, { userName: 1 });
+
+    res.status(200).json({
+      success: true,
+      vendors: vendorData,
+      users: userData,
+    });
+  } catch (err) {
+    console.log("error in getting the user and vendor details", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch vendor and user details",
+      error: err.message,
+    });
+  }
+};
+
+const getPlanList = async (req, res) => {
+  try {
+    const { planId } = req.params;
+
+    const planData = await transactionSchema.find({ planId });
+    const planName = await planSchema.findById(planId,{planName:1});
+    const vendorData = await vendorModel.find({}, { _id: 1, vendorName: 1 });
+
+    const vendorMap = vendorData.reduce((acc, vendor) => {
+      acc[vendor._id.toString()] = vendor.vendorName;
+      return acc;
+    }, {});
+
+    const enrichedPlans = planData.map((plan) => ({
+      ...plan._doc,
+      vendorName: vendorMap[plan.vendorId] || "Unknown Vendor",
+    }));
+
+    res.status(200).json({
+      success: true,
+      plans: enrichedPlans,
+      planName:planName.planName
+    });
+  } catch (err) {
+    console.error("Error fetching plan list:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+
+
+const getMySubscriberListList = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const transactionData = await transactionSchema.find({ vendorId });
+    const planData = await planSchema.find({}, { _id: 1, planName: 1 });
+    const vendorData = await vendorModel.find({}, { _id: 1, vendorName: 1 });
+
+    const planMap = planData.reduce((acc, plan) => {
+      acc[plan._id.toString()] = plan.planName;
+      return acc;
+    }, {});
+
+    const vendorMap = vendorData.reduce((acc, vendor) => {
+      acc[vendor._id.toString()] = vendor.vendorName;
+      return acc;
+    }, {});
+
+    const enrichedTransactions = transactionData.map((txn) => ({
+      ...txn._doc,
+      planName: planMap[txn.planId] || "Unknown Plan",
+      vendorName: vendorMap[txn.vendorId] || "Unknown Vendor",
+    }));
+
+    console.log("enrichedTransactions",enrichedTransactions)
+
+    res.status(200).json({
+      success: true,
+      subscribers: enrichedTransactions,
+    });
+  } catch (err) {
+    console.error("Error fetching subscriber list:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 module.exports = {
+  getMySubscriberListList,
+  getPlanList,
+  getVendorAndUserData,
     vendorSignup,
     vendorLogin,
     vendorForgotPassword,
