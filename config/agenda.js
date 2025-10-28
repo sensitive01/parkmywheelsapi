@@ -882,13 +882,19 @@ const cancelPendingBookings = async () => {
   try {
     const now = DateTime.now().setZone("Asia/Kolkata");
 
-    const pendingBookings = await Booking.find({ status: "PENDING" });
+    // Find both PENDING and APPROVED bookings that need to be checked
+    const bookingsToCheck = await Booking.find({
+      $or: [
+        { status: "PENDING" },
+        { status: "APPROVED" }
+      ]
+    });
 
-    console.log(`[${new Date().toISOString()}] Found ${pendingBookings.length} pending bookings to check`);
+    console.log(`[${new Date().toISOString()}] Found ${bookingsToCheck.length} bookings to check`);
 
     const bookingsToCancel = [];
 
-    for (const booking of pendingBookings) {
+    for (const booking of bookingsToCheck) {
       if (!booking.parkingDate || !booking.parkingTime) {
         console.warn(`[${new Date().toISOString()}] Booking ${booking._id} missing parkingDate or parkingTime, skipping...`);
         continue;
@@ -902,14 +908,30 @@ const cancelPendingBookings = async () => {
         continue;
       }
 
-      const expiryTime = parkedDateTime.plus({ hours: 1 });
-
-      if (now > expiryTime) {
-        bookingsToCancel.push(booking);
+      // For PENDING bookings, check if it's been more than 1 hour
+      if (booking.status === "PENDING") {
+        const expiryTime = parkedDateTime.plus({ hours: 1 });
+        if (now > expiryTime) {
+          bookingsToCancel.push({
+            ...booking.toObject(),
+            cancellationReason: "Auto-cancelled: No action taken within 1 hour of booking"
+          });
+        }
+      }
+      
+      // For APPROVED bookings, check if it's been more than 10 minutes past scheduled time
+      if (booking.status === "APPROVED") {
+        const expiryTime = parkedDateTime.plus({ minutes: 10 });
+        if (now > expiryTime) {
+          bookingsToCancel.push({
+            ...booking.toObject(),
+            cancellationReason: "Auto-cancelled: No show within 10 minutes of scheduled time"
+          });
+        }
       }
     }
 
-    console.log(`[${new Date().toISOString()}] Found ${bookingsToCancel.length} pending bookings older than 1 hour from parking time`);
+    console.log(`[${new Date().toISOString()}] Found ${bookingsToCancel.length} bookings to cancel (${bookingsToCheck.filter(b => b.status === 'PENDING').length} pending, ${bookingsToCheck.filter(b => b.status === 'APPROVED').length} approved)`);
 
     for (const booking of bookingsToCancel) {
       const nowJs = new Date();
@@ -925,6 +947,7 @@ const cancelPendingBookings = async () => {
       hours = hours % 12 || 12;
       const cancelledTime = `${String(hours).padStart(2, "0")}:${minutes}:${seconds} ${ampm}`;
 
+      // First update the booking status to cancelled
       await Booking.updateOne(
         { _id: booking._id },
         {
@@ -933,33 +956,78 @@ const cancelPendingBookings = async () => {
             cancelledStatus: "NoShow",
             cancelledDate,
             cancelledTime,
+            cancellationReason: booking.cancellationReason || "Auto-cancelled due to no show",
+            cancelledBy: "system"
           },
         }
       );
 
-      console.log(`[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled (pending > 1 hr after parking time)`);
+      console.log(`[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled: ${booking.cancellationReason}`);
 
+      // Send notification to customer
       const customer = await User.findOne({ uuid: booking.userid });
       if (customer && customer.userfcmTokens?.length > 0) {
-        const token = customer.userfcmTokens[0];
-        const message = {
-          token,
+        const customerToken = customer.userfcmTokens[0];
+        const customerMessage = {
+          token: customerToken,
           notification: {
-            title: "Booking Cancelled",
-            body: "Your booking was auto-cancelled since it remained pending more than 1 hour after the scheduled parking time.",
+            title: "Customer No-show",
+            body: `You missed your parking window at ${booking.vendorName || 'Parking Location'}. Let us know if this was an error.`,
           },
           data: {
             bookingId: booking._id.toString(),
             status: "Cancelled",
             reason: "no_show",
+            type: "customer_notification"
           },
         };
 
         try {
-          await admin.messaging().send(message);
-          console.log(`[${new Date().toISOString()}] Notification sent to ${customer.userMobile} for booking ${booking._id}`);
+          await admin.messaging().send(customerMessage);
+          console.log(`[${new Date().toISOString()}] No-show notification sent to customer ${customer.userMobile}`);
         } catch (err) {
-          console.error("❌ Error sending FCM notification:", err);
+          console.error(`[${new Date().toISOString()}] Error sending notification to customer:`, err);
+        }
+      }
+
+      // Send notification to vendor if this was an approved booking
+      if (booking.status === 'APPROVED' && booking.vendorId) {
+        try {
+          const vendor = await Vendor.findById(booking.vendorId);
+          if (vendor && Array.isArray(vendor.fcmTokens) && vendor.fcmTokens.length > 0) {
+            const vendorMessage = {
+              notification: {
+                title: "Vendor Alert - Customer No-show",
+                body: `The customer hasn't arrived for the booking scheduled at ${booking.parkingTime}.`,
+              },
+              data: {
+                bookingId: booking._id.toString(),
+                status: "Cancelled",
+                reason: "customer_no_show",
+                type: "vendor_notification",
+                vendorAlert: "true"
+              },
+            };
+
+            // Send to all vendor's devices
+            const sendPromises = vendor.fcmTokens.map(token => {
+              if (token) {
+                return admin.messaging().send({
+                  ...vendorMessage,
+                  token: token
+                }).catch(err => {
+                  console.error(`[${new Date().toISOString()}] Error sending to vendor device:`, err);
+                  return null;
+                });
+              }
+              return Promise.resolve();
+            });
+
+            await Promise.all(sendPromises);
+            console.log(`[${new Date().toISOString()}] No-show notifications sent to ${vendor.fcmTokens.length} device(s) for vendor ${vendor.businessName || vendor._id}`);
+          }
+        } catch (err) {
+          console.error(`[${new Date().toISOString()}] Error sending notification to vendor:`, err);
         }
       }
     }
