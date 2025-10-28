@@ -553,8 +553,8 @@ exports.vendorcreateBooking = async (req, res) => {
       if (matchedUsers && matchedUsers.length > 0) {
         const userSubscriptionNotification = {
           notification: {
-            title: "Subscription Parking Started",
-            body: `Your subscription parking at ${vendorName} has started.`,
+            title: "Parking Started!",
+            body: `Your subscription parking at ${vendorName} has begun.`,
           },
           android: {
             notification: {
@@ -1962,8 +1962,8 @@ exports.allowParking = async (req, res) => {
       vendorId: booking.vendorId._id,
       userId: booking.userid,
       bookingId: updatedBooking._id,
-      title: "Parking Started",
-      message: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+      title: "Parking Started!",
+      message: `Your parking time has begun at ${booking.vendorName || 'Parking Location'}.`,
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
@@ -1983,8 +1983,8 @@ exports.allowParking = async (req, res) => {
     // Prepare FCM notification message for the customer
     const userNotificationMessage = {
       notification: {
-        title: "Parking Started",
-        body: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+        title: "Parking Started!",
+        body: `Your parking time has begun at ${booking.vendorName || 'Parking Location'}.`,
       },
       data: {
         bookingId: updatedBooking._id.toString(),
@@ -2180,8 +2180,8 @@ exports.directallowParking = async (req, res) => {
       vendorId: booking.vendorId._id,
       userId: booking.userid,
       bookingId: updatedBooking._id,
-      title: "Parking Started",
-      message: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+      title: "Parking Started!",
+      message: `Your parking time has begun at ${booking.vendorName || 'Parking Location'}.`,
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
@@ -2201,8 +2201,8 @@ exports.directallowParking = async (req, res) => {
     // Prepare FCM notification message for the customer
     const userNotificationMessage = {
       notification: {
-        title: "Parking Started",
-        body: `Your parking has started at ${booking.vendorName}. Start Time: ${parkedTime} on ${parkedDate}.`,
+        title: "Parking Started!",
+        body: `Your parking time has begun at ${booking.vendorName || 'Parking Location'}.`,
       },
       data: {
         bookingId: updatedBooking._id.toString(),
@@ -2582,7 +2582,7 @@ exports.deleteBooking = async (req, res) => {
 
 exports.updateBookingStatus = async(req,res)=>{
   try{
-    console.log("Welcome to update status")
+    console.log("Parking Started to update status")
 
   }catch(err){
     console.log("err in updare the status",err)

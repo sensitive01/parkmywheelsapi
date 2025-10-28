@@ -964,29 +964,50 @@ const cancelPendingBookings = async () => {
 
       console.log(`[${new Date().toISOString()}] Booking ${booking._id} auto-cancelled: ${booking.cancellationReason}`);
 
-      // Send notification to customer
+      // Send notification to customer and store in database
       const customer = await User.findOne({ uuid: booking.userid });
-      if (customer && customer.userfcmTokens?.length > 0) {
-        const customerToken = customer.userfcmTokens[0];
-        const customerMessage = {
-          token: customerToken,
-          notification: {
-            title: "Customer No-show",
-            body: `You missed your parking window at ${booking.vendorName || 'Parking Location'}. Let us know if this was an error.`,
-          },
-          data: {
-            bookingId: booking._id.toString(),
-            status: "Cancelled",
-            reason: "no_show",
-            type: "customer_notification"
-          },
-        };
+      if (customer) {
+        // Store notification in database for user
+        const userNotification = new Notification({
+          userId: booking.userid,
+          vendorId: booking.vendorId,
+          bookingId: booking._id,
+          title: "Booking Cancelled",
+          message: `You missed your parking window at ${booking.vendorName || 'Parking Location'}. Let us know if this was an error.`,
+          type: "cancellation",
+          read: false,
+          status: "Cancelled",
+          notificationdtime: new Date().toISOString(),
+          vendorName: booking.vendorName,
+          vehicleNumber: booking.vehicleNumber,
+          vehicleType: booking.vehicleType
+        });
+        await userNotification.save();
+        console.log(`[${new Date().toISOString()}] Notification stored for user ${customer.userMobile}`);
 
-        try {
-          await admin.messaging().send(customerMessage);
-          console.log(`[${new Date().toISOString()}] No-show notification sent to customer ${customer.userMobile}`);
-        } catch (err) {
-          console.error(`[${new Date().toISOString()}] Error sending notification to customer:`, err);
+        // Send push notification if token exists
+        if (customer.userfcmTokens?.length > 0) {
+          const customerToken = customer.userfcmTokens[0];
+          const customerMessage = {
+            token: customerToken,
+            notification: {
+              title: "Booking Cancelled",
+              body: `You missed your parking window at ${booking.vendorName || 'Parking Location'}. Let us know if this was an error.`,
+            },
+            data: {
+              bookingId: booking._id.toString(),
+              status: "Cancelled",
+              reason: "no_show",
+              type: "customer_notification"
+            },
+          };
+
+          try {
+            await admin.messaging().send(customerMessage);
+            console.log(`[${new Date().toISOString()}] No-show notification sent to customer ${customer.userMobile}`);
+          } catch (err) {
+            console.error(`[${new Date().toISOString()}] Error sending notification to customer:`, err);
+          }
         }
       }
 
@@ -994,37 +1015,57 @@ const cancelPendingBookings = async () => {
       if (booking.status === 'APPROVED' && booking.vendorId) {
         try {
           const vendor = await Vendor.findById(booking.vendorId);
-          if (vendor && Array.isArray(vendor.fcmTokens) && vendor.fcmTokens.length > 0) {
-            const vendorMessage = {
-              notification: {
-                title: "Vendor Alert - Customer No-show",
-                body: `The customer hasn't arrived for the booking scheduled at ${booking.parkingTime}.`,
-              },
-              data: {
-                bookingId: booking._id.toString(),
-                status: "Cancelled",
-                reason: "customer_no_show",
-                type: "vendor_notification",
-                vendorAlert: "true"
-              },
-            };
-
-            // Send to all vendor's devices
-            const sendPromises = vendor.fcmTokens.map(token => {
-              if (token) {
-                return admin.messaging().send({
-                  ...vendorMessage,
-                  token: token
-                }).catch(err => {
-                  console.error(`[${new Date().toISOString()}] Error sending to vendor device:`, err);
-                  return null;
-                });
-              }
-              return Promise.resolve();
+          if (vendor) {
+            // Store notification in database for vendor
+            const vendorNotification = new Notification({
+              vendorId: booking.vendorId,
+              bookingId: booking._id,
+              title: "Customer No-Show",
+              message: `The customer hasn't arrived for the booking scheduled at ${booking.parkingTime}.`,
+              type: "vendor_notification",
+              read: false,
+              status: "Cancelled",
+              notificationdtime: new Date().toISOString(),
+              vendorName: booking.vendorName,
+              vehicleNumber: booking.vehicleNumber,
+              vehicleType: booking.vehicleType
             });
+            await vendorNotification.save();
+            console.log(`[${new Date().toISOString()}] Notification stored for vendor ${vendor.businessName || vendor._id}`);
 
-            await Promise.all(sendPromises);
-            console.log(`[${new Date().toISOString()}] No-show notifications sent to ${vendor.fcmTokens.length} device(s) for vendor ${vendor.businessName || vendor._id}`);
+            // Send push notification to all vendor's devices if tokens exist
+            if (Array.isArray(vendor.fcmTokens) && vendor.fcmTokens.length > 0) {
+              const vendorMessage = {
+                notification: {
+                  title: "Customer No-Show",
+                  body: `The customer hasn't arrived for the booking scheduled at ${booking.parkingTime}.`,
+                },
+                data: {
+                  bookingId: booking._id.toString(),
+                  status: "Cancelled",
+                  reason: "customer_no_show",
+                  type: "vendor_notification",
+                  vendorAlert: "true"
+                },
+              };
+
+              // Send to all vendor's devices
+              const sendPromises = vendor.fcmTokens.map(token => {
+                if (token) {
+                  return admin.messaging().send({
+                    ...vendorMessage,
+                    token: token
+                  }).catch(err => {
+                    console.error(`[${new Date().toISOString()}] Error sending to vendor device:`, err);
+                    return null;
+                  });
+                }
+                return Promise.resolve();
+              });
+
+              await Promise.all(sendPromises);
+              console.log(`[${new Date().toISOString()}] No-show notifications sent to ${vendor.fcmTokens.length} device(s) for vendor ${vendor.businessName || vendor._id}`);
+            }
           }
         } catch (err) {
           console.error(`[${new Date().toISOString()}] Error sending notification to vendor:`, err);
