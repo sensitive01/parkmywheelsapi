@@ -436,7 +436,7 @@ cron.schedule("50 15 * * *", async () => {
   } catch (err) {
     console.error(`[${new Date().toISOString()}] Error while processing subscription notifications:`, err);
   }
-});
+}, { timezone: "Asia/Kolkata" });
 
 console.log("Daily subscription reminder cron job scheduled at 4:05 PM.");
 
@@ -789,11 +789,32 @@ const triggerFiveDaySubscriptionReminders = async () => {
         continue;
       }
 
+      const endDateDisplay = parseEndDateIst(subsctiptionenddate)?.toFormat("d-MM-yyyy") || subsctiptionenddate;
+      const message = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
+
+      // Save notification to database FIRST (regardless of SMS success)
+      try {
+        const notif = new Notification({
+          vendorId: booking.vendorId,
+          userId: booking.userId,
+          bookingId: String(bookingId),
+          title: "Subscription expiring in 5 days",
+          message: message,
+          vehicleType: booking.vehicleType,
+          vehicleNumber: vehicleNumber,
+          sts: "subscription",
+          bookingtype: "subscription",
+          status: "info",
+          notificationdtime: nowIst.toFormat("yyyy-MM-dd HH:mm"),
+        });
+        await notif.save();
+        console.log(`   - ✅ Notification saved to database for ${vehicleNumber}`);
+      } catch (notifErr) {
+        console.error(`   - ❌ Failed to save notification to database:`, notifErr);
+      }
+
       // Send SMS for 5-day reminder
       try {
-        const endDateDisplay = parseEndDateIst(subsctiptionenddate)?.toFormat("d-MM-yyyy") || subsctiptionenddate;
-        const message = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
-
         // Format mobile number to match working API call (without country code)
         let cleanedMobile = String(mobileNumber).replace(/[^0-9]/g, "");
         console.log(`📱 SENDING SMS: ${vehicleNumber || 'No vehicle'} (${bookingId})`);
@@ -828,27 +849,6 @@ const triggerFiveDaySubscriptionReminders = async () => {
           console.log(`✅ 5-DAY SMS SENT: ${vehicleNumber || 'No vehicle'} (${bookingId}) to ${cleanedMobile}`);
           console.log(`   Transaction ID: ${smsResponse.data.transactionId}`);
           smsSentCount++;
-
-          // Save notification
-          try {
-            const notif = new Notification({
-              vendorId: booking.vendorId,
-              userId: booking.userId,
-              bookingId: String(bookingId),
-              title: "Subscription expiring in 5 days",
-              message: message,
-              vehicleType: booking.vehicleType,
-              vehicleNumber: vehicleNumber,
-              sts: "subscription",
-              bookingtype: "subscription",
-              status: "info",
-              notificationdtime: nowIst.toFormat("yyyy-MM-dd HH:mm"),
-            });
-            await notif.save();
-            console.log(`   - Notification saved for ${vehicleNumber}`);
-          } catch (notifErr) {
-            console.error(`   - Failed to save notification:`, notifErr);
-          }
         } else {
           console.warn(`❌ SMS FAILED: ${vehicleNumber || 'No vehicle'} (${bookingId}) - API returned error`);
           console.warn(`   API Response: ${JSON.stringify(smsResponse.data)}`);
@@ -1084,7 +1084,7 @@ const cancelPendingBookings = async () => {
 cron.schedule("* * * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running pending booking cancellation check...`);
   await cancelPendingBookings();
-});
+}, { timezone: "Asia/Kolkata" });
 
 console.log("Pending booking cancellation cron job scheduled.");
 
@@ -1099,15 +1099,164 @@ cron.schedule("50 15 * * *", async () => {
   } catch (err) {
     console.error(`[${new Date().toISOString()}] Error while processing subscription notifications:`, err);
   }
-});
+}, { timezone: "Asia/Kolkata" });
 
 console.log("Daily subscription reminder cron job scheduled at 3:50 PM IST.");
+
+// ------------------------------------------------------------------
+// Vendor Subscription 7-Day Renewal Reminder
+// ------------------------------------------------------------------
+const sendVendorSubscriptionRenewalReminders = async () => {
+  try {
+    console.log(`[${new Date().toISOString()}] Running vendor subscription 7-day renewal reminder check...`);
+
+    // Find vendors whose subscription ends in exactly 7 days
+    const vendors = await Vendor.find({
+      subscription: "true",
+      subscriptionleft: 7
+    });
+
+    console.log(`[${new Date().toISOString()}] Found ${vendors.length} vendors with 7 days left in subscription.`);
+
+    let notificationsSent = 0;
+    let notificationsFailed = 0;
+
+    for (const vendor of vendors) {
+      console.log(`[${new Date().toISOString()}] Processing vendor: ${vendor.vendorName || vendor._id} | Days left: ${vendor.subscriptionleft}`);
+
+      const title = "Premium Subscription Renewal Offer";
+      const message = "Your subscription ends in 7 days. Renew now to continue enjoying premium benefits!";
+      const nowIst = DateTime.now().setZone("Asia/Kolkata");
+
+      // Always save notification to database first (for both user and vendor)
+      let notificationSaved = false;
+      try {
+        const notif = new Notification({
+          vendorId: String(vendor._id),
+          vendorname: vendor.vendorName || "",
+          title,
+          message,
+          sts: "vendor_subscription",
+          status: "info",
+          read: false,
+          notificationdtime: nowIst.toFormat("dd-MM-yyyy HH:mm"),
+          createdAt: nowIst.toJSDate(),
+        });
+        await notif.save();
+        notificationSaved = true;
+        console.log(`[${new Date().toISOString()}] ✅ Notification saved to database for vendor ${vendor.vendorName || vendor._id}`);
+      } catch (err) {
+        console.error(`[${new Date().toISOString()}] ❌ CRITICAL: Failed to save notification to database for vendor ${vendor._id}:`, err.message);
+        // Continue to send FCM even if database save fails
+      }
+
+      // Send FCM notification to vendor
+      try {
+        const tokens = vendor.fcmTokens || [];
+        if (tokens.length > 0) {
+          const payload = {
+            notification: { 
+              title, 
+              body: message 
+            },
+            android: { 
+              notification: { 
+                sound: "default", 
+                priority: "high" 
+              } 
+            },
+            apns: { 
+              payload: { 
+                aps: { 
+                  sound: "default" 
+                } 
+              } 
+            },
+            data: {
+              type: "vendor_subscription_renewal",
+              daysLeft: vendor.subscriptionleft.toString(),
+              subscriptionEndDate: vendor.subscriptionenddate || "",
+              vendorId: String(vendor._id),
+              vendorName: vendor.vendorName || ""
+            },
+          };
+
+          const invalidTokens = [];
+          let sentToAtLeastOneToken = false;
+
+          for (const token of tokens) {
+            try {
+              await admin.messaging().send({ ...payload, token });
+              console.log(`[${new Date().toISOString()}] ✅ FCM notification sent to vendor ${vendor.vendorName || vendor._id} (token: ${token.substring(0, 10)}...)`);
+              sentToAtLeastOneToken = true;
+            } catch (sendErr) {
+              console.error(`[${new Date().toISOString()}] ❌ FCM send error for vendor token ${token.substring(0, 10)}...:`, sendErr?.errorInfo?.code || sendErr?.message || sendErr);
+              if (sendErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                invalidTokens.push(token);
+              }
+            }
+          }
+
+          // Count as sent if notification was saved OR FCM was sent successfully
+          if (notificationSaved || sentToAtLeastOneToken) {
+            notificationsSent++;
+          } else {
+            notificationsFailed++;
+          }
+
+          // Remove invalid tokens
+          if (invalidTokens.length > 0) {
+            await Vendor.updateOne(
+              { _id: vendor._id },
+              { $pull: { fcmTokens: { $in: invalidTokens } } }
+            );
+            console.log(`[${new Date().toISOString()}] 🧹 Removed ${invalidTokens.length} invalid FCM tokens from vendor ${vendor._id}`);
+          }
+        } else {
+          console.log(`[${new Date().toISOString()}] ⚠️ No FCM tokens found for vendor ${vendor.vendorName || vendor._id} - notification saved to database only`);
+          // If notification was saved to database, still count as sent
+          if (notificationSaved) {
+            notificationsSent++;
+          } else {
+            notificationsFailed++;
+          }
+        }
+      } catch (fcmErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending FCM to vendor ${vendor._id}:`, fcmErr);
+        // If notification was saved to database, still count as sent
+        if (notificationSaved) {
+          notificationsSent++;
+        } else {
+          notificationsFailed++;
+        }
+      }
+    }
+
+    console.log(`\n📊 === VENDOR SUBSCRIPTION RENEWAL SUMMARY ===`);
+    console.log(`✅ Notifications sent successfully: ${notificationsSent}`);
+    console.log(`❌ Notifications failed: ${notificationsFailed}`);
+    console.log(`📋 Total vendors with 7 days left: ${vendors.length}`);
+    console.log(`📋 === END SUMMARY ===\n`);
+
+    return {
+      vendorsNotified: vendors.length,
+      notificationsSent,
+      notificationsFailed
+    };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error sending vendor subscription renewal reminders:`, error);
+    throw error;
+  }
+};
 
 // Daily subscription decrement at 11:59 PM IST
 cron.schedule("59 23 * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running subscription decrement job...`);
 
   try {
+    // First, send 7-day renewal reminders before decrementing
+    await sendVendorSubscriptionRenewalReminders();
+
     const vendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: 0 } });
     console.log(`Found ${vendors.length} vendors with active subscriptions.`);
 
@@ -1129,7 +1278,19 @@ cron.schedule("59 23 * * *", async () => {
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Error updating subscription days:`, error);
   }
-});
+}, { timezone: "Asia/Kolkata" });
+
+// Extra safety run: complete expired subscriptions shortly after midnight IST
+cron.schedule("5 0 * * *", async () => {
+  console.log(`[${new Date().toISOString()}] Running midnight expired subscription completion (IST)...`);
+  try {
+    await completeExpiredSubscriptions();
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] Error in midnight expired subscription completion:`, err);
+  }
+}, { timezone: "Asia/Kolkata" });
+
+console.log("Midnight expired subscription completion cron scheduled at 12:05 AM IST.");
 
 console.log("Subscription decrement cron job scheduled at 11:59 PM.");
 
@@ -1270,5 +1431,6 @@ module.exports = {
   triggerSevenDaySubscriptionReminders,
   completeExpiredSubscriptions,
   cancelPendingBookings,
-  getSubscriptionReport
+  getSubscriptionReport,
+  sendVendorSubscriptionRenewalReminders
 };
