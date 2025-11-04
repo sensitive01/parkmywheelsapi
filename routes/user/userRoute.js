@@ -5,6 +5,7 @@ const userRoute = express();
 const userController = require("../../controller/userController/userAuthController");
 const userProfileController = require("../../controller/userController/userProfileController");
 const userHelpController = require("../../controller/userController/userHelpController/userHelpController")
+const chatboxController = require("../../controller/userController/chatboxController/chatboxController");
 const feedbackController = require("../../controller/userController/feedbackreviewController/feedbackreview");
 const bookingController = require("../../controller/userController/userbookController/userbookController");
 const addFavoriteVendor =require("../../controller/userController/userProfileController");
@@ -25,6 +26,13 @@ userRoute.get("/gethelpandsupport/:userId", userHelpController.getHelpSupportReq
 userRoute.get("/chat/:chatId", userHelpController.getChatMessageByChatId);
 userRoute.post("/sendchat/:helpRequestId", upload.single("image"), userHelpController.sendChatDetails);
 userRoute.get("/fetchuserchat/:helpRequestId", userHelpController.fetchuserchathistory);
+
+// Chatbox routes
+userRoute.get("/chatbox/:userId", chatboxController.getOrCreateChatbox);
+userRoute.get("/chatbox/history/:userId", chatboxController.getChatHistory);
+userRoute.post("/chatbox/message/:userId", upload.single("image"), chatboxController.saveMessage);
+userRoute.post("/chatbox/messages/:userId", chatboxController.saveMultipleMessages);
+userRoute.delete("/chatbox/:userId", chatboxController.deleteChatHistory);
 
 userRoute.post("/signup", userController.userSignUp);
 userRoute.post("/login", userController.userVerification);

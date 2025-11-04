@@ -6,6 +6,7 @@ const planController = require("../../controller/adminController/planController"
 const subscriptionController = require('../../controller/adminController/subscriptionController');
 const CommercialController = require('../../controller/adminController/commercialController');
 const CorporateController = require('../../controller/adminController/corporateController');
+const adminChatboxController = require("../../controller/adminController/chatboxController/chatboxController");
 
 const agenda = require("../../config/agenda");
 
@@ -116,5 +117,12 @@ adminRoute.get("/fetch-subscriber-list/:vendorId", adminController.getMySubscrib
 
 // Manual Notification API - Send notifications from web interface
 adminRoute.post("/send-manual-notification", adminController.sendManualNotification);
+
+// Admin Chatbox routes
+adminRoute.get("/chatbox/all", adminChatboxController.getAllChatboxes);
+adminRoute.get("/chatbox/user/:userId", adminChatboxController.getUserChatHistory);
+adminRoute.post("/chatbox/send/:userId", upload.single("image"), adminChatboxController.sendAdminMessage);
+adminRoute.get("/chatbox/users", adminChatboxController.getUsersWithChats);
+adminRoute.get("/chatbox/unread-count", adminChatboxController.getUnreadMessageCount);
 
 module.exports = adminRoute;
