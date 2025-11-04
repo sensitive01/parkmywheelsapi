@@ -8,6 +8,7 @@ const notificationSchema = new mongoose.Schema({
 
   title: { type: String },
   message: { type: String },
+  image: { type: String }, // Image URL for notifications
   vehicleType: { type: String },
   vehicleNumber: { type: String },
   

@@ -8,9 +8,11 @@ const VendorHelpSupport = require("../../models/userhelp");
 const { uploadImage } = require("../../config/cloudinary");
 const generateOTP = require("../../utils/generateOTP");
 const Vendor = require("../../models/venderSchema");
+const Notification = require("../../models/notificationschema");
 // const agenda = require("../../config/agenda");
 const { v4: uuidv4 } = require('uuid');
 const admin = require("../../config/firebaseAdmin");
+const { DateTime } = require("luxon");
 
 const vendorForgotPassword = async (req, res) => {
     try {
@@ -1558,6 +1560,239 @@ const getMySubscriberListList = async (req, res) => {
 
 
 
+// ------------------------------------------------------------------
+// Manual Notification API - Send notifications from web interface
+// ------------------------------------------------------------------
+const sendManualNotification = async (req, res) => {
+  try {
+    const { title, subtitle, image, target, filters } = req.body;
+
+    // Validate required fields
+    if (!title || !subtitle || !target) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, subtitle (message), and target (vendor/customer) are required",
+      });
+    }
+
+    // Validate target
+    if (target !== "vendor" && target !== "customer") {
+      return res.status(400).json({
+        success: false,
+        message: "Target must be 'vendor' or 'customer'",
+      });
+    }
+
+    console.log(`[${new Date().toISOString()}] Manual notification request:`, {
+      title,
+      subtitle,
+      image: image ? "Provided" : "Not provided",
+      target,
+      filters,
+    });
+
+    let recipients = [];
+    let notificationData = [];
+
+    // Build query based on target and filters
+    if (target === "customer") {
+      // Find customers/users based on filters
+      let userQuery = {};
+      
+      if (filters) {
+        if (filters.userId) userQuery.uuid = filters.userId;
+        if (filters.userMobile) userQuery.userMobile = filters.userMobile;
+        if (filters.status) userQuery.status = filters.status;
+        if (filters.userIds && Array.isArray(filters.userIds)) {
+          userQuery.uuid = { $in: filters.userIds };
+        }
+      }
+
+      const users = await userModel.find(userQuery, { uuid: 1, userMobile: 1, userfcmTokens: 1 });
+      recipients = users.map(user => ({
+        id: user.uuid || user._id,
+        type: "customer",
+        fcmTokens: user.userfcmTokens || [],
+        mobile: user.userMobile,
+      }));
+
+      // Prepare notification data for each user
+      const nowIst = DateTime.now().setZone("Asia/Kolkata");
+      recipients.forEach((recipient) => {
+        notificationData.push({
+          userId: String(recipient.id),
+          vendorId: filters?.vendorId || "",
+          title,
+          message: subtitle,
+          status: "info",
+          read: false,
+          notificationdtime: nowIst.toFormat("dd-MM-yyyy HH:mm"),
+          sts: "manual_notification",
+          bookingtype: "manual",
+        });
+      });
+
+    } else if (target === "vendor") {
+      // Find vendors based on filters
+      let vendorQuery = {};
+      
+      if (filters) {
+        if (filters.vendorId) vendorQuery._id = filters.vendorId;
+        if (filters.vendorIds && Array.isArray(filters.vendorIds)) {
+          vendorQuery._id = { $in: filters.vendorIds };
+        }
+        if (filters.status) vendorQuery.status = filters.status;
+        if (filters.subscription) vendorQuery.subscription = filters.subscription;
+        if (filters.vendorName) vendorQuery.vendorName = { $regex: filters.vendorName, $options: "i" };
+      }
+
+      const vendors = await vendorModel.find(vendorQuery, { _id: 1, vendorName: 1, fcmTokens: 1 });
+      recipients = vendors.map(vendor => ({
+        id: vendor._id,
+        type: "vendor",
+        fcmTokens: vendor.fcmTokens || [],
+        vendorName: vendor.vendorName,
+      }));
+
+      // Prepare notification data for each vendor
+      const nowIst = DateTime.now().setZone("Asia/Kolkata");
+      recipients.forEach((recipient) => {
+        notificationData.push({
+          vendorId: String(recipient.id),
+          vendorname: recipient.vendorName || "",
+          title,
+          message: subtitle,
+          status: "info",
+          read: false,
+          notificationdtime: nowIst.toFormat("dd-MM-yyyy HH:mm"),
+          sts: "manual_notification",
+          bookingtype: "manual",
+        });
+      });
+    }
+
+    if (recipients.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `No ${target}s found matching the provided filters`,
+      });
+    }
+
+    console.log(`[${new Date().toISOString()}] Found ${recipients.length} ${target}(s) to notify`);
+
+    // Save notifications to database and send FCM
+    let savedCount = 0;
+    let fcmSentCount = 0;
+    let fcmFailedCount = 0;
+    const invalidTokens = [];
+
+    for (let i = 0; i < recipients.length; i++) {
+      const recipient = recipients[i];
+      const notifData = notificationData[i];
+
+      try {
+        // Save notification to database
+        const notification = new Notification({
+          ...notifData,
+          ...(image && { image }), // Add image if provided
+        });
+        await notification.save();
+        savedCount++;
+        console.log(`[${new Date().toISOString()}] ✅ Notification saved for ${target}: ${recipient.id}`);
+      } catch (notifErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Failed to save notification for ${target}: ${recipient.id}`, notifErr);
+      }
+
+      // Send FCM notification
+      if (recipient.fcmTokens && recipient.fcmTokens.length > 0) {
+        const fcmPayload = {
+          notification: {
+            title,
+            body: subtitle,
+            ...(image && { image }),
+          },
+          android: {
+            notification: {
+              sound: "default",
+              priority: "high",
+              ...(image && { image }),
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+              },
+            },
+          },
+          data: {
+            type: "manual_notification",
+            target: target,
+            notificationId: notifData.userId || notifData.vendorId || "",
+          },
+        };
+
+        for (const token of recipient.fcmTokens) {
+          try {
+            await admin.messaging().send({ ...fcmPayload, token });
+            fcmSentCount++;
+            console.log(`[${new Date().toISOString()}] ✅ FCM sent to ${target}: ${recipient.id}`);
+          } catch (fcmErr) {
+            fcmFailedCount++;
+            if (fcmErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+              invalidTokens.push({ token, recipientId: recipient.id });
+            }
+            console.error(`[${new Date().toISOString()}] ❌ FCM error for ${target}: ${recipient.id}`, fcmErr?.errorInfo?.code || fcmErr?.message);
+          }
+        }
+
+        // Clean up invalid tokens
+        if (invalidTokens.length > 0) {
+          const recipientInvalidTokens = invalidTokens
+            .filter(t => t.recipientId === recipient.id)
+            .map(t => t.token);
+
+          if (recipientInvalidTokens.length > 0) {
+            if (target === "customer") {
+              await userModel.updateOne(
+                { uuid: recipient.id },
+                { $pull: { userfcmTokens: { $in: recipientInvalidTokens } } }
+              );
+            } else {
+              await vendorModel.updateOne(
+                { _id: recipient.id },
+                { $pull: { fcmTokens: { $in: recipientInvalidTokens } } }
+              );
+            }
+          }
+        }
+      } else {
+        console.log(`[${new Date().toISOString()}] ⚠️ No FCM tokens found for ${target}: ${recipient.id}`);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Manual notification sent successfully to ${recipients.length} ${target}(s)`,
+      data: {
+        totalRecipients: recipients.length,
+        notificationsSaved: savedCount,
+        fcmSent: fcmSentCount,
+        fcmFailed: fcmFailedCount,
+        invalidTokensRemoved: invalidTokens.length,
+      },
+    });
+
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error in manual notification:`, error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getMySubscriberListList,
   getPlanList,
@@ -1598,4 +1833,5 @@ module.exports = {
     updateVendorDetails,
     getVendorById,
     UpdateVendorDataByAdmin,
+    sendManualNotification,
 };

@@ -233,6 +233,81 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
 
     await userNotification.save();
 
+    // Check if this is user's first booking and send first-time booking notification
+    try {
+      const previousBookingCount = await Booking.countDocuments({ userid: userid });
+      if (previousBookingCount === 1) {
+        // This is the first booking (current booking is the only one)
+        const firstTimeNotification = new Notification({
+          vendorId,
+          userId: userid,
+          bookingId: newBooking._id,
+          title: "First-time Booking",
+          message: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+          vehicleType,
+          vehicleNumber,
+          createdAt: new Date(),
+          read: false,
+          sts,
+          bookingtype: bookType,
+          vendorname: vendorName,
+          parkingDate,
+          parkingTime,
+          bookingdate: bookingDate,
+          notificationdtime: `${bookingDate} ${bookingTime}`,
+          schedule: `${parkingDate} ${parkingTime}`,
+          status,
+        });
+        await firstTimeNotification.save();
+        console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+
+        // Send FCM notification for first-time booking
+        const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+        if (user?.userfcmTokens?.length > 0) {
+          const firstTimeFcmMessage = {
+            notification: {
+              title: "First-time Booking",
+              body: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+            },
+            data: {
+              bookingId: newBooking._id.toString(),
+              vehicleType,
+              type: "first_booking",
+            },
+            android: { notification: { sound: "default", priority: "high" } },
+            apns: { payload: { aps: { sound: "default" } } },
+          };
+          const invalidTokens = [];
+          for (const token of user.userfcmTokens) {
+            try {
+              await admin.messaging().send({ ...firstTimeFcmMessage, token });
+            } catch (error) {
+              if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                invalidTokens.push(token);
+              }
+            }
+          }
+          if (invalidTokens.length > 0) {
+            await userModel.updateOne(
+              { uuid: userid },
+              { $pull: { userfcmTokens: { $in: invalidTokens } } }
+            );
+          }
+        }
+      }
+    } catch (firstTimeErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error sending first-time booking notification:`, firstTimeErr);
+    }
+
+    // Send GST Invoice Ready Notification for subscription bookings
+    if ((sts || "").toLowerCase() === "subscription") {
+      try {
+        await sendInvoiceReadyNotification(newBooking, newBooking._id);
+      } catch (invoiceErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after subscription booking creation:`, invoiceErr);
+      }
+    }
+
     // FCM Notifications
     const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
       const invalidTokens = [];
@@ -659,6 +734,83 @@ exports.vendorcreateBooking = async (req, res) => {
 
     await vendorNotification.save();
 
+    // Check if this is user's first booking and send first-time booking notification
+    if (userid) {
+      try {
+        const previousBookingCount = await Booking.countDocuments({ userid: userid });
+        if (previousBookingCount === 1) {
+          // This is the first booking (current booking is the only one)
+          const firstTimeNotification = new Notification({
+            vendorId: vendorId,
+            userId: userid,
+            bookingId: newBooking._id,
+            title: "First-time Booking",
+            message: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+            vehicleType: vehicleType,
+            vehicleNumber: vehicleNumber,
+            createdAt: new Date(),
+            read: false,
+            sts: sts,
+            bookingtype: bookType,
+            vendorname: vendorName,
+            parkingDate: parkingDate,
+            parkingTime: parkingTime,
+            bookingdate: bookingDate,
+            notificationdtime: `${bookingDate} ${bookingTime}`,
+            schedule: `${parkingDate} ${parkingTime}`,
+            status: status,
+          });
+          await firstTimeNotification.save();
+          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+
+          // Send FCM notification for first-time booking
+          const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+          if (user?.userfcmTokens?.length > 0) {
+            const firstTimeFcmMessage = {
+              notification: {
+                title: "First-time Booking",
+                body: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+              },
+              data: {
+                bookingId: newBooking._id.toString(),
+                vehicleType,
+                type: "first_booking",
+              },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+            };
+            const invalidTokens = [];
+            for (const token of user.userfcmTokens) {
+              try {
+                await admin.messaging().send({ ...firstTimeFcmMessage, token });
+              } catch (error) {
+                if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token);
+                }
+              }
+            }
+            if (invalidTokens.length > 0) {
+              await userModel.updateOne(
+                { uuid: userid },
+                { $pull: { userfcmTokens: { $in: invalidTokens } } }
+              );
+            }
+          }
+        }
+      } catch (firstTimeErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending first-time booking notification:`, firstTimeErr);
+      }
+    }
+
+    // Send GST Invoice Ready Notification for subscription bookings
+    if ((sts || "").toLowerCase() === "subscription") {
+      try {
+        await sendInvoiceReadyNotification(newBooking, newBooking._id);
+      } catch (invoiceErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after subscription booking creation:`, invoiceErr);
+      }
+    }
+
     const vendorNotificationMessage = {
       notification: {
         title: "Booking Successful",
@@ -1061,6 +1213,83 @@ exports.livecreateBooking = async (req, res) => {
 
     await vendorNotif.save();
     await userNotif.save();
+
+    // Check if this is user's first booking and send first-time booking notification
+    if (userid) {
+      try {
+        const previousBookingCount = await Booking.countDocuments({ userid: userid });
+        if (previousBookingCount === 1) {
+          // This is the first booking (current booking is the only one)
+          const firstTimeNotification = new Notification({
+            vendorId,
+            userId: userid,
+            bookingId: newBooking._id,
+            title: "First-time Booking",
+            message: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+            vehicleType,
+            vehicleNumber,
+            createdAt: new Date(),
+            read: false,
+            sts,
+            bookingtype: bookType,
+            vendorname: vendorName,
+            parkingDate,
+            parkingTime,
+            bookingdate: bookingDate,
+            notificationdtime: `${bookingDate} ${bookingTime}`,
+            schedule: `${parkingDate} ${parkingTime}`,
+            status,
+          });
+          await firstTimeNotification.save();
+          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+
+          // Send FCM notification for first-time booking
+          const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+          if (user?.userfcmTokens?.length > 0) {
+            const firstTimeFcmMessage = {
+              notification: {
+                title: "First-time Booking",
+                body: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+              },
+              data: {
+                bookingId: newBooking._id.toString(),
+                vehicleType,
+                type: "first_booking",
+              },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+            };
+            const invalidTokens = [];
+            for (const token of user.userfcmTokens) {
+              try {
+                await admin.messaging().send({ ...firstTimeFcmMessage, token });
+              } catch (error) {
+                if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token);
+                }
+              }
+            }
+            if (invalidTokens.length > 0) {
+              await userModel.updateOne(
+                { uuid: userid },
+                { $pull: { userfcmTokens: { $in: invalidTokens } } }
+              );
+            }
+          }
+        }
+      } catch (firstTimeErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending first-time booking notification:`, firstTimeErr);
+      }
+    }
+
+    // Send GST Invoice Ready Notification for subscription bookings
+    if ((sts || "").toLowerCase() === "subscription") {
+      try {
+        await sendInvoiceReadyNotification(newBooking, newBooking._id);
+      } catch (invoiceErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after subscription booking creation:`, invoiceErr);
+      }
+    }
 
     // Step 4: Define FCM payloads
     const vendorNotificationMessage = {
@@ -2699,6 +2928,14 @@ exports.updateBookingAmountAndHour = async (req, res) => {
         process.env.VISPL_TEMPLATE_ID_EXIT || "1207163034300843873"
       );
     }
+
+    // Send Invoice Ready Notification after exit
+    try {
+      await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
+    } catch (invoiceErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after exit:`, invoiceErr);
+    }
+
     res.status(200).json({
       message: "Booking updated successfully",
       booking: {
@@ -2744,6 +2981,183 @@ async function sendSMS(to, text, dltContentId) {
   }
 }
 
+// ------------------------------------------------------------------
+// Helper function: Send Invoice Ready Notification
+// ------------------------------------------------------------------
+const sendInvoiceReadyNotification = async (booking, bookingId) => {
+  try {
+    const invoiceId = booking.invoiceid || booking.invoice || bookingId || booking._id;
+    const title = "GST Invoice Ready";
+    const message = `Your invoice for ${invoiceId} is ready. Download now.`;
+    
+    const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const [datePart, timePart] = now.split(", ");
+    const [day, month, year] = datePart.split("/");
+    const notificationdtime = `${day}-${month}-${year} ${timePart}`;
+
+    // Save notification to database
+    try {
+      const notification = new Notification({
+        vendorId: booking.vendorId || "",
+        userId: booking.userid || "",
+        bookingId: String(bookingId),
+        title,
+        message,
+        vehicleType: booking.vehicleType || "",
+        vehicleNumber: booking.vehicleNumber || "",
+        sts: "invoice_ready",
+        bookingtype: booking.bookType || booking.sts || "booking",
+        status: "info",
+        read: false,
+        notificationdtime,
+        vendorname: booking.vendorName || "",
+      });
+      await notification.save();
+      console.log(`[${new Date().toISOString()}] ✅ Invoice ready notification saved for booking ${bookingId}`);
+    } catch (notifErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Failed to save invoice notification for booking ${bookingId}:`, notifErr);
+    }
+
+    // Send FCM notification to customer
+    if (booking.userid) {
+      try {
+        const user = await userModel.findOne(
+          { uuid: booking.userid },
+          { userfcmTokens: 1, userMobile: 1 }
+        );
+
+        if (!user) {
+          // Try alternative user ID fields
+          const user2 = await userModel.findOne(
+            { _id: booking.userid },
+            { userfcmTokens: 1, userMobile: 1 }
+          );
+          if (!user2) {
+            const user3 = await userModel.findOne(
+              { userid: booking.userid },
+              { userfcmTokens: 1, userMobile: 1 }
+            );
+            if (user3) {
+              const tokens = user3.userfcmTokens || [];
+              if (tokens.length > 0) {
+                const fcmPayload = {
+                  notification: { title, body: message },
+                  android: { notification: { sound: "default", priority: "high" } },
+                  apns: { payload: { aps: { sound: "default" } } },
+                  data: {
+                    bookingId: String(bookingId),
+                    invoiceId: String(invoiceId),
+                    type: "invoice_ready",
+                    bookingType: booking.bookType || booking.sts || "booking",
+                  },
+                };
+
+                const invalidTokens = [];
+                for (const token of tokens) {
+                  try {
+                    await admin.messaging().send({ ...fcmPayload, token });
+                    console.log(`[${new Date().toISOString()}] ✅ Invoice FCM sent to customer for booking ${bookingId}`);
+                  } catch (fcmErr) {
+                    if (fcmErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                      invalidTokens.push(token);
+                    }
+                    console.error(`[${new Date().toISOString()}] ❌ FCM error for invoice notification:`, fcmErr?.errorInfo?.code || fcmErr?.message);
+                  }
+                }
+
+                if (invalidTokens.length > 0) {
+                  await userModel.updateOne(
+                    { userid: booking.userid },
+                    { $pull: { userfcmTokens: { $in: invalidTokens } } }
+                  );
+                }
+              }
+            }
+          } else {
+            const tokens = user2.userfcmTokens || [];
+            if (tokens.length > 0) {
+              const fcmPayload = {
+                notification: { title, body: message },
+                android: { notification: { sound: "default", priority: "high" } },
+                apns: { payload: { aps: { sound: "default" } } },
+                data: {
+                  bookingId: String(bookingId),
+                  invoiceId: String(invoiceId),
+                  type: "invoice_ready",
+                  bookingType: booking.bookType || booking.sts || "booking",
+                },
+              };
+
+              const invalidTokens = [];
+              for (const token of tokens) {
+                try {
+                  await admin.messaging().send({ ...fcmPayload, token });
+                  console.log(`[${new Date().toISOString()}] ✅ Invoice FCM sent to customer for booking ${bookingId}`);
+                } catch (fcmErr) {
+                  if (fcmErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                    invalidTokens.push(token);
+                  }
+                  console.error(`[${new Date().toISOString()}] ❌ FCM error for invoice notification:`, fcmErr?.errorInfo?.code || fcmErr?.message);
+                }
+              }
+
+              if (invalidTokens.length > 0) {
+                await userModel.updateOne(
+                  { _id: booking.userid },
+                  { $pull: { userfcmTokens: { $in: invalidTokens } } }
+                );
+              }
+            }
+          }
+        } else {
+          const tokens = user.userfcmTokens || [];
+          if (tokens.length > 0) {
+            const fcmPayload = {
+              notification: { title, body: message },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+              data: {
+                bookingId: String(bookingId),
+                invoiceId: String(invoiceId),
+                type: "invoice_ready",
+                bookingType: booking.bookType || booking.sts || "booking",
+              },
+            };
+
+            const invalidTokens = [];
+            for (const token of tokens) {
+              try {
+                await admin.messaging().send({ ...fcmPayload, token });
+                console.log(`[${new Date().toISOString()}] ✅ Invoice FCM sent to customer for booking ${bookingId}`);
+              } catch (fcmErr) {
+                if (fcmErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token);
+                }
+                console.error(`[${new Date().toISOString()}] ❌ FCM error for invoice notification:`, fcmErr?.errorInfo?.code || fcmErr?.message);
+              }
+            }
+
+            if (invalidTokens.length > 0) {
+              await userModel.updateOne(
+                { uuid: booking.userid },
+                { $pull: { userfcmTokens: { $in: invalidTokens } } }
+              );
+            }
+          } else {
+            console.log(`[${new Date().toISOString()}] ⚠️ No FCM tokens found for user ${booking.userid} (booking ${bookingId})`);
+          }
+        }
+      } catch (fcmErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending invoice FCM notification:`, fcmErr);
+      }
+    } else {
+      console.log(`[${new Date().toISOString()}] ⚠️ No userId found for booking ${bookingId} - skipping invoice FCM`);
+    }
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error in sendInvoiceReadyNotification:`, error);
+  }
+};
+
 exports.exitvendorsub = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -2766,6 +3180,13 @@ exports.exitvendorsub = async (req, res) => {
     booking.exitvehicletime = exitvehicletime;
 
     const updatedBooking = await booking.save();
+
+    // Send Invoice Ready Notification after subscription exit
+    try {
+      await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
+    } catch (invoiceErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after subscription exit:`, invoiceErr);
+    }
 
     res.status(200).json({
       message: "Booking marked as completed",
@@ -2861,6 +3282,13 @@ exports.renewSubscription = async (req, res) => {
     booking.lastAdditional = roundedTotalAdditional;
 
     const updatedBooking = await booking.save();
+
+    // Send Invoice Ready Notification after monthly renewal
+    try {
+      await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
+    } catch (invoiceErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after renewal:`, invoiceErr);
+    }
 
     res.status(200).json({
       message: "Subscription renewed successfully",

@@ -114,7 +114,7 @@ adminRoute.get("/get-vendor-and-user-data", adminController.getVendorAndUserData
 adminRoute.get("/fetch-subscription-list/:planId", adminController.getPlanList)
 adminRoute.get("/fetch-subscriber-list/:vendorId", adminController.getMySubscriberListList)
 
-
-
+// Manual Notification API - Send notifications from web interface
+adminRoute.post("/send-manual-notification", adminController.sendManualNotification);
 
 module.exports = adminRoute;

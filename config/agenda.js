@@ -4,6 +4,7 @@ const Vendor = require("../models/venderSchema");
 const Booking = require("../models/bookingSchema");
 const Notification = require("../models/notificationschema");
 const User = require("../models/userModel");
+const KycDetails = require("../models/kycSchema");
 const admin = require("./firebaseAdmin");
 const axios = require("axios");
 const qs = require("qs");
@@ -473,29 +474,30 @@ const triggerSevenDaySubscriptionReminders = async () => {
           continue;
         }
 
-        // Check if subscription expires within 6-7 days (7-day reminder)
-        const daysUntilExpiry = Math.ceil(endDtIst.diff(nowIst, 'days').days);
+        // Calculate remaining days using SAME logic as Dart: endOnly.difference(todayOnly).inDays + 1 (inclusive counting)
+        // This matches the _calculateRemainingDaysMessage function in usersubcription.dart
+        const daysDifference = Math.floor(endDtIst.diff(nowIst.startOf('day'), 'days').days);
+        const remainingDaysInclusive = daysDifference + 1; // Inclusive: includes both today and end day
 
-        // Adjust for user-friendly "days left" calculation - start from tomorrow
-        const adjustedDaysUntilExpiry = Math.max(0, Math.floor(endDtIst.diff(nowIst.plus({ days: 1 }).startOf('day'), 'days').days));
+        console.log(`📊 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - days difference: ${daysDifference}, remaining days (inclusive): ${remainingDaysInclusive}`);
 
-        console.log(`📊 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - calculated ${daysUntilExpiry} days (adjusted: ${adjustedDaysUntilExpiry} days)`);
-
-        if (adjustedDaysUntilExpiry >= 6 && adjustedDaysUntilExpiry <= 7) {
-          if (adjustedDaysUntilExpiry === 6) {
+        // Send 7-day reminder when remaining days = 7 (matches Dart logic)
+        // Since Dart uses inclusive counting, end date 6 days from today = 7 days remaining
+        if (remainingDaysInclusive === 7 || remainingDaysInclusive === 6) {
+          if (remainingDaysInclusive === 6) {
             console.log(`📅 6-DAY REMINDER: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - exactly 6 days left (expires: ${b.subsctiptionenddate})`);
-          } else if (adjustedDaysUntilExpiry === 7) {
+          } else if (remainingDaysInclusive === 7) {
             console.log(`📅 7-DAY REMINDER: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - exactly 7 days left (expires: ${b.subsctiptionenddate})`);
           }
           bookingsExpiring.push({
             ...b.toObject(), // Convert Mongoose document to plain object
             _id: b._id, // Explicitly include _id
-            daysUntilExpiry: adjustedDaysUntilExpiry,
+            daysUntilExpiry: remainingDaysInclusive,
             type: 'subscription',
             reminderType: 'subscription_expiry_7_days'
           });
         } else {
-          console.log(`⏭️ 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - ${adjustedDaysUntilExpiry} days (not in 6-7 day range)`);
+          console.log(`⏭️ 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - ${remainingDaysInclusive} days (not in 6-7 day range)`);
         }
       } catch (error) {
         console.error(`❌ 7-DAY CHECK: Error processing ${b.vehicleNumber || 'No vehicle'} (${b._id}):`, error.message);
@@ -537,10 +539,12 @@ const triggerSevenDaySubscriptionReminders = async () => {
         vehicleType,
         subsctiptionenddate,
         personName,
-        mobileNumber,
         type,
         daysUntilExpiry
       } = booking;
+      
+      // Get mobileNumber separately since we may need to reassign it
+      let mobileNumber = booking.mobileNumber;
 
       // Ensure bookingId is valid - try multiple ways to get the ID
       let finalBookingId = bookingId;
@@ -558,6 +562,31 @@ const triggerSevenDaySubscriptionReminders = async () => {
       const title = "Subscription expiring soon";
       const endDateDisplay = parseEndDateIst(subsctiptionenddate)?.toFormat("d-MM-yyyy") || subsctiptionenddate;
       const message = `Your ParkMyWheels subscription will expire on ${endDateDisplay}. Renew now to continue uninterrupted service.`;
+
+      // Get mobile number for SMS (override destructured value if needed)
+      if (!mobileNumber && userId) {
+        let user = await User.findOne({ uuid: userId }, { userMobile: 1, userPhone: 1, phone: 1, mobile: 1 });
+        if (!user) {
+          user = await User.findOne({ _id: userId }, { userMobile: 1, userPhone: 1, phone: 1, mobile: 1 });
+        }
+        if (!user) {
+          user = await User.findOne({ userid: userId }, { userMobile: 1, userPhone: 1, phone: 1, mobile: 1 });
+        }
+        if (user) {
+          mobileNumber = user.userMobile || user.userPhone || user.phone || user.mobile;
+        }
+      }
+
+      // Check alternative mobile fields in booking
+      if (!mobileNumber) {
+        const altFields = ['phoneNumber', 'phone', 'contactNumber', 'contact', 'mobile', 'userPhone', 'userMobile'];
+        for (const field of altFields) {
+          if (booking[field]) {
+            mobileNumber = booking[field];
+            break;
+          }
+        }
+      }
 
       try {
         const notif = new Notification({
@@ -577,6 +606,47 @@ const triggerSevenDaySubscriptionReminders = async () => {
         console.log(`[${new Date().toISOString()}] 7-day notification saved for subscription booking ${finalBookingId}`);
       } catch (err) {
         console.error("Failed saving 7-day notification for subscription booking", String(finalBookingId), err);
+      }
+
+      // Send SMS if mobile number is available
+      if (mobileNumber) {
+        try {
+          const smsMessage = `Dear ${personName || "User"}, Your ParkMyWheels subscription for ${vehicleNumber || ""} will expire on ${endDateDisplay}. Renew now to continue uninterrupted service.`;
+          let cleanedMobile = String(mobileNumber).replace(/[^0-9]/g, "");
+          
+          console.log(`📱 SENDING 7-DAY SMS: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
+
+          // Use the approved DLT template ID for subscription reminders
+          const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION_REMINDER || "1007408523316568326";
+
+          const smsParams = {
+            username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+            password: process.env.VISPL_PASSWORD || "pdizP",
+            unicode: "false",
+            from: process.env.VISPL_SENDER_ID || "PRMYWH",
+            to: cleanedMobile,
+            text: smsMessage,
+            dltContentId: dltTemplateId,
+          };
+
+          const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+            params: smsParams,
+            paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+          });
+
+          const smsStatus = smsResponse.data.STATUS || smsResponse.data.status || smsResponse.data.statusCode;
+          const isSuccess = smsStatus === "SUCCESS" || smsStatus === 200 || smsStatus === 2000;
+
+          if (isSuccess) {
+            console.log(`✅ 7-DAY SMS SENT: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
+          } else {
+            console.warn(`❌ 7-DAY SMS FAILED: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) - API returned error`);
+          }
+        } catch (smsErr) {
+          console.error(`❌ 7-DAY SMS ERROR: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) -`, smsErr.message);
+        }
+      } else {
+        console.log(`⚠️ 7-DAY SMS SKIPPED: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) - No mobile number found`);
       }
 
       // Send FCM notification
@@ -682,15 +752,18 @@ const triggerFiveDaySubscriptionReminders = async () => {
           continue;
         }
 
-        // Check if subscription expires within 6 days (5-day reminder threshold)
-        const daysUntilExpiry = Math.ceil(endDtIst.diff(nowIst, 'days').days);
+        // Calculate remaining days using SAME logic as Dart: endOnly.difference(todayOnly).inDays + 1 (inclusive counting)
+        // This matches the _calculateRemainingDaysMessage function in usersubcription.dart
+        const daysDifference = Math.floor(endDtIst.diff(nowIst.startOf('day'), 'days').days);
+        const remainingDaysInclusive = daysDifference + 1; // Inclusive: includes both today and end day
 
         // Debug: Log the exact calculation
-        console.log(`🔢 DAYS CALCULATION: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - raw days: ${daysUntilExpiry}, end: ${endDtIst.toISO()}, now: ${nowIst.toISO()}`);
+        console.log(`🔢 DAYS CALCULATION: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - days difference: ${daysDifference}, remaining days (inclusive): ${remainingDaysInclusive}, end: ${endDtIst.toISO()}, now: ${nowIst.toISO()}`);
 
-        // Send reminder when 6 days or less remain (5-day reminder threshold)
-        if (daysUntilExpiry <= 6 && daysUntilExpiry > 0) {
-          console.log(`🎯 5-DAY SUBSCRIPTION: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - ${daysUntilExpiry} days left (expires: ${b.subsctiptionenddate})`);
+        // Send 5-day reminder when remaining days = 5 (matches Dart logic)
+        // Since Dart uses inclusive counting, end date 4 days from today = 5 days remaining
+        if (remainingDaysInclusive === 5 || remainingDaysInclusive === 6) {
+          console.log(`🎯 5-DAY SUBSCRIPTION: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - ${remainingDaysInclusive} days left (expires: ${b.subsctiptionenddate})`);
 
           // Enhanced mobile number detection
           let mobileNumber = b.mobileNumber;
@@ -732,7 +805,7 @@ const triggerFiveDaySubscriptionReminders = async () => {
           bookingsExpiring.push({
             ...b.toObject(),
             _id: b._id,
-            daysUntilExpiry: daysUntilExpiry,
+            daysUntilExpiry: remainingDaysInclusive, // Use inclusive counting to match Dart
             mobileNumber: mobileNumber, // Store the found mobile number
             userId: userId,
             type: 'subscription',
@@ -822,7 +895,8 @@ const triggerFiveDaySubscriptionReminders = async () => {
         console.log(`   - Days: ${daysUntilExpiry}`);
         console.log(`   - Message: "${message}"`);
 
-        const dltTemplateId = "1007408523316568326"; // Exact working template ID
+        // Use the approved DLT template ID for subscription reminders
+        const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION_REMINDER || "1007408523316568326";
 
         const smsParams = {
           username: process.env.VISPL_USERNAME || "Vayusutha.trans",
@@ -1426,11 +1500,134 @@ const getSubscriptionReport = async () => {
   }
 };
 
+// ------------------------------------------------------------------
+// Daily KYC Pending Warning - Send to vendors without KYC data
+// ------------------------------------------------------------------
+const sendKycPendingWarning = async () => {
+  try {
+    console.log(`[${new Date().toISOString()}] Running KYC pending warning check...`);
+
+    // Find all vendors
+    const vendors = await Vendor.find({}, { vendorId: 1, vendorName: 1, fcmTokens: 1, status: 1 });
+    console.log(`[${new Date().toISOString()}] Found ${vendors.length} total vendors`);
+
+    // Get all vendor IDs that have KYC data (optimized query)
+    const vendorsWithKyc = await KycDetails.find({}, { vendorId: 1 });
+    const kycVendorIds = new Set(vendorsWithKyc.map(k => k.vendorId));
+    console.log(`[${new Date().toISOString()}] Found ${kycVendorIds.size} vendors with KYC data`);
+
+    // Find vendors without KYC data
+    const vendorsWithoutKyc = vendors.filter(vendor => {
+      return vendor.vendorId && !kycVendorIds.has(vendor.vendorId);
+    });
+
+    console.log(`[${new Date().toISOString()}] Found ${vendorsWithoutKyc.length} vendors without KYC data`);
+
+    // Send notifications to vendors without KYC
+    for (const vendor of vendorsWithoutKyc) {
+      try {
+        const title = "KYC Pending Warning";
+        const message = "Complete your KYC to continue using ParkMyWheels without limits.";
+
+        // Get current IST time and format it
+        const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+        const [datePart, timePart] = now.split(", ");
+        const [day, month, year] = datePart.split("/");
+        const notificationdtime = `${day}-${month}-${year} ${timePart}`;
+
+        // Save notification to database
+        try {
+          const notification = new Notification({
+            vendorId: vendor.vendorId || "",
+            userId: "",
+            bookingId: "",
+            title,
+            message,
+            vehicleType: "",
+            vehicleNumber: "",
+            sts: "kyc_pending",
+            bookingtype: "vendor",
+            status: "warning",
+            read: false,
+            notificationdtime,
+            vendorname: vendor.vendorName || "",
+          });
+          await notification.save();
+          console.log(`[${new Date().toISOString()}] ✅ KYC pending notification saved for vendor ${vendor.vendorId}`);
+        } catch (notifErr) {
+          console.error(`[${new Date().toISOString()}] ❌ Failed saving KYC pending notification for vendor ${vendor.vendorId}:`, notifErr);
+        }
+
+        // Send FCM notification to vendor
+        if (vendor.fcmTokens && vendor.fcmTokens.length > 0) {
+          const tokens = vendor.fcmTokens;
+          const fcmPayload = {
+            notification: { title, body: message },
+            android: { notification: { sound: "default", priority: "high" } },
+            apns: { payload: { aps: { sound: "default" } } },
+            data: {
+              vendorId: String(vendor.vendorId),
+              type: "kyc_pending",
+              notificationType: "warning",
+            },
+          };
+
+          const invalidTokens = [];
+          for (const token of tokens) {
+            try {
+              await admin.messaging().send({ ...fcmPayload, token });
+              console.log(`[${new Date().toISOString()}] ✅ KYC pending FCM sent to vendor ${vendor.vendorId}`);
+            } catch (fcmErr) {
+              if (fcmErr?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                invalidTokens.push(token);
+              }
+              console.error(`[${new Date().toISOString()}] ❌ FCM error for KYC pending notification:`, fcmErr?.errorInfo?.code || fcmErr?.message);
+            }
+          }
+
+          if (invalidTokens.length > 0) {
+            await Vendor.updateOne(
+              { vendorId: vendor.vendorId },
+              { $pull: { fcmTokens: { $in: invalidTokens } } }
+            );
+            console.log(`[${new Date().toISOString()}] Removed invalid FCM tokens for vendor ${vendor.vendorId}`);
+          }
+        } else {
+          console.log(`[${new Date().toISOString()}] ⚠️ No FCM tokens found for vendor ${vendor.vendorId}`);
+        }
+      } catch (err) {
+        console.error(`[${new Date().toISOString()}] ❌ Error processing vendor ${vendor.vendorId} for KYC pending notification:`, err);
+      }
+    }
+
+    console.log(`[${new Date().toISOString()}] ✅ KYC pending warning check completed. Notifications sent to ${vendorsWithoutKyc.length} vendors`);
+    return { count: vendorsWithoutKyc.length, vendors: vendorsWithoutKyc.map(v => v.vendorId) };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error in sendKycPendingWarning:`, error);
+    throw error;
+  }
+};
+
+// ------------------------------------------------------------------
+// Daily KYC Pending Warning - Run daily at 10:00 AM IST
+// ------------------------------------------------------------------
+cron.schedule("0 10 * * *", async () => {
+  console.log(`[${new Date().toISOString()}] Running daily KYC pending warning at 10:00 AM IST...`);
+  try {
+    await sendKycPendingWarning();
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] Error while processing KYC pending warnings:`, err);
+  }
+}, { timezone: "Asia/Kolkata" });
+
+console.log("Daily KYC pending warning cron job scheduled at 10:00 AM IST.");
+
 module.exports = {
   triggerFiveDaySubscriptionReminders,
   triggerSevenDaySubscriptionReminders,
   completeExpiredSubscriptions,
   cancelPendingBookings,
   getSubscriptionReport,
-  sendVendorSubscriptionRenewalReminders
+  sendVendorSubscriptionRenewalReminders,
+  sendKycPendingWarning
 };
