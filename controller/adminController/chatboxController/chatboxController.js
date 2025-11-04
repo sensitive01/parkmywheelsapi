@@ -1,4 +1,8 @@
 const Chatbox = require("../../../models/chatbox");
+const PaymentDispute = require("../../../models/paymentDispute");
+const Notification = require("../../../models/notificationschema");
+const userModel = require("../../../models/userModel");
+const admin = require("../../../config/firebaseAdmin");
 const { uploadImage } = require("../../../config/cloudinary");
 
 // Get all chatboxes (for admin to see all user conversations)
@@ -139,6 +143,143 @@ const sendAdminMessage = async (req, res) => {
     chatbox.messages.push(newMessage);
     chatbox.lastUpdated = new Date();
     await chatbox.save();
+
+    // Check if this is a response to a payment dispute
+    // Look for payment dispute tickets for this user
+    try {
+      const pendingDisputes = await PaymentDispute.find({
+        userId,
+        status: { $in: ["Pending", "In Progress"] },
+      }).sort({ createdAt: -1 });
+
+      // If there's a pending dispute and admin is responding, create notification
+      if (pendingDisputes.length > 0 && message) {
+        const latestDispute = pendingDisputes[0];
+        
+        // Update dispute with admin response
+        latestDispute.adminResponse = message;
+        latestDispute.adminId = adminId;
+        if (latestDispute.status === "Pending") {
+          latestDispute.status = "In Progress";
+        }
+        await latestDispute.save();
+
+        // Create notification for customer
+        const notificationMessage = `Your "payment dispute" ticket #${latestDispute.ticketId} has been received.`;
+        
+        // Format notification time
+        const now = new Date();
+        const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const formattedTime = istTime.toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+        
+        const notification = new Notification({
+          userId: userId,
+          title: "Payment Dispute",
+          message: notificationMessage,
+          sts: "payment_dispute",
+          status: "info",
+          read: false,
+          notificationdtime: formattedTime,
+          createdAt: new Date(),
+        });
+
+        await notification.save();
+        console.log(`[${new Date().toISOString()}] ✅ Notification saved to database for user ${userId} - Payment Dispute ticket #${latestDispute.ticketId}`);
+        console.log(`Notification details:`, {
+          userId: notification.userId,
+          title: notification.title,
+          message: notification.message,
+          ticketId: latestDispute.ticketId,
+        });
+
+        // Send FCM push notification to user
+        try {
+          // Find user by userId (uuid field)
+          const user = await userModel.findOne({ uuid: userId }, { userfcmTokens: 1 });
+          
+          if (user && user.userfcmTokens && user.userfcmTokens.length > 0) {
+            const fcmPayload = {
+              notification: {
+                title: "Payment Dispute",
+                body: notificationMessage,
+              },
+              android: {
+                notification: {
+                  sound: "default",
+                  priority: "high",
+                  channelId: "payment_dispute_channel",
+                },
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: "default",
+                    badge: 0,
+                  },
+                },
+              },
+              data: {
+                type: "payment_dispute",
+                ticketId: latestDispute.ticketId,
+                userId: userId,
+                notificationId: notification._id.toString(),
+              },
+            };
+
+            const invalidTokens = [];
+            let fcmSentCount = 0;
+            let fcmFailedCount = 0;
+
+            // Send FCM notification to all user's tokens
+            for (const token of user.userfcmTokens) {
+              try {
+                await admin.messaging().send({
+                  ...fcmPayload,
+                  token: token,
+                });
+                fcmSentCount++;
+                console.log(`[${new Date().toISOString()}] ✅ FCM notification sent to user ${userId} for payment dispute ticket #${latestDispute.ticketId}`);
+              } catch (fcmError) {
+                fcmFailedCount++;
+                if (fcmError?.errorInfo?.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token);
+                  console.log(`[${new Date().toISOString()}] 🗑️ Invalid FCM token detected for user ${userId}: ${token}`);
+                } else {
+                  console.error(`[${new Date().toISOString()}] ❌ FCM error for user ${userId}:`, fcmError?.errorInfo?.code || fcmError?.message);
+                }
+              }
+            }
+
+            // Remove invalid tokens from user's FCM tokens
+            if (invalidTokens.length > 0) {
+              await userModel.updateOne(
+                { uuid: userId },
+                { $pull: { userfcmTokens: { $in: invalidTokens } } }
+              );
+              console.log(`[${new Date().toISOString()}] 🧹 Removed ${invalidTokens.length} invalid FCM tokens for user ${userId}`);
+            }
+
+            console.log(`[${new Date().toISOString()}] FCM Summary for user ${userId}: ${fcmSentCount} sent, ${fcmFailedCount} failed, ${invalidTokens.length} invalid tokens removed`);
+          } else {
+            console.log(`[${new Date().toISOString()}] ⚠️ No FCM tokens found for user ${userId}`);
+          }
+        } catch (fcmError) {
+          // Log FCM error but don't fail the notification save
+          console.error(`[${new Date().toISOString()}] ❌ Error sending FCM notification for payment dispute:`, fcmError);
+        }
+      }
+    } catch (notificationError) {
+      // Log error but don't fail the admin message send
+      console.error(`[${new Date().toISOString()}] ❌ Error creating notification for payment dispute:`, notificationError);
+      // Continue with admin message response even if notification fails
+    }
 
     return res.status(200).json({
       success: true,

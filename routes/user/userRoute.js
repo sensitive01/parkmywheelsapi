@@ -34,6 +34,12 @@ userRoute.post("/chatbox/message/:userId", upload.single("image"), chatboxContro
 userRoute.post("/chatbox/messages/:userId", chatboxController.saveMultipleMessages);
 userRoute.delete("/chatbox/:userId", chatboxController.deleteChatHistory);
 
+// Payment Dispute routes
+const paymentDisputeController = require("../../controller/userController/paymentDisputeController/paymentDisputeController");
+userRoute.post("/payment-dispute", upload.single("screenshot"), paymentDisputeController.createPaymentDispute);
+userRoute.get("/payment-dispute/user/:userId", paymentDisputeController.getUserPaymentDisputes);
+userRoute.get("/payment-dispute/ticket/:ticketId", paymentDisputeController.getPaymentDisputeByTicketId);
+
 userRoute.post("/signup", userController.userSignUp);
 userRoute.post("/login", userController.userVerification);
 
