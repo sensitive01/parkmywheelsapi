@@ -611,10 +611,15 @@ const triggerSevenDaySubscriptionReminders = async () => {
       // Send SMS if mobile number is available
       if (mobileNumber) {
         try {
-          const smsMessage = `Dear ${personName || "User"}, Your ParkMyWheels subscription for ${vehicleNumber || ""} will expire on ${endDateDisplay}. Renew now to continue uninterrupted service.`;
+          // Format expiry time (default to end of day: 11:59 PM)
+          const expiryTime = "11:59 PM";
+          
+          // Match exact DLT template format: "Dear ${var1}, Your Parking subscription for ${var2} is expiring on ${var3} at ${var4}. Renew now on ParkMyWheels app to enjoy hassle free parking."
+          const smsMessage = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay} at ${expiryTime}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
           let cleanedMobile = String(mobileNumber).replace(/[^0-9]/g, "");
           
           console.log(`📱 SENDING 7-DAY SMS: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
+          console.log(`   Message: ${smsMessage}`);
 
           // Use the approved DLT template ID for subscription reminders
           const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION_REMINDER || "1007408523316568326";
@@ -863,7 +868,11 @@ const triggerFiveDaySubscriptionReminders = async () => {
       }
 
       const endDateDisplay = parseEndDateIst(subsctiptionenddate)?.toFormat("d-MM-yyyy") || subsctiptionenddate;
-      const message = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
+      // Format expiry time (default to end of day: 11:59 PM)
+      const expiryTime = "11:59 PM";
+      
+      // Match exact DLT template format: "Dear ${var1}, Your Parking subscription for ${var2} is expiring on ${var3} at ${var4}. Renew now on ParkMyWheels app to enjoy hassle free parking."
+      const message = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay} at ${expiryTime}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
 
       // Save notification to database FIRST (regardless of SMS success)
       try {
