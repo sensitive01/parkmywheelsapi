@@ -323,7 +323,7 @@ const completeExpiredSubscriptions = async () => {
 
       // Update booking status and exit details
       const exitDate = nowIst.toFormat("dd-MM-yyyy");
-      const exitTime = nowIst.toFormat("HH:mm");
+      const exitTime = nowIst.toFormat("hh:mm a"); // Format: "HH:MM AM/PM" (no seconds)
 
       try {
         await Booking.updateOne(

@@ -2896,7 +2896,15 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Convert DD/MM/YYYY to DD-MM-YYYY
     const [day, month, year] = datePart.split("/");
     const exitvehicledate = `${day}-${month}-${year}`;
-    const exitvehicletime = timePart; // Already in HH:MM:SS AM/PM
+    
+    // Format time as "HH:MM AM/PM" (remove seconds if present)
+    const parts = timePart.split(" ");
+    const ampm = parts[parts.length - 1]; // Get AM/PM from the end
+    const timeOnly = parts.slice(0, -1).join(" "); // Get time part (everything except AM/PM)
+    const timeComponents = timeOnly.split(":");
+    const hours = timeComponents[0];
+    const minutes = timeComponents[1];
+    const exitvehicletime = `${hours}:${minutes} ${ampm}`; // Format: "HH:MM AM/PM"
 
     // Update booking fields
     booking.amount = roundedAmount.toFixed(2);
@@ -3172,7 +3180,15 @@ exports.exitvendorsub = async (req, res) => {
     // ✅ Convert DD/MM/YYYY → DD-MM-YYYY
     const [day, month, year] = datePart.split("/");
     const exitvehicledate = `${day}-${month}-${year}`;
-    const exitvehicletime = timePart;
+    
+    // Format time as "HH:MM AM/PM" (remove seconds if present)
+    const parts = timePart.split(" ");
+    const ampm = parts[parts.length - 1]; // Get AM/PM from the end
+    const timeOnly = parts.slice(0, -1).join(" "); // Get time part (everything except AM/PM)
+    const timeComponents = timeOnly.split(":");
+    const hours = timeComponents[0];
+    const minutes = timeComponents[1];
+    const exitvehicletime = `${hours}:${minutes} ${ampm}`; // Format: "HH:MM AM/PM"
 
     // ✅ Only update status + exit date/time
     booking.status = "COMPLETED";
