@@ -2661,6 +2661,46 @@ exports.fetchmonthlysubuser = async (req, res) => {
       return res.status(200).json({ message: "No subscription bookings found for this user" });
     }
 
+    // Enhanced matching display
+    console.log(`\n📋 === MONTHLY SUBSCRIPTION BOOKING MATCHING SUMMARY ===`);
+    console.log(`User ID: ${id}`);
+    console.log(`User Mobile: ${userMobile}`);
+    console.log(`User Vehicles: ${vehicleNumbers.join(', ') || 'None'}`);
+    console.log(`\n📋 === MATCHED SUBSCRIPTION BOOKINGS ===`);
+    console.log(`🚗 VEHICLE NUMBER | 📱 MOBILE NUMBER      | MATCH TYPE`);
+    console.log(`-----------------|----------------------|------------`);
+
+    bookings.forEach((booking) => {
+      const vehicleNum = (booking.vehicleNumber || 'No vehicle').padEnd(15);
+      const mobile = (booking.mobileNumber || 'NO MOBILE').padEnd(20);
+      
+      // Determine match type
+      let matchType = '';
+      if (booking.userid === id) {
+        matchType = 'USER ID';
+      } else if (booking.mobileNumber === userMobile) {
+        matchType = 'MOBILE';
+      } else if (vehicleNumbers.includes(booking.vehicleNumber)) {
+        matchType = 'VEHICLE';
+      } else {
+        matchType = 'UNKNOWN';
+      }
+      
+      console.log(`${vehicleNum} | ${mobile} | ${matchType}`);
+    });
+
+    // Show breakdown
+    const matchedByUserId = bookings.filter(b => b.userid === id).length;
+    const matchedByMobile = bookings.filter(b => b.mobileNumber === userMobile && b.userid !== id).length;
+    const matchedByVehicle = bookings.filter(b => vehicleNumbers.includes(b.vehicleNumber) && b.userid !== id && b.mobileNumber !== userMobile).length;
+
+    console.log(`\n📊 Breakdown:`);
+    console.log(`   - Matched by User ID: ${matchedByUserId}`);
+    console.log(`   - Matched by Mobile: ${matchedByMobile}`);
+    console.log(`   - Matched by Vehicle: ${matchedByVehicle}`);
+    console.log(`   - Total: ${bookings.length}`);
+    console.log(`📋 === END MONTHLY SUBSCRIPTION MATCHING SUMMARY ===\n`);
+
     const convertTo24Hour = (time) => {
       if (!time) return '00:00'; 
       const [timePart, modifier] = time.split(' ');
