@@ -138,7 +138,15 @@ type: String,
     parkedDate: { type: String,  }, 
     parkedTime: { type: String, },
     exitvehicledate: { type: String },  
-    exitvehicletime: { type: String }, 
+    exitvehicletime: { type: String },
+    // Feedback fields stored in booking
+    feedback: {
+      rating: { type: Number, default: 0 }, // Star rating (0 means not rated yet)
+      description: { type: String, default: "" }, // Feedback description/remarks
+      feedbackPoints: [{ type: String }], // Selected feedback points (e.g., "Clean parking area", "Good security")
+      status: { type: String, default: "pending", enum: ["pending", "submitted", "skipped"] }, // Feedback status
+      submittedAt: { type: Date }, // When feedback was submitted
+    },
   },
   { timestamps: true }
   

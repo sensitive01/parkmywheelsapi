@@ -183,6 +183,9 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
 
     await newBooking.save();
 
+    // Feedback is now stored directly in the booking document (initialized with default values)
+    // No need to create separate feedback entry
+
     // Vendor Notification
     const vendorNotification = new Notification({
       vendorId,
@@ -566,6 +569,9 @@ exports.vendorcreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Feedback is now stored directly in the booking document (initialized with default values)
+    // No need to create separate feedback entry
 
     // ✅ Send notifications for subscription bookings
     if ((sts || "").toLowerCase() === "subscription") {
@@ -1165,6 +1171,9 @@ exports.livecreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Feedback is now stored directly in the booking document (initialized with default values)
+    // No need to create separate feedback entry
 
     // Step 3: Create Notifications (Database)
     const vendorNotif = new Notification({

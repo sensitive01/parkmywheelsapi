@@ -72,6 +72,8 @@ userRoute.get("/getwallet/:id", userProfileController.fetchWallet);
 userRoute.get("/getfeedback", feedbackController.fetchFeedback);
 userRoute.post("/createfeedback", feedbackController.addFeedback);
 userRoute.get("/feedbackbyid/:userId", feedbackController.fetchFeedbackByUserId);
+userRoute.get("/feedbackbyvendor/:vendorId", feedbackController.fetchFeedbackByVendorId);
+userRoute.get("/feedbackbybooking/:bookingId", feedbackController.fetchFeedbackByBookingId);
 userRoute.put("/updatefeedback/:userId", feedbackController.updateFeedback);
 userRoute.post("/addfavourite", addFavoriteVendor.addFavoriteVendor);
 userRoute.delete("/removefavourite", removeFavoriteVendor.removeFavoriteVendor);
