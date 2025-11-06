@@ -6,6 +6,9 @@ const axios = require('axios');
 const Booking = require("../../models/bookingSchema");
 const Parkingcharges = require("../../models/chargesSchema");
 const qs = require("qs");
+const Notification = require("../../models/notificationschema");
+const userModel = require("../../models/userModel");
+const admin = require("../../config/firebaseAdmin");
 
 
 const vendorForgotPassword = async (req, res) => {
@@ -950,8 +953,14 @@ const updateVendorStatus = async (req, res) => {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
+    const wasApproved = vendor.status === "approved";
     vendor.status = "approved";
     await vendor.save();
+
+    // If vendor is being approved and visibility is true, send notifications to all users
+    if (!wasApproved && vendor.visibility === true) {
+      await sendNewLocationNotificationToAllUsers(vendor);
+    }
 
     return res.status(200).json({
       message: "Vendor status updated to approved",
@@ -1052,13 +1061,22 @@ const updateVendorVisibility = async (req, res) => {
   }
 
   try {
-    const vendor = await Vendor.findById(id);
+    const vendor = await vendorModel.findById(id);
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
+    // Check if visibility is changing from false to true
+    const wasVisible = vendor.visibility;
+    const isBecomingVisible = !wasVisible && visibility === true;
+
     vendor.visibility = visibility;
     await vendor.save();
+
+    // If visibility changed to true and vendor is approved, send notifications to all users
+    if (isBecomingVisible && vendor.status === "approved") {
+      await sendNewLocationNotificationToAllUsers(vendor);
+    }
 
     return res.status(200).json({
       message: "Vendor visibility updated successfully",
@@ -1110,6 +1128,10 @@ const updateVendorVisibilityOnly = async (req, res) => {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
+    // Check if visibility is changing from false to true
+    const wasVisible = vendor.visibility;
+    const isBecomingVisible = !wasVisible && visibility === true;
+
     vendor.visibility = visibility;
 
     // Only update platform fee if visibility is being turned ON and platformfee is "0"
@@ -1118,6 +1140,12 @@ const updateVendorVisibilityOnly = async (req, res) => {
     }
 
     await vendor.save();
+
+    // If visibility changed to true and vendor is approved, send notifications to all users
+    if (isBecomingVisible && vendor.status === "approved") {
+      await sendNewLocationNotificationToAllUsers(vendor);
+    }
+
     res.json({ message: "Vendor visibility updated successfully", vendor });
 
   } catch (err) {
@@ -1325,6 +1353,103 @@ const vendoridlogin = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// Helper function to send new location notification to all users
+const sendNewLocationNotificationToAllUsers = async (vendor) => {
+  try {
+    // Get vendor landmark or address
+    const landmark = vendor.landMark || vendor.address || "your area";
+    
+    // Get all users
+    const users = await userModel.find({}, { uuid: 1, userfcmTokens: 1 });
+    
+    if (!users || users.length === 0) {
+      console.log("No users found to send notifications");
+      return;
+    }
+
+    console.log(`Sending new location notification to ${users.length} users for vendor: ${vendor.vendorName}`);
+
+    // Get current date and time in IST (matching existing notification format)
+    const now = new Date();
+    const nowInIndia = now.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const [datePart, timePart] = nowInIndia.split(", ");
+    const [day, month, year] = datePart.split("/");
+    const notificationDate = `${day}-${month}-${year}`;
+    const notificationTime = timePart; // Keep full time string
+    const notificationDateTime = `${notificationDate} ${notificationTime}`;
+
+    // Prepare notification data
+    const title = "New Location Added Nearby";
+    const message = `New parking space now available near ${landmark}! Check it out.`;
+
+    let savedCount = 0;
+    let fcmSentCount = 0;
+    let fcmFailedCount = 0;
+
+    // Send notification to each user
+    for (const user of users) {
+      try {
+        // Create and save notification
+        const notification = new Notification({
+          userId: user.uuid || user._id.toString(),
+          vendorId: vendor._id.toString(),
+          bookingId: "", // Empty for new location notifications
+          title: title,
+          message: message,
+          vehicleType: "",
+          vehicleNumber: "",
+          createdAt: now,
+          read: false,
+          sts: "new_location",
+          bookingtype: "",
+          vendorname: vendor.vendorName || "",
+          parkingDate: "",
+          parkingTime: "",
+          bookingdate: "",
+          schedule: "",
+          notificationdtime: notificationDateTime,
+          status: "new_location",
+        });
+
+        await notification.save();
+        savedCount++;
+
+        // Send FCM notification if user has tokens
+        if (user.userfcmTokens && user.userfcmTokens.length > 0) {
+          const fcmMessage = {
+            notification: {
+              title: title,
+              body: message,
+            },
+            data: {
+              type: "new_location",
+              vendorId: vendor._id.toString(),
+              vendorName: vendor.vendorName || "",
+              landmark: landmark,
+            },
+            tokens: user.userfcmTokens,
+          };
+
+          try {
+            const response = await admin.messaging().sendEachForMulticast(fcmMessage);
+            fcmSentCount += response.successCount;
+            fcmFailedCount += response.failureCount;
+          } catch (fcmError) {
+            console.error(`Error sending FCM to user ${user.uuid}:`, fcmError);
+            fcmFailedCount++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing notification for user ${user.uuid}:`, error);
+      }
+    }
+
+    console.log(`New location notifications sent: ${savedCount} saved, ${fcmSentCount} FCM sent, ${fcmFailedCount} FCM failed`);
+  } catch (error) {
+    console.error("Error sending new location notifications to all users:", error);
+  }
+};
 module.exports = {
   updateValidity,
   vendoridlogin,
@@ -1343,6 +1468,7 @@ module.exports = {
   vendorChangePassword,
   fetchVendorData,
   fetchAllVendorData,
+  sendNewLocationNotificationToAllUsers,
   updateVendorData,
   fetchSlotVendorData,
   fetchVendorSubscription,

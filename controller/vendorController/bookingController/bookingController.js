@@ -4213,9 +4213,20 @@ exports.setVendorVisibility = async (req, res) => {
       return res.status(400).json({ message: "Cannot set visibility", errors });
     }
 
+    // Check if visibility is changing from false to true
+    const wasVisible = vendor.visibility;
+    const isBecomingVisible = !wasVisible && visibility === true;
+
     // ✅ Update visibility
     vendor.visibility = visibility;
     await vendor.save();
+
+    // If visibility changed to true and vendor is approved, send notifications to all users
+    if (isBecomingVisible && vendor.status === "approved") {
+      // Import helper function from vendorController
+      const { sendNewLocationNotificationToAllUsers } = require("../vendorController");
+      await sendNewLocationNotificationToAllUsers(vendor);
+    }
 
     res.status(200).json({
       message: `Vendor visibility updated successfully for vendorId: ${vendorId}`,
