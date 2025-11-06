@@ -158,20 +158,56 @@ const updateFeedback = async (req, res) => {
 
         // Build query - prefer bookingId if provided, otherwise use userId and vendorId
         let query = {};
-        if (bookingId) {
-            query = { _id: bookingId, userid: userId };
-        } else if (vendorId) {
-            // Find most recent completed booking for this user and vendor
-            query = { userid: userId, vendorId: vendorId, status: "COMPLETED" };
-        } else {
-            return res.status(400).json({ message: "Booking ID or Vendor ID is required" });
+        let booking = null;
+        
+        if (bookingId && bookingId.trim() !== '') {
+            // If bookingId is provided, find by bookingId first (most reliable)
+            console.log(`🔍 Searching for booking by ID: ${bookingId}`);
+            try {
+                const mongoose = require('mongoose');
+                // Check if bookingId is a valid ObjectId
+                if (mongoose.Types.ObjectId.isValid(bookingId)) {
+                    booking = await Booking.findById(bookingId);
+                } else {
+                    // If not valid ObjectId, try as string
+                    booking = await Booking.findOne({ _id: bookingId });
+                }
+                
+                if (booking) {
+                    console.log(`✅ Found booking by ID: ${booking._id}`);
+                    // Verify the booking belongs to this user (for security)
+                    if (booking.userid && booking.userid.toString() !== userId.toString()) {
+                        console.log(`⚠️ Booking userid (${booking.userid}) doesn't match provided userId (${userId})`);
+                        // Still allow if vendorId matches (in case userid format is different)
+                        if (booking.vendorId && booking.vendorId.toString() !== vendorId.toString()) {
+                            return res.status(403).json({ message: "Booking does not belong to this user" });
+                        }
+                    }
+                } else {
+                    console.log(`❌ Booking not found by ID: ${bookingId}`);
+                }
+            } catch (err) {
+                console.error(`❌ Error finding booking by ID: ${err}`);
+            }
         }
-
-        // Find the booking
-        let booking = await Booking.findOne(query).sort({ createdAt: -1 }); // Get most recent if multiple
-
+        
+        // If booking not found by ID, try by userId and vendorId
+        if (!booking && vendorId) {
+            console.log(`🔍 Searching for booking by userId and vendorId`);
+            query = { userid: userId, vendorId: vendorId, status: "COMPLETED" };
+            booking = await Booking.findOne(query).sort({ createdAt: -1 }); // Get most recent if multiple
+            
+            if (booking) {
+                console.log(`✅ Found booking by userId and vendorId: ${booking._id}`);
+            } else {
+                console.log(`❌ Booking not found by userId and vendorId`);
+            }
+        }
+        
         if (!booking) {
-            return res.status(404).json({ message: "Booking not found" });
+            return res.status(404).json({ 
+                message: "Booking not found. Please check booking ID or try again after the booking is completed." 
+            });
         }
 
         // Update feedback in booking document

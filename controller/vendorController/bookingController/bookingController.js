@@ -2996,6 +2996,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     res.status(200).json({
       message: "Booking updated successfully",
       booking: {
+        _id: updatedBooking._id.toString(), // Include booking ID for feedback
         amount: updatedBooking.amount,
         hour: updatedBooking.hour,
         gstamout: updatedBooking.gstamout,
