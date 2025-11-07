@@ -237,7 +237,17 @@ vendorRoute.get('/test-subscription-reminders', async (req, res) => {
   }
 });
 
-
-
+// --- Test endpoint to check KYC status - See which vendors have KYC and which will receive notifications ---
+vendorRoute.get('/check-kyc-status', async (req, res) => {
+  try {
+    const result = await agenda.checkKycStatus();
+    res.status(200).json({ 
+      message: 'KYC status check completed. Check console for detailed output.',
+      ...result 
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to check KYC status', details: e?.message || e });
+  }
+});
 
 module.exports = vendorRoute;

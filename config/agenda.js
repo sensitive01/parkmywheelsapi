@@ -1520,21 +1520,62 @@ const sendKycPendingWarning = async () => {
     const vendors = await Vendor.find({}, { vendorId: 1, vendorName: 1, fcmTokens: 1, status: 1 });
     console.log(`[${new Date().toISOString()}] Found ${vendors.length} total vendors`);
 
-    // Get all vendor IDs that have KYC data (optimized query)
+    // Get all vendor IDs that have KYC data (matching by vendorId field in kycSchema)
+    // Only vendors with NO matching KYC record (by vendorId) will receive notifications
     const vendorsWithKyc = await KycDetails.find({}, { vendorId: 1 });
     const kycVendorIds = new Set(vendorsWithKyc.map(k => k.vendorId));
-    console.log(`[${new Date().toISOString()}] Found ${kycVendorIds.size} vendors with KYC data`);
+    console.log(`[${new Date().toISOString()}] Found ${kycVendorIds.size} vendors with KYC data (matched by vendorId)`);
+    
+    // Log some vendor IDs with KYC for verification
+    if (kycVendorIds.size > 0) {
+      const sampleKycIds = Array.from(kycVendorIds).slice(0, 5);
+      console.log(`[${new Date().toISOString()}] Sample vendorIds with KYC: ${sampleKycIds.join(', ')}`);
+    }
 
     // Find vendors without KYC data
+    // Filter: vendor must have vendorId AND that vendorId must NOT exist in KYC records
     const vendorsWithoutKyc = vendors.filter(vendor => {
-      return vendor.vendorId && !kycVendorIds.has(vendor.vendorId);
+      const hasVendorId = vendor.vendorId && vendor.vendorId.trim() !== '';
+      const hasNoKycData = !kycVendorIds.has(vendor.vendorId);
+      return hasVendorId && hasNoKycData;
     });
 
-    console.log(`[${new Date().toISOString()}] Found ${vendorsWithoutKyc.length} vendors without KYC data`);
+    console.log(`[${new Date().toISOString()}] Found ${vendorsWithoutKyc.length} vendors without KYC data (no matching vendorId in KycDetails)`);
+    
+    // Log some vendor IDs without KYC for verification
+    if (vendorsWithoutKyc.length > 0) {
+      const sampleNoKycIds = vendorsWithoutKyc.slice(0, 5).map(v => v.vendorId);
+      console.log(`[${new Date().toISOString()}] Sample vendorIds without KYC: ${sampleNoKycIds.join(', ')}`);
+    }
 
     // Send notifications to vendors without KYC
+    // Get today's date range in IST for checking existing notifications
+    const nowIst = DateTime.now().setZone("Asia/Kolkata");
+    const todayStart = nowIst.startOf("day").toJSDate();
+    const todayEnd = nowIst.endOf("day").toJSDate();
+
+    let notificationsSent = 0;
+    let notificationsSkipped = 0;
+
+    // Process only vendors without KYC data (no matching vendorId in KycDetails collection)
     for (const vendor of vendorsWithoutKyc) {
       try {
+        // Check if notification was already sent today for this vendor
+        const existingNotification = await Notification.findOne({
+          vendorId: vendor.vendorId || "",
+          sts: "kyc_pending",
+          createdAt: {
+            $gte: todayStart,
+            $lte: todayEnd
+          }
+        });
+
+        if (existingNotification) {
+          console.log(`[${new Date().toISOString()}] ⏭️ KYC pending notification already sent today for vendor ${vendor.vendorId}, skipping...`);
+          notificationsSkipped++;
+          continue; // Skip this vendor if notification already sent today
+        }
+
         const title = "KYC Pending Warning";
         const message = "Complete your KYC to continue using ParkMyWheels without limits.";
 
@@ -1563,6 +1604,7 @@ const sendKycPendingWarning = async () => {
           });
           await notification.save();
           console.log(`[${new Date().toISOString()}] ✅ KYC pending notification saved for vendor ${vendor.vendorId}`);
+          notificationsSent++;
         } catch (notifErr) {
           console.error(`[${new Date().toISOString()}] ❌ Failed saving KYC pending notification for vendor ${vendor.vendorId}:`, notifErr);
         }
@@ -1609,8 +1651,16 @@ const sendKycPendingWarning = async () => {
       }
     }
 
-    console.log(`[${new Date().toISOString()}] ✅ KYC pending warning check completed. Notifications sent to ${vendorsWithoutKyc.length} vendors`);
-    return { count: vendorsWithoutKyc.length, vendors: vendorsWithoutKyc.map(v => v.vendorId) };
+    console.log(`[${new Date().toISOString()}] ✅ KYC pending warning check completed.`);
+    console.log(`   - Total vendors without KYC: ${vendorsWithoutKyc.length}`);
+    console.log(`   - Notifications sent: ${notificationsSent}`);
+    console.log(`   - Notifications skipped (already sent today): ${notificationsSkipped}`);
+    return { 
+      count: notificationsSent, 
+      skipped: notificationsSkipped,
+      total: vendorsWithoutKyc.length,
+      vendors: vendorsWithoutKyc.map(v => v.vendorId) 
+    };
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error in sendKycPendingWarning:`, error);
     throw error;
