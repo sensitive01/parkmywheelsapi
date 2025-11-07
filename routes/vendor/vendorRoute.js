@@ -250,4 +250,17 @@ vendorRoute.get('/check-kyc-status', async (req, res) => {
   }
 });
 
+// --- Test endpoint to check vendor 7-day subscription status - See which vendors will receive 7-day renewal reminders ---
+vendorRoute.get('/check-vendor-7day-subscription-status', async (req, res) => {
+  try {
+    const result = await agenda.checkVendorSevenDaySubscriptionStatus();
+    res.status(200).json({ 
+      message: 'Vendor 7-day subscription status check completed. Check console for detailed output.',
+      ...result 
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to check vendor 7-day subscription status', details: e?.message || e });
+  }
+});
+
 module.exports = vendorRoute;

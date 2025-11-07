@@ -476,19 +476,15 @@ const triggerSevenDaySubscriptionReminders = async () => {
 
         // Calculate remaining days using SAME logic as Dart: endOnly.difference(todayOnly).inDays + 1 (inclusive counting)
         // This matches the _calculateRemainingDaysMessage function in usersubcription.dart
-        const daysDifference = Math.floor(endDtIst.diff(nowIst.startOf('day'), 'days').days);
+        const daysDifference = Math.floor(endDtIst.diff(nowIst, 'days').days);
         const remainingDaysInclusive = daysDifference + 1; // Inclusive: includes both today and end day
 
-        console.log(`📊 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - days difference: ${daysDifference}, remaining days (inclusive): ${remainingDaysInclusive}`);
+        console.log(`📊 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - days difference: ${daysDifference}, remaining days (inclusive): ${remainingDaysInclusive}, end date: ${endDtIst.toFormat('dd-MM-yyyy')}, today: ${nowIst.toFormat('dd-MM-yyyy')}`);
 
-        // Send 7-day reminder when remaining days = 7 (matches Dart logic)
-        // Since Dart uses inclusive counting, end date 6 days from today = 7 days remaining
-        if (remainingDaysInclusive === 7 || remainingDaysInclusive === 6) {
-          if (remainingDaysInclusive === 6) {
-            console.log(`📅 6-DAY REMINDER: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - exactly 6 days left (expires: ${b.subsctiptionenddate})`);
-          } else if (remainingDaysInclusive === 7) {
-            console.log(`📅 7-DAY REMINDER: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - exactly 7 days left (expires: ${b.subsctiptionenddate})`);
-          }
+        // Send 7-day reminder ONLY when remaining days is EXACTLY 7 (not 6, not 8, etc.)
+        // This ensures only users with subscriptions expiring in exactly 7 days receive the notification
+        if (remainingDaysInclusive === 7) {
+          console.log(`✅ 7-DAY REMINDER MATCH: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - exactly 7 days left (expires: ${b.subsctiptionenddate})`);
           bookingsExpiring.push({
             ...b.toObject(), // Convert Mongoose document to plain object
             _id: b._id, // Explicitly include _id
@@ -497,7 +493,7 @@ const triggerSevenDaySubscriptionReminders = async () => {
             reminderType: 'subscription_expiry_7_days'
           });
         } else {
-          console.log(`⏭️ 7-DAY CHECK: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - ${remainingDaysInclusive} days (not in 6-7 day range)`);
+          console.log(`⏭️ 7-DAY CHECK SKIP: ${b.vehicleNumber || 'No vehicle'} (${b._id}) - ${remainingDaysInclusive} days remaining (not exactly 7 days)`);
         }
       } catch (error) {
         console.error(`❌ 7-DAY CHECK: Error processing ${b.vehicleNumber || 'No vehicle'} (${b._id}):`, error.message);
@@ -1681,6 +1677,125 @@ cron.schedule("0 10 * * *", async () => {
 
 console.log("Daily KYC pending warning cron job scheduled at 10:00 AM IST.");
 
+// ------------------------------------------------------------------
+// Check Vendor 7-Day Subscription Status - Display which vendors will receive 7-day renewal reminders
+// ------------------------------------------------------------------
+const checkVendorSevenDaySubscriptionStatus = async () => {
+  try {
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[${new Date().toISOString()}] 🔍 CHECKING VENDOR 7-DAY SUBSCRIPTION RENEWAL STATUS`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    // Find all vendors with active subscriptions
+    const allVendors = await Vendor.find({
+      subscription: "true"
+    }, {
+      vendorName: 1,
+      vendorId: 1,
+      subscriptionleft: 1,
+      subscriptionenddate: 1,
+      fcmTokens: 1,
+      status: 1
+    });
+
+    console.log(`📊 Total Vendors with Active Subscription: ${allVendors.length}\n`);
+
+    // Find vendors with exactly 7 days left
+    const vendorsWith7Days = await Vendor.find({
+      subscription: "true",
+      subscriptionleft: 7
+    }, {
+      vendorName: 1,
+      vendorId: 1,
+      subscriptionleft: 1,
+      subscriptionenddate: 1,
+      fcmTokens: 1,
+      status: 1
+    });
+
+    // Group other vendors by days left
+    const vendorsByDays = {};
+    allVendors.forEach(vendor => {
+      const days = vendor.subscriptionleft || 0;
+      if (days !== 7) {
+        if (!vendorsByDays[days]) {
+          vendorsByDays[days] = [];
+        }
+        vendorsByDays[days].push({
+          vendorId: vendor.vendorId || vendor._id.toString(),
+          vendorName: vendor.vendorName || 'N/A',
+          subscriptionleft: days,
+          subscriptionenddate: vendor.subscriptionenddate || 'N/A',
+          fcmTokens: vendor.fcmTokens?.length || 0,
+          status: vendor.status || 'N/A'
+        });
+      }
+    });
+
+    // Display vendors with exactly 7 days
+    if (vendorsWith7Days.length > 0) {
+      console.log(`${'─'.repeat(80)}`);
+      console.log(`✅ VENDORS WITH EXACTLY 7 DAYS LEFT (${vendorsWith7Days.length}) - WILL RECEIVE NOTIFICATION:`);
+      console.log(`${'─'.repeat(80)}`);
+      console.log(`Vendor ID          | Vendor Name              | Days Left | End Date      | FCM Tokens | Status`);
+      console.log(`${'─'.repeat(80)}`);
+      vendorsWith7Days.forEach(v => {
+        const vendorId = ((v.vendorId || v._id.toString()).substring(0, 15) || 'N/A').padEnd(15);
+        const vendorName = (v.vendorName || 'N/A').substring(0, 23).padEnd(23);
+        const daysLeft = String(v.subscriptionleft || 0).padEnd(9);
+        const endDate = (v.subscriptionenddate || 'N/A').substring(0, 12).padEnd(12);
+        const fcmCount = String(v.fcmTokens?.length || 0).padEnd(10);
+        const status = (v.status || 'N/A').padEnd(6);
+        console.log(`${vendorId} | ${vendorName} | ${daysLeft} | ${endDate} | ${fcmCount} | ${status}`);
+      });
+      console.log(`${'─'.repeat(80)}\n`);
+    } else {
+      console.log(`ℹ️  No vendors found with exactly 7 days left in subscription.\n`);
+    }
+
+    // Display summary of other vendors (grouped by days)
+    if (Object.keys(vendorsByDays).length > 0) {
+      console.log(`${'─'.repeat(80)}`);
+      console.log(`📋 OTHER VENDORS (NOT RECEIVING 7-DAY REMINDER):`);
+      console.log(`${'─'.repeat(80)}`);
+      Object.keys(vendorsByDays).sort((a, b) => parseInt(b) - parseInt(a)).forEach(days => {
+        const count = vendorsByDays[days].length;
+        const dayLabel = parseInt(days) <= 0 ? `${Math.abs(days)} days expired` : `${days} days remaining`;
+        console.log(`   • ${dayLabel}: ${count} vendor(s)`);
+      });
+      console.log(`${'─'.repeat(80)}\n`);
+    }
+
+    // Summary
+    console.log(`${'='.repeat(80)}`);
+    console.log(`📊 SUMMARY:`);
+    console.log(`   • Total vendors with active subscription: ${allVendors.length}`);
+    console.log(`   • Vendors with exactly 7 days: ${vendorsWith7Days.length} ✅ (WILL RECEIVE NOTIFICATION)`);
+    console.log(`   • Vendors with other days: ${Object.keys(vendorsByDays).length} different day groups`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    return {
+      summary: {
+        totalVendors: allVendors.length,
+        vendorsWith7Days: vendorsWith7Days.length,
+        vendorsWithOtherDays: Object.keys(vendorsByDays).length
+      },
+      vendorsWith7Days: vendorsWith7Days.map(v => ({
+        vendorId: v.vendorId || v._id.toString(),
+        vendorName: v.vendorName || 'N/A',
+        subscriptionleft: v.subscriptionleft || 0,
+        subscriptionenddate: v.subscriptionenddate || 'N/A',
+        fcmTokensCount: v.fcmTokens?.length || 0,
+        status: v.status || 'N/A'
+      })),
+      vendorsByDays
+    };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error in checkVendorSevenDaySubscriptionStatus:`, error);
+    throw error;
+  }
+};
+
 module.exports = {
   triggerFiveDaySubscriptionReminders,
   triggerSevenDaySubscriptionReminders,
@@ -1688,5 +1803,6 @@ module.exports = {
   cancelPendingBookings,
   getSubscriptionReport,
   sendVendorSubscriptionRenewalReminders,
-  sendKycPendingWarning
+  sendKycPendingWarning,
+  checkVendorSevenDaySubscriptionStatus
 };
