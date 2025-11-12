@@ -1513,7 +1513,7 @@ const sendKycPendingWarning = async () => {
     console.log(`[${new Date().toISOString()}] Running KYC pending warning check...`);
 
     // Find all vendors
-    const vendors = await Vendor.find({}, { vendorId: 1, vendorName: 1, fcmTokens: 1, status: 1 });
+    const vendors = await Vendor.find({}, { vendorId: 1, vendorName: 1, fcmTokens: 1, status: 1, spaceid: 1 });
     console.log(`[${new Date().toISOString()}] Found ${vendors.length} total vendors`);
 
     // Get all vendor IDs that have KYC data (matching by vendorId field in kycSchema)
@@ -1530,13 +1530,15 @@ const sendKycPendingWarning = async () => {
 
     // Find vendors without KYC data
     // Filter: vendor must have vendorId AND that vendorId must NOT exist in KYC records
+    // AND vendor must NOT have spaceid (skip vendors with spaceid)
     const vendorsWithoutKyc = vendors.filter(vendor => {
       const hasVendorId = vendor.vendorId && vendor.vendorId.trim() !== '';
       const hasNoKycData = !kycVendorIds.has(vendor.vendorId);
-      return hasVendorId && hasNoKycData;
+      const hasNoSpaceid = !vendor.spaceid || vendor.spaceid.trim() === '';
+      return hasVendorId && hasNoKycData && hasNoSpaceid;
     });
 
-    console.log(`[${new Date().toISOString()}] Found ${vendorsWithoutKyc.length} vendors without KYC data (no matching vendorId in KycDetails)`);
+    console.log(`[${new Date().toISOString()}] Found ${vendorsWithoutKyc.length} vendors without KYC data and without spaceid (no matching vendorId in KycDetails)`);
     
     // Log some vendor IDs without KYC for verification
     if (vendorsWithoutKyc.length > 0) {
