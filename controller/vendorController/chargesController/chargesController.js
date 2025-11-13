@@ -1010,10 +1010,14 @@ const fetchtestAmount = async (req, res) => {
     // Step 2: Fetch vendor by vendorId to get spaceid
     const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
     
+    let spaceid = null;
     let spacearea = null;
     
-    // Step 3: If vendor exists and has spaceid, find vendor by spaceid and get spacearea
+    // Step 3: If vendor exists and has spaceid, get spaceid and spacearea
     if (vendor && vendor.spaceid) {
+      spaceid = vendor.spaceid;
+      console.log('📍 Spaceid found:', spaceid);
+      
       const vendorBySpaceId = await vendorModel.findOne({ 
         spaceid: vendor.spaceid 
       });
@@ -1069,11 +1073,12 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Full-day/monthly calculation not implemented' });
     }
 
-    // Step 7: Return response with spacearea
+    // Step 7: Return response with spaceid and spacearea
     return res.json({
       success: true,
       payableAmount: amount?.toFixed(2) ?? '0.00',
       durationHours,
+      spaceid: spaceid || null,
       spacearea: spacearea || null
     });
 
