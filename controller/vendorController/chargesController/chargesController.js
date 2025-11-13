@@ -1007,7 +1007,25 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Step 2: Parse DateTime
+    // Step 2: Fetch vendor by vendorId to get spaceid
+    const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
+    
+    let spacearea = null;
+    
+    // Step 3: If vendor exists and has spaceid, find vendor by spaceid and get spacearea
+    if (vendor && vendor.spaceid) {
+      const vendorBySpaceId = await vendorModel.findOne({ 
+        spaceid: vendor.spaceid 
+      });
+      
+      if (vendorBySpaceId) {
+        // Use address as spacearea (or you can add spacearea field to schema)
+        spacearea = vendorBySpaceId.address || vendorBySpaceId.landMark || null;
+        console.log('📍 Spacearea found:', spacearea);
+      }
+    }
+
+    // Step 4: Parse DateTime
     const parkedDateTimeLuxon = DateTime.fromFormat(
       `${booking.parkedDate} ${booking.parkedTime}`,
       'dd-MM-yyyy hh:mm a',
@@ -1030,7 +1048,7 @@ const fetchtestAmount = async (req, res) => {
 
     console.log('🧮 Duration (hours):', durationHours);
 
-    // Step 3: Fetch charges for vehicle type
+    // Step 5: Fetch charges for vehicle type
     const charges = await Parkingcharges.findOne({
       vendorid: booking.vendorId,
       "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
@@ -1042,7 +1060,7 @@ const fetchtestAmount = async (req, res) => {
 
     console.log('✅ Charges found:', JSON.stringify(charges, null, 2));
 
-    // Step 4: Calculate amount
+    // Step 6: Calculate amount
     let amount = 0;
     if (booking.bookType.toLowerCase() === 'hourly') {
       amount = calculateHourly(charges, durationHours, booking.vehicleType);
@@ -1051,10 +1069,12 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Full-day/monthly calculation not implemented' });
     }
 
+    // Step 7: Return response with spacearea
     return res.json({
       success: true,
       payableAmount: amount?.toFixed(2) ?? '0.00',
-      durationHours
+      durationHours,
+      spacearea: spacearea || null
     });
 
   } catch (error) {
