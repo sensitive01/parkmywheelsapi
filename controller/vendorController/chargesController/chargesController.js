@@ -758,8 +758,20 @@ const fetchbookmonth = async (req, res) => {
     // Transform the charges into the desired format
     const tranformedData = bookmonth(filteredCharges);
 
-    // Respond with the transformed data as JSON
-    return res.json(tranformedData);
+    // Fetch vendor by vendorId to get spaceid
+    const vendor = await vendorModel.findOne({ vendorId: vendorid });
+    let spaceid = null;
+    
+    // If vendor exists and has spaceid, include it in the response
+    if (vendor && vendor.spaceid) {
+      spaceid = vendor.spaceid;
+    }
+
+    // Respond with the transformed data and spaceid as JSON
+    return res.json({
+      charges: tranformedData,
+      spaceid: spaceid || null
+    });
   } catch (error) {
     // console.error("Error fetching charges for vendorid:", vendorid, "and vehicleType:", vehicleType, error);
     return res.status(500).json({ message: "Error fetching charges." });
