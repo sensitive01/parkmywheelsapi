@@ -69,12 +69,15 @@ exports.createBooking = async (req, res) => {
     // Check available slots
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, spaceid: 1 }
     );
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    // Check if subscription booking with spaceid - skip notifications if true
+    const isSubscriptionWithSpaceid = (sts || "").toLowerCase() === "subscription" && vendorData.spaceid;
 
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       const type = entry.type.trim();
@@ -186,6 +189,8 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
     // Feedback is now stored directly in the booking document (initialized with default values)
     // No need to create separate feedback entry
 
+    // Skip all notifications if subscription booking with spaceid
+    if (!isSubscriptionWithSpaceid) {
     // Vendor Notification
     const vendorNotification = new Notification({
       vendorId,
@@ -303,7 +308,7 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
     }
 
     // Send GST Invoice Ready Notification for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if ((sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
       try {
         await sendInvoiceReadyNotification(newBooking, newBooking._id);
       } catch (invoiceErr) {
@@ -353,7 +358,7 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
     }
 
     // --- Subscription SMS Handling ---
-    if (mobileNumber && (sts || "").toLowerCase() === "subscription") {
+    if (mobileNumber && (sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
       let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
       if (cleanedMobile.length === 10) {
         cleanedMobile = "91" + cleanedMobile;
@@ -369,6 +374,7 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
       const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
       await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
     }
+    } // End of notification skip block
 
     res.status(200).json({
       message: "Booking created successfully",
@@ -2368,6 +2374,156 @@ exports.allowParking = async (req, res) => {
       }
     }
 
+    // Send subscription notifications if booking is subscription with spaceid
+    if ((booking.sts || "").toLowerCase() === "subscription") {
+      try {
+        // Check if vendor has spaceid
+        const vendorIdToFind = booking.vendorId._id || booking.vendorId;
+        const vendor = await vendorModel.findOne({ _id: vendorIdToFind }, { spaceid: 1, vendorName: 1, fcmTokens: 1 });
+        
+        if (vendor && vendor.spaceid) {
+          console.log("📧 Sending subscription notifications for spaceid booking at allowParking time");
+          
+          // Send subscription SMS messages
+          if (booking.mobileNumber) {
+            let cleanedMobile = booking.mobileNumber.replace(/[^0-9]/g, "");
+            if (cleanedMobile.length === 10) {
+              cleanedMobile = "91" + cleanedMobile;
+            }
+
+            // 1️⃣ First subscription SMS
+            const smsText1 = `Dear ${booking.personName}, ${booking.hour || "30 days"} Parking subscription for ${booking.vehicleNumber} from ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at ${booking.vendorName || vendor.vendorName} is confirmed. Fees paid: ${booking.amount}. View invoice on ParkMyWheels app.`;
+            const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+            await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+
+            // 2️⃣ Second subscription receipt SMS
+            const smsText2 = `Dear ${booking.personName}, your monthly parking subscription confirmed. Period ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at location ${booking.vendorName || vendor.vendorName}. Fees paid ${booking.amount}. Transaction ID ${booking.invoice || updatedBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
+            const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
+            await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
+          }
+
+          // Send invoice ready notification
+          try {
+            await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
+          } catch (invoiceErr) {
+            console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification:`, invoiceErr);
+          }
+
+          // Send vendor notification (database)
+          const vendorNotification = new Notification({
+            vendorId: booking.vendorId._id || booking.vendorId,
+            userId: booking.userid,
+            bookingId: updatedBooking._id,
+            title: "New Booking Received",
+            message: `New booking received from ${booking.personName} for ${booking.parkingDate} at ${booking.parkingTime}`,
+            vehicleType: booking.vehicleType,
+            vehicleNumber: booking.vehicleNumber,
+            createdAt: new Date(),
+            read: false,
+            sts: booking.sts,
+            bookingtype: booking.bookType,
+            otp: booking.otp?.toString() || "",
+            vendorname: booking.vendorName || vendor.vendorName,
+            parkingDate: booking.parkingDate,
+            parkingTime: booking.parkingTime,
+            bookingdate: booking.bookingDate,
+            schedule: `${booking.parkingDate} ${booking.parkingTime}`,
+            notificationdtime: `${booking.bookingDate} ${booking.bookingTime}`,
+            status: booking.status,
+          });
+          await vendorNotification.save();
+
+          // Send user notification (database) - booking confirmed
+          const userBookingNotification = new Notification({
+            vendorId: booking.vendorId._id || booking.vendorId,
+            userId: booking.userid,
+            bookingId: updatedBooking._id,
+            title: "Booking Confirmed",
+            message: `Your booking with ${booking.vendorName || vendor.vendorName} has been successfully confirmed for ${booking.parkingDate} at ${booking.parkingTime}`,
+            vehicleType: booking.vehicleType,
+            vehicleNumber: booking.vehicleNumber,
+            createdAt: new Date(),
+            read: false,
+            sts: booking.sts,
+            bookingtype: booking.bookType,
+            otp: booking.otp?.toString() || "",
+            vendorname: booking.vendorName || vendor.vendorName,
+            parkingDate: booking.parkingDate,
+            parkingTime: booking.parkingTime,
+            bookingdate: booking.bookingDate,
+            notificationdtime: `${booking.bookingDate} ${booking.bookingTime}`,
+            schedule: `${booking.parkingDate} ${booking.parkingTime}`,
+            status: booking.status,
+          });
+          await userBookingNotification.save();
+
+          // Send FCM notification to vendor
+          if (vendor.fcmTokens && vendor.fcmTokens.length > 0) {
+            const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
+              const invalidTokens = [];
+              const promises = tokens.map(async (token) => {
+                try {
+                  await admin.messaging().send({ ...messageTemplate, token });
+                } catch (error) {
+                  if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                    invalidTokens.push(token);
+                  }
+                }
+              });
+              await Promise.all(promises);
+              if (invalidTokens.length > 0) {
+                await model.updateOne(
+                  { [idType]: idField },
+                  { $pull: { fcmTokens: { $in: invalidTokens } } }
+                );
+              }
+            };
+
+            const vendorFcmMessage = {
+              notification: { title: "New Booking Received", body: `New booking from ${booking.personName}` },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+            };
+            await sendFcmNotification(vendor.fcmTokens, vendorFcmMessage, vendorModel, booking.vendorId._id || booking.vendorId, '_id');
+          }
+
+          // Send FCM notification to user
+          const user = await userModel.findOne({ uuid: booking.userid }, { userfcmTokens: 1 });
+          if (user?.userfcmTokens?.length > 0) {
+            const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
+              const invalidTokens = [];
+              const promises = tokens.map(async (token) => {
+                try {
+                  await admin.messaging().send({ ...messageTemplate, token });
+                } catch (error) {
+                  if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                    invalidTokens.push(token);
+                  }
+                }
+              });
+              await Promise.all(promises);
+              if (invalidTokens.length > 0) {
+                await model.updateOne(
+                  { [idType]: idField },
+                  { $pull: { userfcmTokens: { $in: invalidTokens } } }
+                );
+              }
+            };
+
+            const userFcmMessage = {
+              notification: { title: "Booking Confirmed", body: `Your booking with ${booking.vendorName || vendor.vendorName} is confirmed` },
+              data: { bookingId: updatedBooking._id.toString(), vehicleType: booking.vehicleType },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+            };
+            await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, booking.userid, 'uuid');
+          }
+        }
+      } catch (subscriptionNotifErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending subscription notifications at allowParking:`, subscriptionNotifErr);
+      }
+    }
+
     // Send response
     res.status(200).json({
       success: true,
@@ -2726,7 +2882,24 @@ exports.fetchmonthlysubuser = async (req, res) => {
       return dateB - dateA;
     });
 
-    res.status(200).json({ bookings });
+    // Add spaceid from vendor collection to each booking
+    const bookingsWithSpaceid = await Promise.all(
+      bookings.map(async (booking) => {
+        const bookingObj = booking.toObject ? booking.toObject() : booking;
+        
+        // Fetch vendor by vendorId to get spaceid
+        if (booking.vendorId) {
+          const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
+          if (vendor && vendor.spaceid) {
+            bookingObj.spaceid = vendor.spaceid;
+          }
+        }
+        
+        return bookingObj;
+      })
+    );
+
+    res.status(200).json({ bookings: bookingsWithSpaceid });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -4071,22 +4244,16 @@ exports.getReceivableAmountByUser = async (req, res) => {
       bookingDate: booking.bookingDate,
       parkingDate: booking.parkingDate,
       parkingTime: booking.parkingTime,
-      vehiclenumber: booking.vehicleNumber || null,
-      exitdate: booking.exitvehicledate || null,
+        vehiclenumber: booking.vehicleNumber || null,
+      exitdate:booking.exitvehicledate || null,
       exittime: booking.exitvehicletime || null,
-      exitvehicledate: booking.exitvehicledate || null,
-      exitvehicletime: booking.exitvehicletime || null,
-      parkedDate: booking.parkedDate || booking.parkingDate || null,
-      parkedTime: booking.parkedTime || booking.parkingTime || null,
-      mobileNumber: booking.mobileNumber || null,
-      subsctiptionenddate: booking.subsctiptionenddate || null,
-      status: booking.status,
-      sts: booking.sts || null,
-      otp: booking.otp || null,
-      vendorname: booking.vendorName || null,
-      vendorid: booking.vendorId || null,
-      bookingtype: booking.bookType || null,
-      vehicleType: booking.vehicleType || null,
+    status: booking.status,
+    sts: booking.sts || null,
+    otp: booking.otp || null,
+    vendorname: booking.vendorName || null,
+    vendorid: booking.vendorId || null,
+    bookingtype: booking.bookType || null,
+    vehicleType: booking.vehicleType || null,
       amount: parseFloat(booking.amount).toFixed(2),
       handlingfee: parseFloat(booking.handlingfee).toFixed(2),
       releasefee: parseFloat(booking.releasefee).toFixed(2),
@@ -4142,36 +4309,30 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
       return {
         invoiceid: booking.invoiceid || null,
-        invoice: booking.invoice || null,
-        username: booking.personName || null,
-        _id: booking._id,
-        userid: booking.userid || null,
-        bookingDate: booking.bookingDate,
-        parkingDate: booking.parkingDate,
-        parkingTime: booking.parkingTime,
+           invoice:booking.invoice || null,
+      username: booking.personName || null,
+       _id: booking._id,
+      userid: booking.userid || null,
+      bookingDate: booking.bookingDate,
+      parkingDate: booking.parkingDate,
+      parkingTime: booking.parkingTime,
         vehiclenumber: booking.vehicleNumber || null,
-        exitdate: booking.exitvehicledate || null,
-        exittime: booking.exitvehicletime || null,
-        exitvehicledate: booking.exitvehicledate || null,
-        exitvehicletime: booking.exitvehicletime || null,
-        parkedDate: booking.parkedDate || booking.parkingDate || null,
-        parkedTime: booking.parkedTime || booking.parkingTime || null,
-        mobileNumber: booking.mobileNumber || null,
-        subsctiptionenddate: booking.subsctiptionenddate || null,
-        status: booking.status,
-        sts: booking.sts || null,
-        otp: booking.otp || null,
-        vendorname: booking.vendorName || null,
-        vendorid: booking.vendorId || null,
-        bookingtype: booking.bookType || null,
-        vehicleType: booking.vehicleType || null,
-        amount: parseFloat(booking.amount).toFixed(2),
-        // handlingfee: parseFloat(booking.handlingfee).toFixed(2),
-        releasefee: parseFloat(booking.releasefee).toFixed(2),
-        recievableamount: parseFloat(booking.recievableamount).toFixed(2),
-        payableamout: parseFloat(booking.payableamout).toFixed(2),
-        gstamout: booking.gstamout,
-        totalamout: booking.totalamout,
+      exitdate:booking.exitvehicledate || null,
+      exittime: booking.exitvehicletime || null,
+    status: booking.status,
+    sts: booking.sts || null,
+    otp: booking.otp || null,
+     vendorname: booking.vendorName || null,
+    vendorid: booking.vendorId || null,
+    bookingtype: booking.bookType || null,
+    vehicleType: booking.vehicleType || null,
+      amount: parseFloat(booking.amount).toFixed(2),
+      // handlingfee: parseFloat(booking.handlingfee).toFixed(2),
+      releasefee: parseFloat(booking.releasefee).toFixed(2),
+      recievableamount: parseFloat(booking.recievableamount).toFixed(2),
+      payableamout: parseFloat(booking.payableamout).toFixed(2),
+      gstamout: booking.gstamout,
+      totalamout: booking.totalamout,
       };
     });
 
