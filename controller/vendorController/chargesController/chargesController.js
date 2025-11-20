@@ -1064,17 +1064,47 @@ const fetchtestAmount = async (req, res) => {
 
     console.log('🧮 Duration (hours):', durationHours);
 
-    // Step 5: Fetch charges for vehicle type
-    const charges = await Parkingcharges.findOne({
-      vendorid: booking.vendorId,
-      "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
-    });
-
-    if (!charges) {
-      return res.status(400).json({ error: 'No charges found for this vehicle type' });
+    // Step 5: Use charges stored in booking (from booking time)
+    let charges = null;
+    
+    if (booking.charges && booking.charges.category) {
+      // Use charges stored in booking document
+      charges = {
+        charges: [{
+          type: booking.charges.type || "",
+          amount: booking.charges.amount || "",
+          category: booking.charges.category || "",
+          chargeid: booking.charges.chargeid || "",
+          fulldaybike: booking.charges.fulldaybike || "",
+          fulldayothers: booking.charges.fulldayothers || "",
+          carenable: booking.charges.carenable || "",
+          bikeenable: booking.charges.bikeenable || "",
+          othersenable: booking.charges.othersenable || "",
+          cartemp: booking.charges.cartemp || "",
+          biketemp: booking.charges.biketemp || "",
+          otherstemp: booking.charges.otherstemp || "",
+          carfullday: booking.charges.carfullday || "",
+          bikefullday: booking.charges.bikefullday || "",
+          othersfullday: booking.charges.othersfullday || "",
+          carmonthly: booking.charges.carmonthly || "",
+          bikemonthly: booking.charges.bikemonthly || "",
+          othersmonthly: booking.charges.othersmonthly || "",
+        }]
+      };
+      console.log('✅ Using charges stored in booking:', JSON.stringify(charges, null, 2));
+    } else {
+      // Fallback: Fetch charges from Parkingcharges collection (for old bookings without stored charges)
+      console.log('⚠️ Charges not found in booking, fetching from Parkingcharges collection...');
+      charges = await Parkingcharges.findOne({
+        vendorid: booking.vendorId,
+        "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
+      });
+      
+      if (!charges) {
+        return res.status(400).json({ error: 'No charges found for this vehicle type' });
+      }
+      console.log('✅ Charges fetched from Parkingcharges collection:', JSON.stringify(charges, null, 2));
     }
-
-    console.log('✅ Charges found:', JSON.stringify(charges, null, 2));
 
     // Step 6: Calculate amount
     let amount = 0;
