@@ -421,10 +421,10 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
         cleanedMobile = "91" + cleanedMobile;
       }
 
-      // 1️⃣ First subscription SMS
-      const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-      const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-      await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+      // 1️⃣ First subscription SMS - REMOVED as requested
+      // const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
       // 2️⃣ Second subscription receipt SMS
       const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking.invoice}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
@@ -996,10 +996,10 @@ exports.vendorcreateBooking = async (req, res) => {
 
       // --- Subscription SMS Handling ---
       if ((sts || "").toLowerCase() === "subscription") {
-        // 1️⃣ First subscription SMS
-        let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-        let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-        await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+        // 1️⃣ First subscription SMS - REMOVED as requested
+        // let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+        // let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+        // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
         // 2️⃣ Second subscription receipt SMS
         let smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
@@ -1552,10 +1552,10 @@ exports.livecreateBooking = async (req, res) => {
         cleanedMobile = "91" + cleanedMobile;
       }
 
-      // 1️⃣ First subscription SMS
-      const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subscriptionEndDate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-      const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-      await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+      // 1️⃣ First subscription SMS - REMOVED as requested
+      // const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subscriptionEndDate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
       // 2️⃣ Second subscription receipt SMS
       const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${subscriptionEndDate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
@@ -2562,10 +2562,10 @@ exports.allowParking = async (req, res) => {
               cleanedMobile = "91" + cleanedMobile;
             }
 
-            // 1️⃣ First subscription SMS
-            const smsText1 = `Dear ${booking.personName}, ${booking.hour || "30 days"} Parking subscription for ${booking.vehicleNumber} from ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at ${booking.vendorName || vendor.vendorName} is confirmed. Fees paid: ${booking.amount}. View invoice on ParkMyWheels app.`;
-            const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-            await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+            // 1️⃣ First subscription SMS - REMOVED as requested
+            // const smsText1 = `Dear ${booking.personName}, ${booking.hour || "30 days"} Parking subscription for ${booking.vehicleNumber} from ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at ${booking.vendorName || vendor.vendorName} is confirmed. Fees paid: ${booking.amount}. View invoice on ParkMyWheels app.`;
+            // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+            // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
             // 2️⃣ Second subscription receipt SMS
             const smsText2 = `Dear ${booking.personName}, your monthly parking subscription confirmed. Period ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at location ${booking.vendorName || vendor.vendorName}. Fees paid ${booking.amount}. Transaction ID ${booking.invoice || updatedBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
