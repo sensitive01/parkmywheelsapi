@@ -33,6 +33,81 @@ function parseDDMMYYYY(dateStr) {
   return new Date(dateStr);
 }
 
+// 📌 Helper function to find charges by type pattern (not by chargeid)
+function findChargeByType(charges, category, chargeType) {
+  if (!charges || !Array.isArray(charges)) return null;
+  
+  const categoryCharges = charges.filter(c => c.category === category);
+  
+  // Find by type pattern matching
+  const typePatterns = {
+    hourly: /^(0\s+to|hourly)/i,
+    fullday: /(full\s+day|24\s+hours?|fullday)/i,
+    monthly: /monthly/i,
+    additional: /additional/i
+  };
+  
+  const pattern = typePatterns[chargeType];
+  if (!pattern) return null;
+  
+  return categoryCharges.find(c => pattern.test(c.type || "")) || null;
+}
+
+// 📌 Helper function to extract all charge amounts from charges array
+function extractChargeAmounts(parkingCharges) {
+  const amounts = {
+    cartemp: "",
+    biketemp: "",
+    otherstemp: "",
+    carfullday: "",
+    bikefullday: "",
+    othersfullday: "",
+    carmonthly: "",
+    bikemonthly: "",
+    othersmonthly: ""
+  };
+  
+  if (!parkingCharges || !parkingCharges.charges || !Array.isArray(parkingCharges.charges)) {
+    return amounts;
+  }
+  
+  // Find hourly charges (first charge that starts with "0 to" or contains "hour")
+  const carHourly = findChargeByType(parkingCharges.charges, "Car", "hourly") || 
+                    parkingCharges.charges.find(c => c.category === "Car" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  const bikeHourly = findChargeByType(parkingCharges.charges, "Bike", "hourly") || 
+                      parkingCharges.charges.find(c => c.category === "Bike" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  const othersHourly = findChargeByType(parkingCharges.charges, "Others", "hourly") || 
+                        parkingCharges.charges.find(c => c.category === "Others" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  
+  // Find full day charges
+  const carFullDay = findChargeByType(parkingCharges.charges, "Car", "fullday") || 
+                     parkingCharges.charges.find(c => c.category === "Car" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  const bikeFullDay = findChargeByType(parkingCharges.charges, "Bike", "fullday") || 
+                      parkingCharges.charges.find(c => c.category === "Bike" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  const othersFullDay = findChargeByType(parkingCharges.charges, "Others", "fullday") || 
+                        parkingCharges.charges.find(c => c.category === "Others" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  
+  // Find monthly charges
+  const carMonthly = findChargeByType(parkingCharges.charges, "Car", "monthly") || 
+                     parkingCharges.charges.find(c => c.category === "Car" && /monthly/i.test(c.type || ""));
+  const bikeMonthly = findChargeByType(parkingCharges.charges, "Bike", "monthly") || 
+                      parkingCharges.charges.find(c => c.category === "Bike" && /monthly/i.test(c.type || ""));
+  const othersMonthly = findChargeByType(parkingCharges.charges, "Others", "monthly") || 
+                        parkingCharges.charges.find(c => c.category === "Others" && /monthly/i.test(c.type || ""));
+  
+  amounts.cartemp = carHourly?.amount?.toString() || "";
+  amounts.biketemp = bikeHourly?.amount?.toString() || "";
+  amounts.otherstemp = othersHourly?.amount?.toString() || "";
+  amounts.carfullday = carFullDay?.amount?.toString() || "";
+  amounts.bikefullday = bikeFullDay?.amount?.toString() || "";
+  amounts.othersfullday = othersFullDay?.amount?.toString() || "";
+  amounts.carmonthly = carMonthly?.amount?.toString() || "";
+  amounts.bikemonthly = bikeMonthly?.amount?.toString() || "";
+  amounts.othersmonthly = othersMonthly?.amount?.toString() || "";
+  
+  return amounts;
+}
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -147,53 +222,28 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
     // Fetch charges based on vendorId at booking time
     let chargesData = null;
     let vendorChargesData = null;
+    let allChargesArray = []; // Store full charges array
     try {
       const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
       if (parkingCharges) {
-        // Get the charge that matches the vehicle type
+        // Store the complete charges array
+        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
+          allChargesArray = parkingCharges.charges.map(charge => ({
+            type: charge.type || "",
+            amount: charge.amount || "",
+            category: charge.category || "",
+            chargeid: charge.chargeid || "",
+            _id: charge._id?.toString() || ""
+          }));
+        }
+        
+        // Get the charge that matches the vehicle type (for the matching charge object)
         const matchingCharge = parkingCharges.charges?.find(
           (charge) => charge.category === vehicleType
         ) || parkingCharges.charges?.[0] || {};
         
-        // Extract actual charge amounts from charges array based on vehicle type and charge type
-        // cartemp, biketemp, etc. in parkingCharges root are boolean flags, not amounts
-        // We need to find the actual amounts from the charges array
-        let cartempAmount = "";
-        let biketempAmount = "";
-        let otherstempAmount = "";
-        let carfulldayAmount = "";
-        let bikefulldayAmount = "";
-        let othersfulldayAmount = "";
-        let carmonthlyAmount = "";
-        let bikemonthlyAmount = "";
-        let othersmonthlyAmount = "";
-        
-        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
-          // Find hourly charge (chargeid A for Car, E for Bike, I for Others)
-          const carHourlyCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "A");
-          const bikeHourlyCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "E");
-          const othersHourlyCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "I");
-          
-          // Find full day charge (chargeid C for Car, G for Bike, K for Others)
-          const carFullDayCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "C");
-          const bikeFullDayCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "G");
-          const othersFullDayCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "K");
-          
-          // Find monthly charge (chargeid D for Car, H for Bike, L for Others)
-          const carMonthlyCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "D");
-          const bikeMonthlyCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "H");
-          const othersMonthlyCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "L");
-          
-          cartempAmount = carHourlyCharge?.amount || "";
-          biketempAmount = bikeHourlyCharge?.amount || "";
-          otherstempAmount = othersHourlyCharge?.amount || "";
-          carfulldayAmount = carFullDayCharge?.amount || "";
-          bikefulldayAmount = bikeFullDayCharge?.amount || "";
-          othersfulldayAmount = othersFullDayCharge?.amount || "";
-          carmonthlyAmount = carMonthlyCharge?.amount || "";
-          bikemonthlyAmount = bikeMonthlyCharge?.amount || "";
-          othersmonthlyAmount = othersMonthlyCharge?.amount || "";
-        }
+        // Extract all charge amounts using helper function (finds by type, not chargeid)
+        const chargeAmounts = extractChargeAmounts(parkingCharges);
         
         // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
         chargesData = {
@@ -204,37 +254,37 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
           category: matchingCharge.category || "",
           chargeid: matchingCharge.chargeid || "",
           // Get enable flags from parkingCharges root level
-          carenable: parkingCharges.carenable || "",
-          bikeenable: parkingCharges.bikeenable || "",
-          othersenable: parkingCharges.othersenable || "",
-          // Store actual amounts extracted from charges array
-          cartemp: cartempAmount,
-          biketemp: biketempAmount,
-          otherstemp: otherstempAmount,
-          carfullday: carfulldayAmount,
-          bikefullday: bikefulldayAmount,
-          othersfullday: othersfulldayAmount,
-          carmonthly: carmonthlyAmount,
-          bikemonthly: bikemonthlyAmount,
-          othersmonthly: othersmonthlyAmount,
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          // Store actual amounts extracted from charges array (by type matching)
+          cartemp: chargeAmounts.cartemp,
+          biketemp: chargeAmounts.biketemp,
+          otherstemp: chargeAmounts.otherstemp,
+          carfullday: chargeAmounts.carfullday,
+          bikefullday: chargeAmounts.bikefullday,
+          othersfullday: chargeAmounts.othersfullday,
+          carmonthly: chargeAmounts.carmonthly,
+          bikemonthly: chargeAmounts.bikemonthly,
+          othersmonthly: chargeAmounts.othersmonthly,
         };
 
         vendorChargesData = {
-          fulldaycar: parkingCharges.fulldaycar || "",
-          fulldaybike: parkingCharges.fulldaybike || "",
-          fulldayothers: parkingCharges.fulldayothers || "",
-          carenable: parkingCharges.carenable || "",
-          bikeenable: parkingCharges.bikeenable || "",
-          othersenable: parkingCharges.othersenable || "",
-          cartemp: parkingCharges.cartemp || "",
-          biketemp: parkingCharges.biketemp || "",
-          otherstemp: parkingCharges.otherstemp || "",
-          carfullday: parkingCharges.carfullday || "",
-          bikefullday: parkingCharges.bikefullday || "",
-          othersfullday: parkingCharges.othersfullday || "",
-          carmonthly: parkingCharges.carmonthly || "",
-          bikemonthly: parkingCharges.bikemonthly || "",
-          othersmonthly: parkingCharges.othersmonthly || "",
+          fulldaycar: parkingCharges.fulldaycar?.toString() || "",
+          fulldaybike: parkingCharges.fulldaybike?.toString() || "",
+          fulldayothers: parkingCharges.fulldayothers?.toString() || "",
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          cartemp: parkingCharges.cartemp?.toString() || "",
+          biketemp: parkingCharges.biketemp?.toString() || "",
+          otherstemp: parkingCharges.otherstemp?.toString() || "",
+          carfullday: parkingCharges.carfullday?.toString() || "",
+          bikefullday: parkingCharges.bikefullday?.toString() || "",
+          othersfullday: parkingCharges.othersfullday?.toString() || "",
+          carmonthly: parkingCharges.carmonthly?.toString() || "",
+          bikemonthly: parkingCharges.bikemonthly?.toString() || "",
+          othersmonthly: parkingCharges.othersmonthly?.toString() || "",
         };
       }
     } catch (chargesError) {
@@ -280,6 +330,7 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
       exitvehicletime,
       bookType,
       subsctiptionenddate: subscriptionEndDate,
+      allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
       vendorCharges: vendorChargesData,
     });
@@ -639,53 +690,28 @@ exports.vendorcreateBooking = async (req, res) => {
     // Fetch charges based on vendorId at booking time
     let chargesData = null;
     let vendorChargesData = null;
+    let allChargesArray = []; // Store full charges array
     try {
       const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
       if (parkingCharges) {
-        // Get the charge that matches the vehicle type
+        // Store the complete charges array
+        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
+          allChargesArray = parkingCharges.charges.map(charge => ({
+            type: charge.type || "",
+            amount: charge.amount || "",
+            category: charge.category || "",
+            chargeid: charge.chargeid || "",
+            _id: charge._id?.toString() || ""
+          }));
+        }
+        
+        // Get the charge that matches the vehicle type (for the matching charge object)
         const matchingCharge = parkingCharges.charges?.find(
           (charge) => charge.category === vehicleType
         ) || parkingCharges.charges?.[0] || {};
         
-        // Extract actual charge amounts from charges array based on vehicle type and charge type
-        // cartemp, biketemp, etc. in parkingCharges root are boolean flags, not amounts
-        // We need to find the actual amounts from the charges array
-        let cartempAmount = "";
-        let biketempAmount = "";
-        let otherstempAmount = "";
-        let carfulldayAmount = "";
-        let bikefulldayAmount = "";
-        let othersfulldayAmount = "";
-        let carmonthlyAmount = "";
-        let bikemonthlyAmount = "";
-        let othersmonthlyAmount = "";
-        
-        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
-          // Find hourly charge (chargeid A for Car, E for Bike, I for Others)
-          const carHourlyCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "A");
-          const bikeHourlyCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "E");
-          const othersHourlyCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "I");
-          
-          // Find full day charge (chargeid C for Car, G for Bike, K for Others)
-          const carFullDayCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "C");
-          const bikeFullDayCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "G");
-          const othersFullDayCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "K");
-          
-          // Find monthly charge (chargeid D for Car, H for Bike, L for Others)
-          const carMonthlyCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "D");
-          const bikeMonthlyCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "H");
-          const othersMonthlyCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "L");
-          
-          cartempAmount = carHourlyCharge?.amount || "";
-          biketempAmount = bikeHourlyCharge?.amount || "";
-          otherstempAmount = othersHourlyCharge?.amount || "";
-          carfulldayAmount = carFullDayCharge?.amount || "";
-          bikefulldayAmount = bikeFullDayCharge?.amount || "";
-          othersfulldayAmount = othersFullDayCharge?.amount || "";
-          carmonthlyAmount = carMonthlyCharge?.amount || "";
-          bikemonthlyAmount = bikeMonthlyCharge?.amount || "";
-          othersmonthlyAmount = othersMonthlyCharge?.amount || "";
-        }
+        // Extract all charge amounts using helper function (finds by type, not chargeid)
+        const chargeAmounts = extractChargeAmounts(parkingCharges);
         
         // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
         chargesData = {
@@ -696,37 +722,37 @@ exports.vendorcreateBooking = async (req, res) => {
           category: matchingCharge.category || "",
           chargeid: matchingCharge.chargeid || "",
           // Get enable flags from parkingCharges root level
-          carenable: parkingCharges.carenable || "",
-          bikeenable: parkingCharges.bikeenable || "",
-          othersenable: parkingCharges.othersenable || "",
-          // Store actual amounts extracted from charges array
-          cartemp: cartempAmount,
-          biketemp: biketempAmount,
-          otherstemp: otherstempAmount,
-          carfullday: carfulldayAmount,
-          bikefullday: bikefulldayAmount,
-          othersfullday: othersfulldayAmount,
-          carmonthly: carmonthlyAmount,
-          bikemonthly: bikemonthlyAmount,
-          othersmonthly: othersmonthlyAmount,
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          // Store actual amounts extracted from charges array (by type matching)
+          cartemp: chargeAmounts.cartemp,
+          biketemp: chargeAmounts.biketemp,
+          otherstemp: chargeAmounts.otherstemp,
+          carfullday: chargeAmounts.carfullday,
+          bikefullday: chargeAmounts.bikefullday,
+          othersfullday: chargeAmounts.othersfullday,
+          carmonthly: chargeAmounts.carmonthly,
+          bikemonthly: chargeAmounts.bikemonthly,
+          othersmonthly: chargeAmounts.othersmonthly,
         };
 
         vendorChargesData = {
-          fulldaycar: parkingCharges.fulldaycar || "",
-          fulldaybike: parkingCharges.fulldaybike || "",
-          fulldayothers: parkingCharges.fulldayothers || "",
-          carenable: parkingCharges.carenable || "",
-          bikeenable: parkingCharges.bikeenable || "",
-          othersenable: parkingCharges.othersenable || "",
-          cartemp: parkingCharges.cartemp || "",
-          biketemp: parkingCharges.biketemp || "",
-          otherstemp: parkingCharges.otherstemp || "",
-          carfullday: parkingCharges.carfullday || "",
-          bikefullday: parkingCharges.bikefullday || "",
-          othersfullday: parkingCharges.othersfullday || "",
-          carmonthly: parkingCharges.carmonthly || "",
-          bikemonthly: parkingCharges.bikemonthly || "",
-          othersmonthly: parkingCharges.othersmonthly || "",
+          fulldaycar: parkingCharges.fulldaycar?.toString() || "",
+          fulldaybike: parkingCharges.fulldaybike?.toString() || "",
+          fulldayothers: parkingCharges.fulldayothers?.toString() || "",
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          cartemp: parkingCharges.cartemp?.toString() || "",
+          biketemp: parkingCharges.biketemp?.toString() || "",
+          otherstemp: parkingCharges.otherstemp?.toString() || "",
+          carfullday: parkingCharges.carfullday?.toString() || "",
+          bikefullday: parkingCharges.bikefullday?.toString() || "",
+          othersfullday: parkingCharges.othersfullday?.toString() || "",
+          carmonthly: parkingCharges.carmonthly?.toString() || "",
+          bikemonthly: parkingCharges.bikemonthly?.toString() || "",
+          othersmonthly: parkingCharges.othersmonthly?.toString() || "",
         };
       }
     } catch (chargesError) {
@@ -770,6 +796,7 @@ exports.vendorcreateBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
       vendorCharges: vendorChargesData,
     });
@@ -1346,53 +1373,28 @@ exports.livecreateBooking = async (req, res) => {
     // Fetch charges based on vendorId at booking time
     let chargesData = null;
     let vendorChargesData = null;
+    let allChargesArray = []; // Store full charges array
     try {
       const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
       if (parkingCharges) {
-        // Get the charge that matches the vehicle type
+        // Store the complete charges array
+        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
+          allChargesArray = parkingCharges.charges.map(charge => ({
+            type: charge.type || "",
+            amount: charge.amount || "",
+            category: charge.category || "",
+            chargeid: charge.chargeid || "",
+            _id: charge._id?.toString() || ""
+          }));
+        }
+        
+        // Get the charge that matches the vehicle type (for the matching charge object)
         const matchingCharge = parkingCharges.charges?.find(
           (charge) => charge.category === vehicleType
         ) || parkingCharges.charges?.[0] || {};
         
-        // Extract actual charge amounts from charges array based on vehicle type and charge type
-        // cartemp, biketemp, etc. in parkingCharges root are boolean flags, not amounts
-        // We need to find the actual amounts from the charges array
-        let cartempAmount = "";
-        let biketempAmount = "";
-        let otherstempAmount = "";
-        let carfulldayAmount = "";
-        let bikefulldayAmount = "";
-        let othersfulldayAmount = "";
-        let carmonthlyAmount = "";
-        let bikemonthlyAmount = "";
-        let othersmonthlyAmount = "";
-        
-        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
-          // Find hourly charge (chargeid A for Car, E for Bike, I for Others)
-          const carHourlyCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "A");
-          const bikeHourlyCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "E");
-          const othersHourlyCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "I");
-          
-          // Find full day charge (chargeid C for Car, G for Bike, K for Others)
-          const carFullDayCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "C");
-          const bikeFullDayCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "G");
-          const othersFullDayCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "K");
-          
-          // Find monthly charge (chargeid D for Car, H for Bike, L for Others)
-          const carMonthlyCharge = parkingCharges.charges.find(c => c.category === "Car" && c.chargeid === "D");
-          const bikeMonthlyCharge = parkingCharges.charges.find(c => c.category === "Bike" && c.chargeid === "H");
-          const othersMonthlyCharge = parkingCharges.charges.find(c => c.category === "Others" && c.chargeid === "L");
-          
-          cartempAmount = carHourlyCharge?.amount || "";
-          biketempAmount = bikeHourlyCharge?.amount || "";
-          otherstempAmount = othersHourlyCharge?.amount || "";
-          carfulldayAmount = carFullDayCharge?.amount || "";
-          bikefulldayAmount = bikeFullDayCharge?.amount || "";
-          othersfulldayAmount = othersFullDayCharge?.amount || "";
-          carmonthlyAmount = carMonthlyCharge?.amount || "";
-          bikemonthlyAmount = bikeMonthlyCharge?.amount || "";
-          othersmonthlyAmount = othersMonthlyCharge?.amount || "";
-        }
+        // Extract all charge amounts using helper function (finds by type, not chargeid)
+        const chargeAmounts = extractChargeAmounts(parkingCharges);
         
         // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
         chargesData = {
@@ -1403,37 +1405,37 @@ exports.livecreateBooking = async (req, res) => {
           category: matchingCharge.category || "",
           chargeid: matchingCharge.chargeid || "",
           // Get enable flags from parkingCharges root level
-          carenable: parkingCharges.carenable || "",
-          bikeenable: parkingCharges.bikeenable || "",
-          othersenable: parkingCharges.othersenable || "",
-          // Store actual amounts extracted from charges array
-          cartemp: cartempAmount,
-          biketemp: biketempAmount,
-          otherstemp: otherstempAmount,
-          carfullday: carfulldayAmount,
-          bikefullday: bikefulldayAmount,
-          othersfullday: othersfulldayAmount,
-          carmonthly: carmonthlyAmount,
-          bikemonthly: bikemonthlyAmount,
-          othersmonthly: othersmonthlyAmount,
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          // Store actual amounts extracted from charges array (by type matching)
+          cartemp: chargeAmounts.cartemp,
+          biketemp: chargeAmounts.biketemp,
+          otherstemp: chargeAmounts.otherstemp,
+          carfullday: chargeAmounts.carfullday,
+          bikefullday: chargeAmounts.bikefullday,
+          othersfullday: chargeAmounts.othersfullday,
+          carmonthly: chargeAmounts.carmonthly,
+          bikemonthly: chargeAmounts.bikemonthly,
+          othersmonthly: chargeAmounts.othersmonthly,
         };
 
         vendorChargesData = {
-          fulldaycar: parkingCharges.fulldaycar || "",
-          fulldaybike: parkingCharges.fulldaybike || "",
-          fulldayothers: parkingCharges.fulldayothers || "",
-          carenable: parkingCharges.carenable || "",
-          bikeenable: parkingCharges.bikeenable || "",
-          othersenable: parkingCharges.othersenable || "",
-          cartemp: parkingCharges.cartemp || "",
-          biketemp: parkingCharges.biketemp || "",
-          otherstemp: parkingCharges.otherstemp || "",
-          carfullday: parkingCharges.carfullday || "",
-          bikefullday: parkingCharges.bikefullday || "",
-          othersfullday: parkingCharges.othersfullday || "",
-          carmonthly: parkingCharges.carmonthly || "",
-          bikemonthly: parkingCharges.bikemonthly || "",
-          othersmonthly: parkingCharges.othersmonthly || "",
+          fulldaycar: parkingCharges.fulldaycar?.toString() || "",
+          fulldaybike: parkingCharges.fulldaybike?.toString() || "",
+          fulldayothers: parkingCharges.fulldayothers?.toString() || "",
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          cartemp: parkingCharges.cartemp?.toString() || "",
+          biketemp: parkingCharges.biketemp?.toString() || "",
+          otherstemp: parkingCharges.otherstemp?.toString() || "",
+          carfullday: parkingCharges.carfullday?.toString() || "",
+          bikefullday: parkingCharges.bikefullday?.toString() || "",
+          othersfullday: parkingCharges.othersfullday?.toString() || "",
+          carmonthly: parkingCharges.carmonthly?.toString() || "",
+          bikemonthly: parkingCharges.bikemonthly?.toString() || "",
+          othersmonthly: parkingCharges.othersmonthly?.toString() || "",
         };
       }
     } catch (chargesError) {
@@ -1472,6 +1474,7 @@ exports.livecreateBooking = async (req, res) => {
       exitvehicletime,
       bookType,
       subsctiptionenddate: subscriptionEndDate,
+      allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
       vendorCharges: vendorChargesData,
     });
