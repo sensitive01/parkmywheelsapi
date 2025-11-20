@@ -144,6 +144,61 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
   subscriptionEndDate = date.toISOString().split("T")[0];
 }
 
+    // Fetch charges based on vendorId at booking time
+    let chargesData = null;
+    let vendorChargesData = null;
+    try {
+      const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
+      if (parkingCharges) {
+        // Get the charge that matches the vehicle type
+        const matchingCharge = parkingCharges.charges?.find(
+          (charge) => charge.type === vehicleType || charge.category === vehicleType
+        ) || parkingCharges.charges?.[0] || {};
+        
+        chargesData = {
+          type: matchingCharge.type || "",
+          amount: matchingCharge.amount || "",
+          fulldaybike: matchingCharge.fulldaybike || "",
+          fulldayothers: matchingCharge.fulldayothers || "",
+          category: matchingCharge.category || "",
+          chargeid: matchingCharge.chargeid || "",
+          carenable: matchingCharge.carenable || "",
+          bikeenable: matchingCharge.bikeenable || "",
+          othersenable: matchingCharge.othersenable || "",
+          cartemp: matchingCharge.cartemp || "",
+          biketemp: matchingCharge.biketemp || "",
+          otherstemp: matchingCharge.otherstemp || "",
+          carfullday: matchingCharge.carfullday || "",
+          bikefullday: matchingCharge.bikefullday || "",
+          othersfullday: matchingCharge.othersfullday || "",
+          carmonthly: matchingCharge.carmonthly || "",
+          bikemonthly: matchingCharge.bikemonthly || "",
+          othersmonthly: matchingCharge.othersmonthly || "",
+        };
+
+        vendorChargesData = {
+          fulldaycar: parkingCharges.fulldaycar || "",
+          fulldaybike: parkingCharges.fulldaybike || "",
+          fulldayothers: parkingCharges.fulldayothers || "",
+          carenable: parkingCharges.carenable || "",
+          bikeenable: parkingCharges.bikeenable || "",
+          othersenable: parkingCharges.othersenable || "",
+          cartemp: parkingCharges.cartemp || "",
+          biketemp: parkingCharges.biketemp || "",
+          otherstemp: parkingCharges.otherstemp || "",
+          carfullday: parkingCharges.carfullday || "",
+          bikefullday: parkingCharges.bikefullday || "",
+          othersfullday: parkingCharges.othersfullday || "",
+          carmonthly: parkingCharges.carmonthly || "",
+          bikemonthly: parkingCharges.bikemonthly || "",
+          othersmonthly: parkingCharges.othersmonthly || "",
+        };
+      }
+    } catch (chargesError) {
+      console.error("Error fetching charges for booking:", chargesError);
+      // Continue with booking creation even if charges fetch fails
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -182,6 +237,8 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
       exitvehicletime,
       bookType,
       subsctiptionenddate: subscriptionEndDate,
+      charges: chargesData,
+      vendorCharges: vendorChargesData,
     });
 
     await newBooking.save();
@@ -536,6 +593,61 @@ exports.vendorcreateBooking = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
+    // Fetch charges based on vendorId at booking time
+    let chargesData = null;
+    let vendorChargesData = null;
+    try {
+      const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
+      if (parkingCharges) {
+        // Get the charge that matches the vehicle type
+        const matchingCharge = parkingCharges.charges?.find(
+          (charge) => charge.type === vehicleType || charge.category === vehicleType
+        ) || parkingCharges.charges?.[0] || {};
+        
+        chargesData = {
+          type: matchingCharge.type || "",
+          amount: matchingCharge.amount || "",
+          fulldaybike: matchingCharge.fulldaybike || "",
+          fulldayothers: matchingCharge.fulldayothers || "",
+          category: matchingCharge.category || "",
+          chargeid: matchingCharge.chargeid || "",
+          carenable: matchingCharge.carenable || "",
+          bikeenable: matchingCharge.bikeenable || "",
+          othersenable: matchingCharge.othersenable || "",
+          cartemp: matchingCharge.cartemp || "",
+          biketemp: matchingCharge.biketemp || "",
+          otherstemp: matchingCharge.otherstemp || "",
+          carfullday: matchingCharge.carfullday || "",
+          bikefullday: matchingCharge.bikefullday || "",
+          othersfullday: matchingCharge.othersfullday || "",
+          carmonthly: matchingCharge.carmonthly || "",
+          bikemonthly: matchingCharge.bikemonthly || "",
+          othersmonthly: matchingCharge.othersmonthly || "",
+        };
+
+        vendorChargesData = {
+          fulldaycar: parkingCharges.fulldaycar || "",
+          fulldaybike: parkingCharges.fulldaybike || "",
+          fulldayothers: parkingCharges.fulldayothers || "",
+          carenable: parkingCharges.carenable || "",
+          bikeenable: parkingCharges.bikeenable || "",
+          othersenable: parkingCharges.othersenable || "",
+          cartemp: parkingCharges.cartemp || "",
+          biketemp: parkingCharges.biketemp || "",
+          otherstemp: parkingCharges.otherstemp || "",
+          carfullday: parkingCharges.carfullday || "",
+          bikefullday: parkingCharges.bikefullday || "",
+          othersfullday: parkingCharges.othersfullday || "",
+          carmonthly: parkingCharges.carmonthly || "",
+          bikemonthly: parkingCharges.bikemonthly || "",
+          othersmonthly: parkingCharges.othersmonthly || "",
+        };
+      }
+    } catch (chargesError) {
+      console.error("Error fetching charges for booking:", chargesError);
+      // Continue with booking creation even if charges fetch fails
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -572,6 +684,8 @@ exports.vendorcreateBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      charges: chargesData,
+      vendorCharges: vendorChargesData,
     });
 
     await newBooking.save();
@@ -1143,6 +1257,61 @@ exports.livecreateBooking = async (req, res) => {
       subscriptionEndDate = date.toISOString().split("T")[0];
     }
 
+    // Fetch charges based on vendorId at booking time
+    let chargesData = null;
+    let vendorChargesData = null;
+    try {
+      const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
+      if (parkingCharges) {
+        // Get the charge that matches the vehicle type
+        const matchingCharge = parkingCharges.charges?.find(
+          (charge) => charge.type === vehicleType || charge.category === vehicleType
+        ) || parkingCharges.charges?.[0] || {};
+        
+        chargesData = {
+          type: matchingCharge.type || "",
+          amount: matchingCharge.amount || "",
+          fulldaybike: matchingCharge.fulldaybike || "",
+          fulldayothers: matchingCharge.fulldayothers || "",
+          category: matchingCharge.category || "",
+          chargeid: matchingCharge.chargeid || "",
+          carenable: matchingCharge.carenable || "",
+          bikeenable: matchingCharge.bikeenable || "",
+          othersenable: matchingCharge.othersenable || "",
+          cartemp: matchingCharge.cartemp || "",
+          biketemp: matchingCharge.biketemp || "",
+          otherstemp: matchingCharge.otherstemp || "",
+          carfullday: matchingCharge.carfullday || "",
+          bikefullday: matchingCharge.bikefullday || "",
+          othersfullday: matchingCharge.othersfullday || "",
+          carmonthly: matchingCharge.carmonthly || "",
+          bikemonthly: matchingCharge.bikemonthly || "",
+          othersmonthly: matchingCharge.othersmonthly || "",
+        };
+
+        vendorChargesData = {
+          fulldaycar: parkingCharges.fulldaycar || "",
+          fulldaybike: parkingCharges.fulldaybike || "",
+          fulldayothers: parkingCharges.fulldayothers || "",
+          carenable: parkingCharges.carenable || "",
+          bikeenable: parkingCharges.bikeenable || "",
+          othersenable: parkingCharges.othersenable || "",
+          cartemp: parkingCharges.cartemp || "",
+          biketemp: parkingCharges.biketemp || "",
+          otherstemp: parkingCharges.otherstemp || "",
+          carfullday: parkingCharges.carfullday || "",
+          bikefullday: parkingCharges.bikefullday || "",
+          othersfullday: parkingCharges.othersfullday || "",
+          carmonthly: parkingCharges.carmonthly || "",
+          bikemonthly: parkingCharges.bikemonthly || "",
+          othersmonthly: parkingCharges.othersmonthly || "",
+        };
+      }
+    } catch (chargesError) {
+      console.error("Error fetching charges for booking:", chargesError);
+      // Continue with booking creation even if charges fetch fails
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -1174,6 +1343,8 @@ exports.livecreateBooking = async (req, res) => {
       exitvehicletime,
       bookType,
       subsctiptionenddate: subscriptionEndDate,
+      charges: chargesData,
+      vendorCharges: vendorChargesData,
     });
 
     await newBooking.save();
