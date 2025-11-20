@@ -1115,13 +1115,15 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Full-day/monthly calculation not implemented' });
     }
 
-    // Step 7: Return response with spaceid and spacearea
+    // Step 7: Return response with spaceid, spacearea, and charges data
     return res.json({
       success: true,
       payableAmount: amount?.toFixed(2) ?? '0.00',
       durationHours,
       spaceid: spaceid || null,
-      spacearea: spacearea || null
+      spacearea: spacearea || null,
+      charges: booking.charges || null,  // Return charges data from booking
+      vendorCharges: booking.vendorCharges || null  // Return vendorCharges data from booking
     });
 
   } catch (error) {
@@ -1259,186 +1261,4 @@ const fetchVendorsWithCategorizedCharges = async (req, res) => {
     });
   }
 };
-
-// New API: Get charge calculation data and calculated amount from booking
-const getChargeCalculation = async (req, res) => {
-  try {
-    console.log('🔍 Charge calculation request for booking ID:', req.params.id);
-
-    // Step 1: Retrieve booking
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      console.error('❌ Booking not found');
-      return res.status(404).json({ success: false, error: 'Booking not found' });
-    }
-
-    console.log('📦 Booking found:', booking.id);
-    console.log('📌 Vehicle Type:', booking.vehicleType);
-    console.log('📌 Book Type:', booking.bookType);
-    console.log('📌 Status:', booking.status);
-
-    if (booking.status !== 'PARKED') {
-      return res.status(400).json({ success: false, error: 'Vehicle not in parked state' });
-    }
-
-    // Step 2: Parse DateTime and calculate duration
-    const parkedDateTimeLuxon = DateTime.fromFormat(
-      `${booking.parkedDate} ${booking.parkedTime}`,
-      'dd-MM-yyyy hh:mm a',
-      { zone: 'Asia/Kolkata' }
-    );
-
-    if (!parkedDateTimeLuxon.isValid) {
-      return res.status(400).json({ success: false, error: 'Invalid parked date/time format' });
-    }
-
-    const parkedDateTime = parkedDateTimeLuxon.toJSDate();
-    const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
-
-    if (exitDateTime < parkedDateTime) {
-      return res.status(400).json({ success: false, error: 'Exit time cannot be before parked time' });
-    }
-
-    const durationMs = exitDateTime - parkedDateTime;
-    const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
-    const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
-
-    console.log('🧮 Duration (hours):', durationHours);
-    console.log('🧮 Duration (days):', durationDays);
-
-    // Step 3: Prepare charges data from booking
-    let charges = null;
-    
-    if (booking.charges && booking.charges.category) {
-      // Use charges stored in booking document
-      charges = {
-        charges: [{
-          type: booking.charges.type || "",
-          amount: booking.charges.amount || "",
-          category: booking.charges.category || "",
-          chargeid: booking.charges.chargeid || "",
-          fulldaybike: booking.charges.fulldaybike || "",
-          fulldayothers: booking.charges.fulldayothers || "",
-          carenable: booking.charges.carenable || "",
-          bikeenable: booking.charges.bikeenable || "",
-          othersenable: booking.charges.othersenable || "",
-          cartemp: booking.charges.cartemp || "",
-          biketemp: booking.charges.biketemp || "",
-          otherstemp: booking.charges.otherstemp || "",
-          carfullday: booking.charges.carfullday || "",
-          bikefullday: booking.charges.bikefullday || "",
-          othersfullday: booking.charges.othersfullday || "",
-          carmonthly: booking.charges.carmonthly || "",
-          bikemonthly: booking.charges.bikemonthly || "",
-          othersmonthly: booking.charges.othersmonthly || "",
-        }]
-      };
-      console.log('✅ Using charges stored in booking');
-    } else {
-      // Fallback: Fetch charges from Parkingcharges collection
-      console.log('⚠️ Charges not found in booking, fetching from Parkingcharges collection...');
-      charges = await Parkingcharges.findOne({
-        vendorid: booking.vendorId,
-        "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
-      });
-      
-      if (!charges) {
-        return res.status(400).json({ success: false, error: 'No charges found for this vehicle type' });
-      }
-      console.log('✅ Charges fetched from Parkingcharges collection');
-    }
-
-    // Step 4: Calculate amount based on bookType using booking charges format
-    let payableAmount = 0;
-    const bookTypeLower = booking.bookType?.toLowerCase() || '';
-    const vehicleTypeLower = booking.vehicleType?.toLowerCase() || '';
-
-    if (bookTypeLower === 'hourly') {
-      // Calculate hourly using booking charges format (cartemp, biketemp, otherstemp)
-      if (booking.charges) {
-        let hourlyRate = 0;
-        if (vehicleTypeLower === 'car' && booking.charges.cartemp) {
-          hourlyRate = parseFloat(booking.charges.cartemp) || 0;
-        } else if (vehicleTypeLower === 'bike' && booking.charges.biketemp) {
-          hourlyRate = parseFloat(booking.charges.biketemp) || 0;
-        } else if (vehicleTypeLower === 'others' && booking.charges.otherstemp) {
-          hourlyRate = parseFloat(booking.charges.otherstemp) || 0;
-        }
-        
-        if (hourlyRate > 0) {
-          // For hourly: first hour is the rate, additional hours use the same rate
-          payableAmount = hourlyRate * durationHours;
-          console.log('💰 Calculated hourly amount from booking charges:', payableAmount, `(${hourlyRate} * ${durationHours} hours)`);
-        } else {
-          // Fallback to calculateHourly if booking charges format not available
-          payableAmount = calculateHourly(charges, durationHours, booking.vehicleType);
-          console.log('💰 Calculated hourly amount (fallback):', payableAmount);
-        }
-      } else {
-        payableAmount = calculateHourly(charges, durationHours, booking.vehicleType);
-        console.log('💰 Calculated hourly amount (fallback):', payableAmount);
-      }
-    } else if (bookTypeLower === '24 hours' || bookTypeLower.includes('24')) {
-      // For 24 hours, get full day charge from booking.charges
-      const vehicleTypeLower = booking.vehicleType?.toLowerCase() || '';
-      let fullDayAmount = 0;
-      
-      if (booking.charges) {
-        if (vehicleTypeLower === 'car' && booking.charges.carfullday) {
-          fullDayAmount = parseFloat(booking.charges.carfullday) || 0;
-        } else if (vehicleTypeLower === 'bike' && booking.charges.bikefullday) {
-          fullDayAmount = parseFloat(booking.charges.bikefullday) || 0;
-        } else if (vehicleTypeLower === 'others' && booking.charges.othersfullday) {
-          fullDayAmount = parseFloat(booking.charges.othersfullday) || 0;
-        }
-      }
-      
-      // If not found in booking.charges, try charges from Parkingcharges collection
-      if (fullDayAmount === 0 && charges && charges.charges && charges.charges.length > 0) {
-        const charge = charges.charges[0];
-        if (vehicleTypeLower === 'car' && charge.carfullday) {
-          fullDayAmount = parseFloat(charge.carfullday) || 0;
-        } else if (vehicleTypeLower === 'bike' && charge.bikefullday) {
-          fullDayAmount = parseFloat(charge.bikefullday) || 0;
-        } else if (vehicleTypeLower === 'others' && charge.othersfullday) {
-          fullDayAmount = parseFloat(charge.othersfullday) || 0;
-        }
-      }
-      
-      if (fullDayAmount > 0) {
-        const numberOfPeriods = Math.ceil(durationHours / 24);
-        payableAmount = fullDayAmount * numberOfPeriods;
-        console.log('💰 Calculated full day amount:', payableAmount, `(${fullDayAmount} * ${numberOfPeriods} periods)`);
-      } else {
-        // Fallback to hourly if full day charge not found
-        payableAmount = calculateHourly(charges, durationHours, booking.vehicleType);
-        console.log('⚠️ Full day charge not found, using hourly calculation');
-      }
-    } else {
-      // Default to hourly if bookType is unknown
-      payableAmount = calculateHourly(charges, durationHours, booking.vehicleType);
-      console.log('💰 Calculated default (hourly) amount:', payableAmount);
-    }
-
-    // Step 5: Return response with calculated amount and charges data
-    return res.json({
-      success: true,
-      payableAmount: payableAmount?.toFixed(2) ?? '0.00',
-      durationHours: durationHours,
-      durationDays: durationDays,
-      charges: booking.charges || null,  // Return charges data from booking
-      vendorCharges: booking.vendorCharges || null,  // Return vendorCharges data from booking
-      vehicleType: booking.vehicleType || null,
-      bookType: booking.bookType || null,
-      parkedDate: booking.parkedDate || null,
-      parkedTime: booking.parkedTime || null
-    });
-
-  } catch (error) {
-    console.error('🔥 Error in charge calculation:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-module.exports = {fetchVendorsWithCategorizedCharges,fetchtestAmount,tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge, getChargeCalculation};
+module.exports = {fetchVendorsWithCategorizedCharges,fetchtestAmount,tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
