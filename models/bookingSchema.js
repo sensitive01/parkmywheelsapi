@@ -147,6 +147,54 @@ type: String,
       status: { type: String, default: "pending", enum: ["pending", "submitted", "skipped"] }, // Feedback status
       submittedAt: { type: Date }, // When feedback was submitted
     },
+    // Full charges array stored at booking time (all charge objects)
+    allCharges: [{
+      type: { type: String },
+      amount: { type: String },
+      category: { type: String },
+      chargeid: { type: String },
+      _id: { type: String } // Store the original _id from charges collection
+    }],
+    // Charges stored at booking time
+    charges: {
+      type: {
+        type: String,
+      },
+      amount: { type: String },
+      fulldaybike: { type: String },
+      fulldayothers: { type: String },
+      category: { type: String },
+      chargeid: { type: String },
+      carenable: { type: String },
+      bikeenable: { type: String },
+      othersenable: { type: String },
+      cartemp: { type: String },
+      biketemp: { type: String },
+      otherstemp: { type: String },
+      carfullday: { type: String },
+      bikefullday: { type: String },
+      othersfullday: { type: String },
+      carmonthly: { type: String },
+      bikemonthly: { type: String },
+      othersmonthly: { type: String },
+    },
+    vendorCharges: {
+      fulldaycar: { type: String },
+      fulldaybike: { type: String },
+      fulldayothers: { type: String },
+      carenable: { type: String },
+      bikeenable: { type: String },
+      othersenable: { type: String },
+      cartemp: { type: String },
+      biketemp: { type: String },
+      otherstemp: { type: String },
+      carfullday: { type: String },
+      bikefullday: { type: String },
+      othersfullday: { type: String },
+      carmonthly: { type: String },
+      bikemonthly: { type: String },
+      othersmonthly: { type: String },
+    },
   },
   { timestamps: true }
   

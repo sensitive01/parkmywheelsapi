@@ -33,6 +33,81 @@ function parseDDMMYYYY(dateStr) {
   return new Date(dateStr);
 }
 
+// 📌 Helper function to find charges by type pattern (not by chargeid)
+function findChargeByType(charges, category, chargeType) {
+  if (!charges || !Array.isArray(charges)) return null;
+  
+  const categoryCharges = charges.filter(c => c.category === category);
+  
+  // Find by type pattern matching
+  const typePatterns = {
+    hourly: /^(0\s+to|hourly)/i,
+    fullday: /(full\s+day|24\s+hours?|fullday)/i,
+    monthly: /monthly/i,
+    additional: /additional/i
+  };
+  
+  const pattern = typePatterns[chargeType];
+  if (!pattern) return null;
+  
+  return categoryCharges.find(c => pattern.test(c.type || "")) || null;
+}
+
+// 📌 Helper function to extract all charge amounts from charges array
+function extractChargeAmounts(parkingCharges) {
+  const amounts = {
+    cartemp: "",
+    biketemp: "",
+    otherstemp: "",
+    carfullday: "",
+    bikefullday: "",
+    othersfullday: "",
+    carmonthly: "",
+    bikemonthly: "",
+    othersmonthly: ""
+  };
+  
+  if (!parkingCharges || !parkingCharges.charges || !Array.isArray(parkingCharges.charges)) {
+    return amounts;
+  }
+  
+  // Find hourly charges (first charge that starts with "0 to" or contains "hour")
+  const carHourly = findChargeByType(parkingCharges.charges, "Car", "hourly") || 
+                    parkingCharges.charges.find(c => c.category === "Car" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  const bikeHourly = findChargeByType(parkingCharges.charges, "Bike", "hourly") || 
+                      parkingCharges.charges.find(c => c.category === "Bike" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  const othersHourly = findChargeByType(parkingCharges.charges, "Others", "hourly") || 
+                        parkingCharges.charges.find(c => c.category === "Others" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  
+  // Find full day charges
+  const carFullDay = findChargeByType(parkingCharges.charges, "Car", "fullday") || 
+                     parkingCharges.charges.find(c => c.category === "Car" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  const bikeFullDay = findChargeByType(parkingCharges.charges, "Bike", "fullday") || 
+                      parkingCharges.charges.find(c => c.category === "Bike" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  const othersFullDay = findChargeByType(parkingCharges.charges, "Others", "fullday") || 
+                        parkingCharges.charges.find(c => c.category === "Others" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  
+  // Find monthly charges
+  const carMonthly = findChargeByType(parkingCharges.charges, "Car", "monthly") || 
+                     parkingCharges.charges.find(c => c.category === "Car" && /monthly/i.test(c.type || ""));
+  const bikeMonthly = findChargeByType(parkingCharges.charges, "Bike", "monthly") || 
+                      parkingCharges.charges.find(c => c.category === "Bike" && /monthly/i.test(c.type || ""));
+  const othersMonthly = findChargeByType(parkingCharges.charges, "Others", "monthly") || 
+                        parkingCharges.charges.find(c => c.category === "Others" && /monthly/i.test(c.type || ""));
+  
+  amounts.cartemp = carHourly?.amount?.toString() || "";
+  amounts.biketemp = bikeHourly?.amount?.toString() || "";
+  amounts.otherstemp = othersHourly?.amount?.toString() || "";
+  amounts.carfullday = carFullDay?.amount?.toString() || "";
+  amounts.bikefullday = bikeFullDay?.amount?.toString() || "";
+  amounts.othersfullday = othersFullDay?.amount?.toString() || "";
+  amounts.carmonthly = carMonthly?.amount?.toString() || "";
+  amounts.bikemonthly = bikeMonthly?.amount?.toString() || "";
+  amounts.othersmonthly = othersMonthly?.amount?.toString() || "";
+  
+  return amounts;
+}
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -144,6 +219,79 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
   subscriptionEndDate = date.toISOString().split("T")[0];
 }
 
+    // Fetch charges based on vendorId at booking time
+    let chargesData = null;
+    let vendorChargesData = null;
+    let allChargesArray = []; // Store full charges array
+    try {
+      const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
+      if (parkingCharges) {
+        // Store the complete charges array
+        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
+          allChargesArray = parkingCharges.charges.map(charge => ({
+            type: charge.type || "",
+            amount: charge.amount || "",
+            category: charge.category || "",
+            chargeid: charge.chargeid || "",
+            _id: charge._id?.toString() || ""
+          }));
+        }
+        
+        // Get the charge that matches the vehicle type (for the matching charge object)
+        const matchingCharge = parkingCharges.charges?.find(
+          (charge) => charge.category === vehicleType
+        ) || parkingCharges.charges?.[0] || {};
+        
+        // Extract all charge amounts using helper function (finds by type, not chargeid)
+        const chargeAmounts = extractChargeAmounts(parkingCharges);
+        
+        // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
+        chargesData = {
+          type: matchingCharge.type || "",
+          amount: matchingCharge.amount || "",
+          fulldaybike: matchingCharge.fulldaybike || "",
+          fulldayothers: matchingCharge.fulldayothers || "",
+          category: matchingCharge.category || "",
+          chargeid: matchingCharge.chargeid || "",
+          // Get enable flags from parkingCharges root level
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          // Store actual amounts extracted from charges array (by type matching)
+          cartemp: chargeAmounts.cartemp,
+          biketemp: chargeAmounts.biketemp,
+          otherstemp: chargeAmounts.otherstemp,
+          carfullday: chargeAmounts.carfullday,
+          bikefullday: chargeAmounts.bikefullday,
+          othersfullday: chargeAmounts.othersfullday,
+          carmonthly: chargeAmounts.carmonthly,
+          bikemonthly: chargeAmounts.bikemonthly,
+          othersmonthly: chargeAmounts.othersmonthly,
+        };
+
+        vendorChargesData = {
+          fulldaycar: parkingCharges.fulldaycar?.toString() || "",
+          fulldaybike: parkingCharges.fulldaybike?.toString() || "",
+          fulldayothers: parkingCharges.fulldayothers?.toString() || "",
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          cartemp: parkingCharges.cartemp?.toString() || "",
+          biketemp: parkingCharges.biketemp?.toString() || "",
+          otherstemp: parkingCharges.otherstemp?.toString() || "",
+          carfullday: parkingCharges.carfullday?.toString() || "",
+          bikefullday: parkingCharges.bikefullday?.toString() || "",
+          othersfullday: parkingCharges.othersfullday?.toString() || "",
+          carmonthly: parkingCharges.carmonthly?.toString() || "",
+          bikemonthly: parkingCharges.bikemonthly?.toString() || "",
+          othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+        };
+      }
+    } catch (chargesError) {
+      console.error("Error fetching charges for booking:", chargesError);
+      // Continue with booking creation even if charges fetch fails
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -182,6 +330,9 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
       exitvehicletime,
       bookType,
       subsctiptionenddate: subscriptionEndDate,
+      allCharges: allChargesArray, // Store full charges array
+      charges: chargesData,
+      vendorCharges: vendorChargesData,
     });
 
     await newBooking.save();
@@ -364,10 +515,10 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
         cleanedMobile = "91" + cleanedMobile;
       }
 
-      // 1️⃣ First subscription SMS
-      const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-      const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-      await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+      // 1️⃣ First subscription SMS - REMOVED as requested
+      // const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
       // 2️⃣ Second subscription receipt SMS
       const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking.invoice}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
@@ -536,6 +687,79 @@ exports.vendorcreateBooking = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
+    // Fetch charges based on vendorId at booking time
+    let chargesData = null;
+    let vendorChargesData = null;
+    let allChargesArray = []; // Store full charges array
+    try {
+      const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
+      if (parkingCharges) {
+        // Store the complete charges array
+        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
+          allChargesArray = parkingCharges.charges.map(charge => ({
+            type: charge.type || "",
+            amount: charge.amount || "",
+            category: charge.category || "",
+            chargeid: charge.chargeid || "",
+            _id: charge._id?.toString() || ""
+          }));
+        }
+        
+        // Get the charge that matches the vehicle type (for the matching charge object)
+        const matchingCharge = parkingCharges.charges?.find(
+          (charge) => charge.category === vehicleType
+        ) || parkingCharges.charges?.[0] || {};
+        
+        // Extract all charge amounts using helper function (finds by type, not chargeid)
+        const chargeAmounts = extractChargeAmounts(parkingCharges);
+        
+        // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
+        chargesData = {
+          type: matchingCharge.type || "",
+          amount: matchingCharge.amount || "",
+          fulldaybike: matchingCharge.fulldaybike || "",
+          fulldayothers: matchingCharge.fulldayothers || "",
+          category: matchingCharge.category || "",
+          chargeid: matchingCharge.chargeid || "",
+          // Get enable flags from parkingCharges root level
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          // Store actual amounts extracted from charges array (by type matching)
+          cartemp: chargeAmounts.cartemp,
+          biketemp: chargeAmounts.biketemp,
+          otherstemp: chargeAmounts.otherstemp,
+          carfullday: chargeAmounts.carfullday,
+          bikefullday: chargeAmounts.bikefullday,
+          othersfullday: chargeAmounts.othersfullday,
+          carmonthly: chargeAmounts.carmonthly,
+          bikemonthly: chargeAmounts.bikemonthly,
+          othersmonthly: chargeAmounts.othersmonthly,
+        };
+
+        vendorChargesData = {
+          fulldaycar: parkingCharges.fulldaycar?.toString() || "",
+          fulldaybike: parkingCharges.fulldaybike?.toString() || "",
+          fulldayothers: parkingCharges.fulldayothers?.toString() || "",
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          cartemp: parkingCharges.cartemp?.toString() || "",
+          biketemp: parkingCharges.biketemp?.toString() || "",
+          otherstemp: parkingCharges.otherstemp?.toString() || "",
+          carfullday: parkingCharges.carfullday?.toString() || "",
+          bikefullday: parkingCharges.bikefullday?.toString() || "",
+          othersfullday: parkingCharges.othersfullday?.toString() || "",
+          carmonthly: parkingCharges.carmonthly?.toString() || "",
+          bikemonthly: parkingCharges.bikemonthly?.toString() || "",
+          othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+        };
+      }
+    } catch (chargesError) {
+      console.error("Error fetching charges for booking:", chargesError);
+      // Continue with booking creation even if charges fetch fails
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -572,6 +796,9 @@ exports.vendorcreateBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      allCharges: allChargesArray, // Store full charges array
+      charges: chargesData,
+      vendorCharges: vendorChargesData,
     });
 
     await newBooking.save();
@@ -882,10 +1109,10 @@ exports.vendorcreateBooking = async (req, res) => {
 
       // --- Subscription SMS Handling ---
       if ((sts || "").toLowerCase() === "subscription") {
-        // 1️⃣ First subscription SMS
-        let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-        let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-        await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+        // 1️⃣ First subscription SMS - REMOVED as requested
+        // let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+        // let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+        // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
         // 2️⃣ Second subscription receipt SMS
         let smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
@@ -1143,6 +1370,79 @@ exports.livecreateBooking = async (req, res) => {
       subscriptionEndDate = date.toISOString().split("T")[0];
     }
 
+    // Fetch charges based on vendorId at booking time
+    let chargesData = null;
+    let vendorChargesData = null;
+    let allChargesArray = []; // Store full charges array
+    try {
+      const parkingCharges = await Parkingcharges.findOne({ vendorid: vendorId });
+      if (parkingCharges) {
+        // Store the complete charges array
+        if (parkingCharges.charges && Array.isArray(parkingCharges.charges)) {
+          allChargesArray = parkingCharges.charges.map(charge => ({
+            type: charge.type || "",
+            amount: charge.amount || "",
+            category: charge.category || "",
+            chargeid: charge.chargeid || "",
+            _id: charge._id?.toString() || ""
+          }));
+        }
+        
+        // Get the charge that matches the vehicle type (for the matching charge object)
+        const matchingCharge = parkingCharges.charges?.find(
+          (charge) => charge.category === vehicleType
+        ) || parkingCharges.charges?.[0] || {};
+        
+        // Extract all charge amounts using helper function (finds by type, not chargeid)
+        const chargeAmounts = extractChargeAmounts(parkingCharges);
+        
+        // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
+        chargesData = {
+          type: matchingCharge.type || "",
+          amount: matchingCharge.amount || "",
+          fulldaybike: matchingCharge.fulldaybike || "",
+          fulldayothers: matchingCharge.fulldayothers || "",
+          category: matchingCharge.category || "",
+          chargeid: matchingCharge.chargeid || "",
+          // Get enable flags from parkingCharges root level
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          // Store actual amounts extracted from charges array (by type matching)
+          cartemp: chargeAmounts.cartemp,
+          biketemp: chargeAmounts.biketemp,
+          otherstemp: chargeAmounts.otherstemp,
+          carfullday: chargeAmounts.carfullday,
+          bikefullday: chargeAmounts.bikefullday,
+          othersfullday: chargeAmounts.othersfullday,
+          carmonthly: chargeAmounts.carmonthly,
+          bikemonthly: chargeAmounts.bikemonthly,
+          othersmonthly: chargeAmounts.othersmonthly,
+        };
+
+        vendorChargesData = {
+          fulldaycar: parkingCharges.fulldaycar?.toString() || "",
+          fulldaybike: parkingCharges.fulldaybike?.toString() || "",
+          fulldayothers: parkingCharges.fulldayothers?.toString() || "",
+          carenable: parkingCharges.carenable?.toString() || "",
+          bikeenable: parkingCharges.bikeenable?.toString() || "",
+          othersenable: parkingCharges.othersenable?.toString() || "",
+          cartemp: parkingCharges.cartemp?.toString() || "",
+          biketemp: parkingCharges.biketemp?.toString() || "",
+          otherstemp: parkingCharges.otherstemp?.toString() || "",
+          carfullday: parkingCharges.carfullday?.toString() || "",
+          bikefullday: parkingCharges.bikefullday?.toString() || "",
+          othersfullday: parkingCharges.othersfullday?.toString() || "",
+          carmonthly: parkingCharges.carmonthly?.toString() || "",
+          bikemonthly: parkingCharges.bikemonthly?.toString() || "",
+          othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+        };
+      }
+    } catch (chargesError) {
+      console.error("Error fetching charges for booking:", chargesError);
+      // Continue with booking creation even if charges fetch fails
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -1174,6 +1474,9 @@ exports.livecreateBooking = async (req, res) => {
       exitvehicletime,
       bookType,
       subsctiptionenddate: subscriptionEndDate,
+      allCharges: allChargesArray, // Store full charges array
+      charges: chargesData,
+      vendorCharges: vendorChargesData,
     });
 
     await newBooking.save();
@@ -1381,10 +1684,10 @@ exports.livecreateBooking = async (req, res) => {
         cleanedMobile = "91" + cleanedMobile;
       }
 
-      // 1️⃣ First subscription SMS
-      const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subscriptionEndDate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-      const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-      await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+      // 1️⃣ First subscription SMS - REMOVED as requested
+      // const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subscriptionEndDate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+      // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+      // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
       // 2️⃣ Second subscription receipt SMS
       const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${subscriptionEndDate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
@@ -2391,10 +2694,10 @@ exports.allowParking = async (req, res) => {
               cleanedMobile = "91" + cleanedMobile;
             }
 
-            // 1️⃣ First subscription SMS
-            const smsText1 = `Dear ${booking.personName}, ${booking.hour || "30 days"} Parking subscription for ${booking.vehicleNumber} from ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at ${booking.vendorName || vendor.vendorName} is confirmed. Fees paid: ${booking.amount}. View invoice on ParkMyWheels app.`;
-            const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-            await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+            // 1️⃣ First subscription SMS - REMOVED as requested
+            // const smsText1 = `Dear ${booking.personName}, ${booking.hour || "30 days"} Parking subscription for ${booking.vehicleNumber} from ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at ${booking.vendorName || vendor.vendorName} is confirmed. Fees paid: ${booking.amount}. View invoice on ParkMyWheels app.`;
+            // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+            // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
 
             // 2️⃣ Second subscription receipt SMS
             const smsText2 = `Dear ${booking.personName}, your monthly parking subscription confirmed. Period ${booking.parkingDate} to ${booking.subsctiptionenddate || ""} at location ${booking.vendorName || vendor.vendorName}. Fees paid ${booking.amount}. Transaction ID ${booking.invoice || updatedBooking._id}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;

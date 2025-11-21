@@ -592,7 +592,7 @@ const transformCharges = (charges) => {
 //     const existingVendor = await Parking.findOne({ vendorid });
 
 //     if (!existingVendor) {
-//       return res.status(404).json({ message: `Vendor with ID ${vendorid} not found.` });
+//       return res.status(404).json({ message: Vendor with ID ${vendorid} not found. });
 //     }
 
 //     const filteredCharges = existingVendor.charges.filter(
@@ -604,7 +604,7 @@ const transformCharges = (charges) => {
 //     await existingVendor.save();
 
 //     res.status(200).json({
-//       message: `${categoryToUpdate} charges updated successfully.`,
+//       message: ${categoryToUpdate} charges updated successfully.,
 //       vendor: existingVendor,
 //     });
 //   } catch (error) {
@@ -654,7 +654,7 @@ const fetchbookamout = async (req, res) => {
 
     // Check if any charges were found after filtering
     if (filteredCharges.length === 0) {
-      // console.log(No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.);
+      // console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
       return res.status(404).json({ message: "No matching charges found." });
     }
 
@@ -702,7 +702,7 @@ const booktransformCharges = (charges) => {
         }
         break;
       default:
-        // console.warn(`Unknown chargeid: ${charge.chargeid}`);
+        // console.warn(Unknown chargeid: ${charge.chargeid});
         break; // No action needed for unknown charge IDs
     }
 
@@ -751,7 +751,7 @@ const fetchbookmonth = async (req, res) => {
 
     // Check if any charges were found after filtering
     if (filteredCharges.length === 0) {
-      // console.log(No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.);
+      // console.log(`No charges found for vendorid: ${vendorid} and vehicleType: ${vehicleType}.`);
       return res.status(404).json({ message: "No matching charges found." });
     }
 
@@ -806,7 +806,7 @@ const bookmonth = (charges) => {
         }
         break;
       default:
-        // console.warn(`Unknown chargeid: ${charge.chargeid}`);
+        // console.warn(Unknown chargeid: ${charge.chargeid});
         break; // No action needed for unknown charge IDs
     }
 
@@ -817,9 +817,8 @@ const bookmonth = (charges) => {
 
 const tested = async (req, res) => { 
   try {
-    // Step 1: Retrieve booking information by booking ID
-    const booking = await Booking.findById(req.params.id)
-      .populate('vendorId', 'parkingCharges');
+    // Step 1: Retrieve booking information by booking ID (no need to populate)
+    const booking = await Booking.findById(req.params.id);
 
     // Step 2: Check if booking exists
     if (!booking) {
@@ -831,7 +830,12 @@ const tested = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Step 4: Calculate parking duration
+    // Step 4: Check if allCharges exists
+    if (!booking.allCharges || !Array.isArray(booking.allCharges) || booking.allCharges.length === 0) {
+      return res.status(400).json({ error: 'No charges found in booking. Charges may not have been saved at booking time.' });
+    }
+
+    // Step 5: Calculate parking duration
     const parkedDateTime = parseDateTime(booking.parkedDate, booking.parkedTime);
     const exitDateTime = new Date();
     const durationMs = exitDateTime - parkedDateTime;
@@ -839,47 +843,33 @@ const tested = async (req, res) => {
 
     console.log(`Parked Duration: ${durationHours} hours`);
 
-    // Step 5: Get charges for this vendor and vehicle type
-    const charges = await Parkingcharges.findOne({ 
-      vendorid: booking.vendorId, 
-      "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
-    });
+    // Step 6: Use charges from booking.allCharges instead of fetching from database
+    const chargesData = {
+      charges: booking.allCharges,
+      vendorCharges: booking.vendorCharges || {}
+    };
 
-    console.log('Charges Query:', {
-      vendorid: booking.vendorId,
-      category: new RegExp(`^${booking.vehicleType}$`, 'i')
-    });
+    console.log('✅ Charges from booking:', JSON.stringify(chargesData, null, 2));
 
-    if (!charges) {
-      console.warn(`No charges found for vendor ${booking.vendorId} and vehicle type ${booking.vehicleType}`);
-      return res.status(400).json({ error: 'No charges found for this vehicle type' });
-    }
-
-    console.log('Retrieved Charges:', charges);
-
-    // Step 6: Calculate amount based on booking type
+    // Step 7: Calculate amount based on booking type
     let amount = 0;
     if (booking.bookType.toLowerCase() === 'hourly') {
-      amount = calculateHourly(charges, durationHours);
+      amount = calculateHourlyFromBooking(chargesData, durationHours, booking.vehicleType);
     } else {
-      const fullDayType = getFullDayTypeForVehicle(charges, booking.vehicleType); // dynamically get type
-      amount = calculateFullDay(charges, parkedDateTime, exitDateTime, fullDayType);
+      const fullDayType = getFullDayTypeFromBooking(booking, booking.vehicleType);
+      amount = calculateFullDayFromBooking(chargesData, parkedDateTime, exitDateTime, fullDayType, booking.vehicleType);
     }
 
-    // Step 7: Update booking
+    // Step 8: Update booking
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       {
-        // exitvehicledate: formatDate(exitDateTime),
-        // exitvehicletime: formatTime(exitDateTime),
         amount: amount.toFixed(2),
-        // hour: durationHours.toString(),
-        // status: 'PARKED'
       },
       { new: true }
     );
 
-    // Step 8: Return response
+    // Step 9: Return response
     return res.json({
       success: true,
       booking: updatedBooking,
@@ -896,6 +886,24 @@ const tested = async (req, res) => {
   }
 };
 
+// ✅ Helper to get full day type from booking.vendorCharges
+function getFullDayTypeFromBooking(booking, vehicleType) {
+  const lowerType = vehicleType.toLowerCase();
+  const vendorCharges = booking.vendorCharges || {};
+  
+  switch (lowerType) {
+    case 'car':
+      return vendorCharges.fulldaycar || 'fullDayCharge';
+    case 'bike':
+      return vendorCharges.fulldaybike || 'fullDayCharge';
+    case 'others':
+      return vendorCharges.fulldayothers || 'fullDayCharge';
+    default:
+      throw new Error(`Unknown vehicle type: ${vehicleType}`);
+  }
+}
+
+// ✅ Legacy function - kept for backward compatibility
 function getFullDayTypeForVehicle(charges, vehicleType) {
   const lowerType = vehicleType.toLowerCase();
   switch (lowerType) {
@@ -947,12 +955,62 @@ function calculateHourly(charges, durationHours) {
   return amount;
 }
 
+// ✅ Full day calculation using booking.allCharges
+function calculateFullDayFromBooking(chargesData, startDate, endDate, bookType, vehicleType) {
+  const typeKey = bookType.toLowerCase();
+
+  // Find the charge by exact type match in booking.allCharges
+  const fullDayCharge = chargesData.charges.find(c => 
+    c.type && c.type.toLowerCase() === 'full day' &&
+    c.category && c.category.toLowerCase() === vehicleType.toLowerCase()
+  );
+
+  if (!fullDayCharge) {
+    throw new Error(`Full day charge not found for vehicle type: ${vehicleType}`);
+  }
+
+  let days = 1;
+
+  // Calculate based on fullday type
+  if (typeKey === 'full day') {
+    // Count unique calendar days (midnight to midnight)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Reset time to midnight for date comparison
+    const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+    // Calculate days by finding the difference in days
+    const msPerDay = 1000 * 60 * 60 * 24;
+    days = Math.ceil((endMidnight - startMidnight) / msPerDay) + 1;
+
+    // If end time is exactly midnight, reduce by 1 day
+    if (end.getHours() === 0 && end.getMinutes() === 0) {
+      days--;
+    }
+
+    // Ensure at least 1 day
+    days = Math.max(1, days);
+  } else if (typeKey === '24 hours') {
+    // Count 24-hour periods
+    const durationMs = endDate - startDate;
+    const durationHours = durationMs / (1000 * 60 * 60);
+    days = Math.ceil(durationHours / 24);
+  } else {
+    throw new Error(`Unsupported charge type: ${bookType}`);
+  }
+
+  return days * parseFloat(fullDayCharge.amount || 0);
+}
+
+// ✅ Legacy function - kept for backward compatibility
 function calculateFullDay(charges, startDate, endDate, bookType) {
   const typeKey = bookType.toLowerCase();
 
   // Find the charge by exact type match
   const fullDayCharge = charges.charges.find(c => 
-    c.type.toLowerCase() === 'full day'
+    c.type && c.type.toLowerCase() === 'full day'
   );
 
   if (!fullDayCharge) {
@@ -991,7 +1049,7 @@ function calculateFullDay(charges, startDate, endDate, bookType) {
     throw new Error(`Unsupported charge type: ${bookType}`);
   }
 
-  return days * parseFloat(fullDayCharge.amount);
+  return days * parseFloat(fullDayCharge.amount || 0);
 }
 
 // const { DateTime } = require('luxon');
@@ -1001,9 +1059,8 @@ const fetchtestAmount = async (req, res) => {
   try {
     console.log('🔍 Incoming request ID:', req.params.id);
 
-    // Step 1: Retrieve booking
-    const booking = await Booking.findById(req.params.id)
-      .populate('vendorId', 'parkingCharges');
+    // Step 1: Retrieve booking (no need to populate vendorId for charges)
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       console.error('❌ Booking not found');
@@ -1019,13 +1076,18 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Step 2: Fetch vendor by vendorId to get spaceid
+    // Step 2: Check if allCharges exists
+    if (!booking.allCharges || !Array.isArray(booking.allCharges) || booking.allCharges.length === 0) {
+      return res.status(400).json({ error: 'No charges found in booking. Charges may not have been saved at booking time.' });
+    }
+
+    // Step 3: Fetch vendor by vendorId to get spaceid
     const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
     
     let spaceid = null;
     let spacearea = null;
     
-    // Step 3: If vendor exists and has spaceid, get spaceid and spacearea
+    // Step 4: If vendor exists and has spaceid, get spaceid and spacearea
     if (vendor && vendor.spaceid) {
       spaceid = vendor.spaceid;
       console.log('📍 Spaceid found:', spaceid);
@@ -1041,7 +1103,7 @@ const fetchtestAmount = async (req, res) => {
       }
     }
 
-    // Step 4: Parse DateTime
+    // Step 5: Parse DateTime
     const parkedDateTimeLuxon = DateTime.fromFormat(
       `${booking.parkedDate} ${booking.parkedTime}`,
       'dd-MM-yyyy hh:mm a',
@@ -1063,29 +1125,26 @@ const fetchtestAmount = async (req, res) => {
     const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
     console.log('🧮 Duration (hours):', durationHours);
+    console.log('✅ Charges from booking.allCharges:', JSON.stringify(booking.allCharges, null, 2));
 
-    // Step 5: Fetch charges for vehicle type
-    const charges = await Parkingcharges.findOne({
-      vendorid: booking.vendorId,
-      "charges.category": { $regex: new RegExp(`^${booking.vehicleType}$`, 'i') }
-    });
+    // Step 6: Use charges from booking.allCharges instead of fetching from database
+    // Create a charges object structure similar to what was fetched before
+    const chargesData = {
+      charges: booking.allCharges,
+      vendorCharges: booking.vendorCharges || {}
+    };
 
-    if (!charges) {
-      return res.status(400).json({ error: 'No charges found for this vehicle type' });
-    }
-
-    console.log('✅ Charges found:', JSON.stringify(charges, null, 2));
-
-    // Step 6: Calculate amount
+    // Step 7: Calculate amount
     let amount = 0;
     if (booking.bookType.toLowerCase() === 'hourly') {
-      amount = calculateHourly(charges, durationHours, booking.vehicleType);
+      amount = calculateHourlyFromBooking(chargesData, durationHours, booking.vehicleType);
     } else {
-      // Add your full-day/monthly logic here if needed
-      return res.status(400).json({ error: 'Full-day/monthly calculation not implemented' });
+      // Full-day calculation using booking data
+      const fullDayType = getFullDayTypeFromBooking(booking, booking.vehicleType);
+      amount = calculateFullDayFromBooking(chargesData, parkedDateTime, exitDateTime, fullDayType, booking.vehicleType);
     }
 
-    // Step 7: Return response with spaceid and spacearea
+    // Step 8: Return response with spaceid and spacearea
     return res.json({
       success: true,
       payableAmount: amount?.toFixed(2) ?? '0.00',
@@ -1100,40 +1159,94 @@ const fetchtestAmount = async (req, res) => {
   }
 };
 
-// ✅ Hourly calculation helper
-function calculateHourly(chargesData, durationHours, vehicleType) {
+// ✅ Hourly calculation helper - works with booking.allCharges
+function calculateHourlyFromBooking(chargesData, durationHours, vehicleType) {
   const filteredCharges = chargesData.charges.filter(
-    c => c.category.toLowerCase() === vehicleType.toLowerCase()
+    c => c.category && c.category.toLowerCase() === vehicleType.toLowerCase()
   );
 
   let baseCharge = null;
+  let baseChargeHours = 0;
   let additionalCharge = null;
 
+  // Find base charge and additional charge
   for (let charge of filteredCharges) {
-    const type = charge.type.toLowerCase();
+    const type = (charge.type || '').toLowerCase();
 
     if (type.includes('0 to')) {
       const match = type.match(/0 to (\d+) hours?/);
-      if (match && durationHours <= parseInt(match[1])) {
-        baseCharge = parseFloat(charge.amount);
-        break;
+      if (match) {
+        baseCharge = parseFloat(charge.amount || 0);
+        baseChargeHours = parseInt(match[1]);
       }
     } else if (type.includes('additional')) {
       additionalCharge = {
-        amount: parseFloat(charge.amount),
+        amount: parseFloat(charge.amount || 0),
         hours: extractHoursFromAdditional(type)
       };
     }
   }
 
-  if (baseCharge !== null) return baseCharge;
-
-  if (additionalCharge) {
-    const cycles = Math.ceil(durationHours / additionalCharge.hours);
-    return additionalCharge.amount * cycles;
+  // If duration is within base period, return only base charge
+  if (durationHours <= baseChargeHours) {
+    return baseCharge || 0;
   }
 
-  return 0;
+  // If duration exceeds base period, calculate: base + additional
+  let totalAmount = baseCharge || 0;
+  
+  if (additionalCharge) {
+    const remainingHours = durationHours - baseChargeHours;
+    const cycles = Math.ceil(remainingHours / additionalCharge.hours);
+    totalAmount += additionalCharge.amount * cycles;
+  }
+
+  return totalAmount;
+}
+
+// ✅ Hourly calculation helper (legacy - kept for backward compatibility)
+function calculateHourly(chargesData, durationHours, vehicleType) {
+  const filteredCharges = chargesData.charges.filter(
+    c => c.category && c.category.toLowerCase() === vehicleType.toLowerCase()
+  );
+
+  let baseCharge = null;
+  let baseChargeHours = 0;
+  let additionalCharge = null;
+
+  // Find base charge and additional charge
+  for (let charge of filteredCharges) {
+    const type = (charge.type || '').toLowerCase();
+
+    if (type.includes('0 to')) {
+      const match = type.match(/0 to (\d+) hours?/);
+      if (match) {
+        baseCharge = parseFloat(charge.amount || 0);
+        baseChargeHours = parseInt(match[1]);
+      }
+    } else if (type.includes('additional')) {
+      additionalCharge = {
+        amount: parseFloat(charge.amount || 0),
+        hours: extractHoursFromAdditional(type)
+      };
+    }
+  }
+
+  // If duration is within base period, return only base charge
+  if (durationHours <= baseChargeHours) {
+    return baseCharge || 0;
+  }
+
+  // If duration exceeds base period, calculate: base + additional
+  let totalAmount = baseCharge || 0;
+  
+  if (additionalCharge) {
+    const remainingHours = durationHours - baseChargeHours;
+    const cycles = Math.ceil(remainingHours / additionalCharge.hours);
+    totalAmount += additionalCharge.amount * cycles;
+  }
+
+  return totalAmount;
 }
 
 // ✅ Helper to extract hour count from "Additional X hours"
