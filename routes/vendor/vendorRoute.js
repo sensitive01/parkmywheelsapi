@@ -61,7 +61,7 @@ vendorRoute.put("/renewmonthl/:id", bookingController.renewSubscription);
 vendorRoute.put("/exitvendorsubscription/:id", bookingController.exitvendorsub);
 //kdhfhd
 vendorRoute.get("/fetch/:vendorId", bookingController.vendorfetch);
-// vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
+vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
 vendorRoute.get("/userbookingtrans/:vendorId", bookingController.getReceivableAmountByUser);
 vendorRoute.get("/nonuserbookings/:vendorId", bookingController.getReceivableAmountWithPlatformFee);
 
