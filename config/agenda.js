@@ -606,45 +606,58 @@ const triggerSevenDaySubscriptionReminders = async () => {
 
       // Send SMS if mobile number is available
       if (mobileNumber) {
-        try {
-          // Format expiry time (default to end of day: 11:59 PM)
-          const expiryTime = "11:59 PM";
-          
-          // Match exact DLT template format: "Dear ${var1}, Your Parking subscription for ${var2} is expiring on ${var3} at ${var4}. Renew now on ParkMyWheels app to enjoy hassle free parking."
-          const smsMessage = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay} at ${expiryTime}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
-          let cleanedMobile = String(mobileNumber).replace(/[^0-9]/g, "");
-          
-          console.log(`📱 SENDING 7-DAY SMS: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
-          console.log(`   Message: ${smsMessage}`);
+        // Check if a 7-day reminder was already sent today for this booking
+        const todayStart = nowIst.startOf("day").toJSDate();
+        const todayEnd = nowIst.endOf("day").toJSDate();
+        const existingNotification = await Notification.findOne({
+          bookingId: String(finalBookingId),
+          title: "Subscription expiring soon",
+          createdAt: { $gte: todayStart, $lte: todayEnd }
+        });
 
-          // Use the approved DLT template ID for subscription reminders
-          const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION_REMINDER || "1007408523316568326";
+        if (existingNotification) {
+          console.log(`⏭️ 7-DAY SMS SKIPPED: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) - Reminder already sent today`);
+        } else {
+          try {
+            // Format expiry time (default to end of day: 11:59 PM)
+            const expiryTime = "11:59 PM";
+            
+            // Match exact DLT template format: "Dear ${var1}, Your Parking subscription for ${var2} is expiring on ${var3} at ${var4}. Renew now on ParkMyWheels app to enjoy hassle free parking."
+            const smsMessage = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay} at ${expiryTime}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
+            let cleanedMobile = String(mobileNumber).replace(/[^0-9]/g, "");
+            
+            console.log(`📱 SENDING 7-DAY SMS: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
+            console.log(`   Message: ${smsMessage}`);
 
-          const smsParams = {
-            username: process.env.VISPL_USERNAME || "Vayusutha.trans",
-            password: process.env.VISPL_PASSWORD || "pdizP",
-            unicode: "false",
-            from: process.env.VISPL_SENDER_ID || "PRMYWH",
-            to: cleanedMobile,
-            text: smsMessage,
-            dltContentId: dltTemplateId,
-          };
+            // Use the approved DLT template ID for subscription reminders
+            const dltTemplateId = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION_REMINDER || "1007408523316568326";
 
-          const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
-            params: smsParams,
-            paramsSerializer: (params) => qs.stringify(params, { encode: true }),
-          });
+            const smsParams = {
+              username: process.env.VISPL_USERNAME || "Vayusutha.trans",
+              password: process.env.VISPL_PASSWORD || "pdizP",
+              unicode: "false",
+              from: process.env.VISPL_SENDER_ID || "PRMYWH",
+              to: cleanedMobile,
+              text: smsMessage,
+              dltContentId: dltTemplateId,
+            };
 
-          const smsStatus = smsResponse.data.STATUS || smsResponse.data.status || smsResponse.data.statusCode;
-          const isSuccess = smsStatus === "SUCCESS" || smsStatus === 200 || smsStatus === 2000;
+            const smsResponse = await axios.get("https://pgapi.vispl.in/fe/api/v1/send", {
+              params: smsParams,
+              paramsSerializer: (params) => qs.stringify(params, { encode: true }),
+            });
 
-          if (isSuccess) {
-            console.log(`✅ 7-DAY SMS SENT: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
-          } else {
-            console.warn(`❌ 7-DAY SMS FAILED: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) - API returned error`);
+            const smsStatus = smsResponse.data.STATUS || smsResponse.data.status || smsResponse.data.statusCode;
+            const isSuccess = smsStatus === "SUCCESS" || smsStatus === 200 || smsStatus === 2000;
+
+            if (isSuccess) {
+              console.log(`✅ 7-DAY SMS SENT: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
+            } else {
+              console.warn(`❌ 7-DAY SMS FAILED: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) - API returned error`);
+            }
+          } catch (smsErr) {
+            console.error(`❌ 7-DAY SMS ERROR: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) -`, smsErr.message);
           }
-        } catch (smsErr) {
-          console.error(`❌ 7-DAY SMS ERROR: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) -`, smsErr.message);
         }
       } else {
         console.log(`⚠️ 7-DAY SMS SKIPPED: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) - No mobile number found`);
@@ -889,6 +902,20 @@ const triggerFiveDaySubscriptionReminders = async () => {
         console.log(`   - ✅ Notification saved to database for ${vehicleNumber}`);
       } catch (notifErr) {
         console.error(`   - ❌ Failed to save notification to database:`, notifErr);
+      }
+
+      // Check if a 5-day reminder was already sent today for this booking
+      const todayStart = nowIst.startOf("day").toJSDate();
+      const todayEnd = nowIst.endOf("day").toJSDate();
+      const existingNotification = await Notification.findOne({
+        bookingId: String(bookingId),
+        title: "Subscription expiring in 5 days",
+        createdAt: { $gte: todayStart, $lte: todayEnd }
+      });
+
+      if (existingNotification) {
+        console.log(`⏭️ 5-DAY SMS SKIPPED: ${vehicleNumber || 'No vehicle'} (${bookingId}) - Reminder already sent today`);
+        continue;
       }
 
       // Send SMS for 5-day reminder
@@ -1166,21 +1193,6 @@ cron.schedule("* * * * *", async () => {
 }, { timezone: "Asia/Kolkata" });
 
 console.log("Pending booking cancellation cron job scheduled.");
-
-// Daily subscription reminders at 3:50 PM IST
-cron.schedule("50 15 * * *", async () => {
-  console.log(`[${new Date().toISOString()}] Running daily subscription reminder check at 3:50 PM IST...`);
-
-  try {
-    await triggerSevenDaySubscriptionReminders();
-    await completeExpiredSubscriptions();
-    await triggerFiveDaySubscriptionReminders();
-  } catch (err) {
-    console.error(`[${new Date().toISOString()}] Error while processing subscription notifications:`, err);
-  }
-}, { timezone: "Asia/Kolkata" });
-
-console.log("Daily subscription reminder cron job scheduled at 3:50 PM IST.");
 
 // ------------------------------------------------------------------
 // Vendor Subscription 7-Day Renewal Reminder
