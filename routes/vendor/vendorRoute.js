@@ -202,7 +202,7 @@ vendorRoute.get("/run-agenda-job", async (req, res) => {
   }
 });
 
-vendorRoute.post("/bankdetails", upload.none(), bankdetailsConroller.createOrUpdateBankDetail);
+vendorRoute.post("/bankdetails", upload.single("bankpassbookimage"), bankdetailsConroller.createOrUpdateBankDetail);
 vendorRoute.get("/getbankdetails/:vendorId", bankdetailsConroller.getBankDetails);
 
 vendorRoute.get("/fetchsubscriptionleft/:vendorId", vendorController.fetchVendorSubscriptionLeft);

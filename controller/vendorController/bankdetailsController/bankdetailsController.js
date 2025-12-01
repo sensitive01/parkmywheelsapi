@@ -1,4 +1,5 @@
 const BankDetails = require('../../../models/bankdetailsSchema');
+const { uploadImage } = require('../../../config/cloudinary');
 
 
 const createOrUpdateBankDetail = async (req, res) => {
@@ -6,17 +7,45 @@ const createOrUpdateBankDetail = async (req, res) => {
       const { vendorId, accountnumber, confirmaccountnumber, accountholdername, ifsccode } = req.body;
   
       let existingBankDetail = await BankDetails.findOne({ vendorId });
+
+      // Handle bank passbook image upload
+      let bankpassbookimage = null;
+      if (req.file) {
+        bankpassbookimage = await uploadImage(req.file.buffer, "bankdetails/passbook");
+      } else if (req.body.bankpassbookimage && req.body.bankpassbookimage.startsWith("data:image")) {
+        // If image is base64, upload it
+        try {
+          const base64Data = req.body.bankpassbookimage.split(",")[1];
+          const buffer = Buffer.from(base64Data, "base64");
+          bankpassbookimage = await uploadImage(buffer, "bankdetails/passbook");
+        } catch (error) {
+          console.error("Error uploading base64 image:", error);
+        }
+      } else if (req.body.bankpassbookimage) {
+        // If it's already a URL, use it directly
+        bankpassbookimage = req.body.bankpassbookimage;
+      }
   
       if (existingBankDetail) {
         // Use findOneAndUpdate to update the document and return the updated one
+        const updateData = {
+          accountnumber: accountnumber || existingBankDetail.accountnumber,
+          confirmaccountnumber: confirmaccountnumber || existingBankDetail.confirmaccountnumber,
+          accountholdername: accountholdername || existingBankDetail.accountholdername,
+          ifsccode: ifsccode || existingBankDetail.ifsccode
+        };
+
+        // Only update bankpassbookimage if a new one is provided
+        if (bankpassbookimage) {
+          updateData.bankpassbookimage = bankpassbookimage;
+        } else if (existingBankDetail.bankpassbookimage) {
+          // Keep existing image if no new one is provided
+          updateData.bankpassbookimage = existingBankDetail.bankpassbookimage;
+        }
+
         const updatedBankDetail = await BankDetails.findOneAndUpdate(
           { vendorId },
-          {
-            accountnumber: accountnumber || existingBankDetail.accountnumber,
-            confirmaccountnumber: confirmaccountnumber || existingBankDetail.confirmaccountnumber,
-            accountholdername: accountholdername || existingBankDetail.accountholdername,
-            ifsccode: ifsccode || existingBankDetail.ifsccode
-          },
+          updateData,
           { new: true } // This will return the updated document
         );
   
@@ -30,7 +59,8 @@ const createOrUpdateBankDetail = async (req, res) => {
           accountnumber,
           confirmaccountnumber,
           accountholdername,
-          ifsccode
+          ifsccode,
+          bankpassbookimage: bankpassbookimage || null
         });
   
         const savedBankDetail = await newBankDetail.save();
