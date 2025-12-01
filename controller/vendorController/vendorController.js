@@ -1274,6 +1274,48 @@ const updateVendorPlatformFee = async (req, res) => {
   }
 };
 
+const updateVendorPlatformFeeForVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    const { vendorplatformfee } = req.body;
+
+    // Validate input
+    if (vendorplatformfee === undefined || vendorplatformfee === null || String(vendorplatformfee).trim() === "") {
+      return res.status(400).json({ message: "Vendor platform fee is required" });
+    }
+
+    // Check if it's a valid non-negative number
+    if (isNaN(vendorplatformfee) || Number(vendorplatformfee) < 0) {
+      return res.status(400).json({ message: "Vendor platform fee must be a valid non-negative number" });
+    }
+
+    // Find and update vendor
+    const vendor = await vendorModel.findByIdAndUpdate(
+      vendorId,
+      { vendorplatformfee: String(vendorplatformfee) },
+      { new: true } // return updated document
+    );
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.json({
+      message: "Vendor platform fee (for non-user bookings) updated successfully",
+      vendor: {
+        id: vendor._id,
+        vendorId: vendor.vendorId,
+        vendorName: vendor.vendorName,
+        vendorplatformfee: vendor.vendorplatformfee
+      }
+    });
+
+  } catch (err) {
+    console.error("Error updating vendor platform fee:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 const updateValidity = async (req, res) => {
   try {
     const vendorId = req.params.id;
@@ -1454,6 +1496,7 @@ module.exports = {
   updateValidity,
   vendoridlogin,
   updateVendorPlatformFee,
+  updateVendorPlatformFeeForVendor,
   updateVendorVisibilityOnly,
   fetchvisiblevendordata,
   deleteBookingsByVendorId,

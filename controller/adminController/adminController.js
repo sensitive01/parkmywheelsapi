@@ -856,6 +856,7 @@ const getAllVendorsTransaction = async (req, res) => {
     const results = await Promise.all(
       vendors.map(async (vendor) => {
         const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+        const vendorPlatformFeePercentage = parseFloat(vendor.vendorplatformfee) || 0;
         const completedBookings = await Booking.find({ 
           vendorId: vendor._id, 
           status: "COMPLETED" 
@@ -863,7 +864,9 @@ const getAllVendorsTransaction = async (req, res) => {
 
         const totals = completedBookings.reduce((acc, booking) => {
           const amount = parseFloat(booking.amount);
-          const platformfee = (amount * platformFeePercentage) / 100;
+          // Use platformfee if booking.userid exists, otherwise use vendorplatformfee
+          const feePercentage = booking.userid ? platformFeePercentage : vendorPlatformFeePercentage;
+          const platformfee = (amount * feePercentage) / 100;
           acc.totalAmount += amount;
           acc.totalReceivable += (amount - platformfee);
           return acc;
