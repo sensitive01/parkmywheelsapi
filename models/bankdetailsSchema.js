@@ -17,6 +17,9 @@ const bankdetailsSchema = new mongoose.Schema(
     ifsccode: {
       type: String,
     },
+    bankpassbookimage: {
+      type: String,
+    },
   }
 );
 

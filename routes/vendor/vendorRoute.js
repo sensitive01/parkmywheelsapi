@@ -178,6 +178,7 @@ vendorRoute.get("/getallkyc", kycController.getallKycData);
 vendorRoute.put('/verifykyc/:vendorId', kycController.verifyKycStatus);
 
 vendorRoute.put('/updateplatformfee/:id', vendorController.updateVendorPlatformFee);
+vendorRoute.put('/updatevendorplatformfee/:id', vendorController.updateVendorPlatformFeeForVendor);
 vendorRoute.put('/updatevaliditydays/:id', vendorController.updateValidity);
 
 
@@ -201,7 +202,7 @@ vendorRoute.get("/run-agenda-job", async (req, res) => {
   }
 });
 
-vendorRoute.post("/bankdetails", upload.none(), bankdetailsConroller.createOrUpdateBankDetail);
+vendorRoute.post("/bankdetails", upload.single("bankpassbookimage"), bankdetailsConroller.createOrUpdateBankDetail);
 vendorRoute.get("/getbankdetails/:vendorId", bankdetailsConroller.getBankDetails);
 
 vendorRoute.get("/fetchsubscriptionleft/:vendorId", vendorController.fetchVendorSubscriptionLeft);

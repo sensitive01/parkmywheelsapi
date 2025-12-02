@@ -144,7 +144,7 @@ exports.createBooking = async (req, res) => {
     // Check available slots
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, spaceid: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, vendorplatformfee: 1, spaceid: 1 }
     );
 
     if (!vendorData) {
@@ -204,7 +204,13 @@ exports.createBooking = async (req, res) => {
     const handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
     const totalAmount = (bookingAmount + gstAmount + handlingFee).toFixed(2);
 
-    let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    // Platform fee calculation: use platformfee if userid exists, otherwise use vendorplatformfee
+    let platformFeePercentage = 0;
+    if (userid) {
+      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendorData.vendorplatformfee) || 0;
+    }
     const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
     const releaseFee = platformFee.toFixed(2);
     const receivableAmount = (parseFloat(totalAmount) - platformFee).toFixed(2);
@@ -614,7 +620,7 @@ exports.vendorcreateBooking = async (req, res) => {
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, vendorplatformfee: 1 }
     );
 
     if (!vendorData) {
@@ -674,8 +680,13 @@ exports.vendorcreateBooking = async (req, res) => {
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
-    // Platform fee calculation
-    let platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    // Platform fee calculation: use platformfee if userid exists, otherwise use vendorplatformfee
+    let platformFeePercentage = 0;
+    if (userid) {
+      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendorData.vendorplatformfee) || 0;
+    }
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
     const platformFee = (roundedAmount * platformFeePercentage) / 100;
@@ -3395,8 +3406,14 @@ exports.updateBookingAmountAndHour = async (req, res) => {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
+    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use vendorplatformfee
+    let platformFeePercentage = 0;
+    if (booking.userid) {
+      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendor.vendorplatformfee) || 0;
+    }
     // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
-    let platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
     // Round up amounts to the next whole number
@@ -3770,8 +3787,14 @@ exports.renewSubscription = async (req, res) => {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
+    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use vendorplatformfee
+    let platformFeePercentage = 0;
+    if (booking.userid) {
+      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendor.vendorplatformfee) || 0;
+    }
     // Always round UP the platform fee %
-    let platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
     // ✅ Round inputs

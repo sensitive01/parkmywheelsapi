@@ -856,6 +856,7 @@ const getAllVendorsTransaction = async (req, res) => {
     const results = await Promise.all(
       vendors.map(async (vendor) => {
         const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+        const vendorPlatformFeePercentage = parseFloat(vendor.vendorplatformfee) || 0;
         const completedBookings = await Booking.find({ 
           vendorId: vendor._id, 
           status: "COMPLETED" 
@@ -863,7 +864,9 @@ const getAllVendorsTransaction = async (req, res) => {
 
         const totals = completedBookings.reduce((acc, booking) => {
           const amount = parseFloat(booking.amount);
-          const platformfee = (amount * platformFeePercentage) / 100;
+          // Use platformfee if booking.userid exists, otherwise use vendorplatformfee
+          const feePercentage = booking.userid ? platformFeePercentage : vendorPlatformFeePercentage;
+          const platformfee = (amount * feePercentage) / 100;
           acc.totalAmount += amount;
           acc.totalReceivable += (amount - platformfee);
           return acc;
@@ -943,6 +946,37 @@ const closeChat = async (req, res) => {
           fcmTokens: vendorDoc.fcmTokens
         });
 
+        // Format notification time
+        const now = new Date();
+        const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const formattedTime = istTime.toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+        // Save notification to database
+        try {
+          const notification = new Notification({
+            vendorId: vendorIdString,
+            title: "Support Ticket Closed",
+            message: `Your support ticket #${helpRequest._id} has been closed. Please check the app for details.`,
+            sts: "support_ticket_closed",
+            status: "completed",
+            read: false,
+            notificationdtime: formattedTime,
+            createdAt: new Date(),
+          });
+
+          await notification.save();
+          console.log(`[${new Date().toISOString()}] ✅ Notification saved to database for vendor ${vendorDoc.vendorId}`);
+        } catch (notifSaveErr) {
+          console.error(`[${new Date().toISOString()}] ❌ Error saving notification to database:`, notifSaveErr);
+        }
+
         if (vendorDoc.fcmTokens?.length > 0) {
           const tokens = vendorDoc.fcmTokens;
 
@@ -954,11 +988,11 @@ const closeChat = async (req, res) => {
               try {
                 await admin.messaging().send({
                   notification: {
-                    title: "Support Ticket Update",
-                    body: `Your support ticket #${helpRequest._id} has been updated. Please check the app for details.`,
+                    title: "Support Ticket Closed",
+                    body: `Your support ticket #${helpRequest._id} has been closed. Please check the app for details.`,
                   },
                   data: {
-                    type: "support_ticket_update",
+                    type: "support_ticket_closed",
                     helpRequestId: helpRequest._id.toString(),
                   },
                   token: token
