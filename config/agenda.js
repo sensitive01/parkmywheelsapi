@@ -1201,13 +1201,14 @@ const sendVendorSubscriptionRenewalReminders = async () => {
   try {
     console.log(`[${new Date().toISOString()}] Running vendor subscription 7-day renewal reminder check...`);
 
-    // Find vendors whose subscription ends in exactly 7 days
+    // Find vendors whose subscription has 8 days left (today)
+    // At 11:59 PM, we send notification saying "7 days" because tomorrow it will be 7 days
     const vendors = await Vendor.find({
       subscription: "true",
-      subscriptionleft: 7
+      subscriptionleft: 8
     });
 
-    console.log(`[${new Date().toISOString()}] Found ${vendors.length} vendors with 7 days left in subscription.`);
+    console.log(`[${new Date().toISOString()}] Found ${vendors.length} vendors with 8 days left in subscription (will be 7 days tomorrow).`);
 
     let notificationsSent = 0;
     let notificationsFailed = 0;
@@ -1265,7 +1266,7 @@ const sendVendorSubscriptionRenewalReminders = async () => {
             },
             data: {
               type: "vendor_subscription_renewal",
-              daysLeft: vendor.subscriptionleft.toString(),
+              daysLeft: "7", // Notification says 7 days (tomorrow it will be 7)
               subscriptionEndDate: vendor.subscriptionenddate || "",
               vendorId: String(vendor._id),
               vendorName: vendor.vendorName || ""
@@ -1326,7 +1327,7 @@ const sendVendorSubscriptionRenewalReminders = async () => {
     console.log(`\n📊 === VENDOR SUBSCRIPTION RENEWAL SUMMARY ===`);
     console.log(`✅ Notifications sent successfully: ${notificationsSent}`);
     console.log(`❌ Notifications failed: ${notificationsFailed}`);
-    console.log(`📋 Total vendors with 7 days left: ${vendors.length}`);
+    console.log(`📋 Total vendors with 8 days left (7-day reminder sent): ${vendors.length}`);
     console.log(`📋 === END SUMMARY ===\n`);
 
     return {
