@@ -13,6 +13,9 @@ const Notification = require("../../models/notificationschema");
 const { v4: uuidv4 } = require('uuid');
 const admin = require("../../config/firebaseAdmin");
 const { DateTime } = require("luxon");
+const planSchema = require("../../models/planSchema");
+const transactions = require("../../models/transactionSchema");
+const meetingSchema = require("../../models/meetingSchema");
 
 const vendorForgotPassword = async (req, res) => {
     try {
@@ -1511,7 +1514,7 @@ const getPlanList = async (req, res) => {
   try {
     const { planId } = req.params;
 
-    const planData = await transactionSchema.find({ planId });
+    const planData = await transactions.find({ planId });
     const planName = await planSchema.findById(planId,{planName:1});
     const vendorData = await vendorModel.find({}, { _id: 1, vendorName: 1 });
 
@@ -1546,7 +1549,7 @@ const getMySubscriberListList = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    const transactionData = await transactionSchema.find({ vendorId });
+    const transactionData = await transactions.find({ vendorId });
     const planData = await planSchema.find({}, { _id: 1, planName: 1 });
     const vendorData = await vendorModel.find({}, { _id: 1, vendorName: 1 });
 
@@ -1827,7 +1830,43 @@ const sendManualNotification = async (req, res) => {
   }
 };
 
+
+
+const getAdminNotifications = async (req, res) => {
+    try {
+        const notifications = await meetingSchema.find({});
+        const helpAndSupports = await VendorHelpSupport.find({status:"Pending"})
+        return res.status(200).json({
+            success: true,
+            data: notifications,
+            helpAndSupports
+        });
+    } catch (error) {
+        console.error("Error fetching notifications:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message,
+        });
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 module.exports = {
+  getAdminNotifications,
   getMySubscriberListList,
   getPlanList,
   getVendorAndUserData,

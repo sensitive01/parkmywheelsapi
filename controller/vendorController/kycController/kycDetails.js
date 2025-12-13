@@ -41,24 +41,6 @@ const createKycData = async (req, res) => {
     res.status(500).json({ message: 'Error creating KYC details', error: error.message });
   }
 };
-
-
-
-const getKycData = async (req, res) => {
-  try {
-    const { id } = req.params; 
-
-    const kycDetails = await KycDetails.findOne({ vendorId: id });
-
-    if (!kycDetails) {
-      return res.status(404).json({ message: 'KYC details not found' });
-    }
-    res.status(200).json({ data: kycDetails });
-  } catch (error) {
-
-    res.status(500).json({ message: 'Error fetching KYC details', error: error.message });
-  }
-};
 const updateKycData = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -99,6 +81,24 @@ const updateKycData = async (req, res) => {
     res.status(500).json({ message: 'Error updating KYC details', error: error.message });
   }
 };
+
+
+const getKycData = async (req, res) => {
+  try {
+    const { id } = req.params; 
+
+    const kycDetails = await KycDetails.findOne({ vendorId: id });
+
+    if (!kycDetails) {
+      return res.status(404).json({ message: 'KYC details not found' });
+    }
+    res.status(200).json({ data: kycDetails });
+  } catch (error) {
+
+    res.status(500).json({ message: 'Error fetching KYC details', error: error.message });
+  }
+};
+
 
 
 
