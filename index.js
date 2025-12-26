@@ -48,6 +48,7 @@ const allowedOrigins = [
   "http://localhost:3001",
   "https://parmywheels-admin-ui.vercel.app",
   "https://parmywheels-vendor-ui.vercel.app",
+  "https://space.parkmywheels.com"
 ];
 
 const corsOptions = {
