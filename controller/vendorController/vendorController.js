@@ -1279,7 +1279,6 @@ const updateVendorPlatformFee = async (req, res) => {
   try {
     const vendorId = req.params.id;
     const { platformfee, platformFeeCustomer } = req.body;
-    console.log("platformFeeCustomer", platformFeeCustomer);
 
     // Validate input
     if (
@@ -1302,7 +1301,7 @@ const updateVendorPlatformFee = async (req, res) => {
     // Find and update vendor
     const vendor = await vendorModel.findByIdAndUpdate(
       vendorId,
-      { platformfee: String(platformfee), handlingFee: platformFeeCustomer },
+      { platformfee: String(platformfee), vendorplatformfee: String(platformFeeCustomer) },
       { new: true } // return updated document
     );
 
