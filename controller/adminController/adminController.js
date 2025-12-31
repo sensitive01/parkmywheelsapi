@@ -983,39 +983,64 @@ const closeChat = async (req, res) => {
         if (vendorDoc.fcmTokens?.length > 0) {
           const tokens = vendorDoc.fcmTokens;
 
-          console.log("📱 Sending notification to tokens:", tokens);
+          console.log(`[${new Date().toISOString()}] 📱 Sending notification to ${tokens.length} token(s) for vendor ${vendorDoc.vendorId}`);
 
-          try {
-            // Fix: Use same method as working booking code
-            const promises = tokens.map(async (token) => {
-              try {
-                await admin.messaging().send({
-                  notification: {
-                    title: "Support Ticket Closed",
-                    body: `Your support ticket #${helpRequest._id} has been closed. Please check the app for details.`,
-                  },
-                  data: {
-                    type: "support_ticket_closed",
-                    helpRequestId: helpRequest._id.toString(),
-                  },
-                  android: { notification: { sound: "default", priority: "high" } },
-                  apns: { payload: { aps: { sound: "default" } } },
-                  token: token
-                });
-                console.log(`✅ Notification sent successfully to token: ${token.substring(0, 50)}...`);
-              } catch (error) {
-                console.error(`❌ Failed to send to token ${token.substring(0, 50)}...:`, error.message);
+          const invalidTokens = [];
+          let sentToAtLeastOneToken = false;
+
+          for (const token of tokens) {
+            try {
+              await admin.messaging().send({
+                notification: {
+                  title: "Support Ticket Closed",
+                  body: `Your support ticket #${helpRequest._id} has been closed. Please check the app for details.`,
+                },
+                data: {
+                  type: "support_ticket_closed",
+                  helpRequestId: helpRequest._id.toString(),
+                },
+                android: { notification: { sound: "default", priority: "high" } },
+                apns: { payload: { aps: { sound: "default" } } },
+                token: token
+              });
+              console.log(`[${new Date().toISOString()}] ✅ FCM notification sent successfully to vendor ${vendorDoc.vendorId} (token: ${token.substring(0, 10)}...)`);
+              sentToAtLeastOneToken = true;
+            } catch (sendErr) {
+              const errorCode = sendErr?.errorInfo?.code || sendErr?.code || 'unknown';
+              const errorMessage = sendErr?.errorInfo?.message || sendErr?.message || sendErr;
+              console.error(`[${new Date().toISOString()}] ❌ FCM send error for vendor token ${token.substring(0, 10)}...:`, errorCode, errorMessage);
+              
+              // Track invalid tokens for removal
+              if (errorCode === "messaging/registration-token-not-registered" || 
+                  errorCode === "messaging/invalid-registration-token" ||
+                  errorCode === "messaging/invalid-argument") {
+                invalidTokens.push(token);
+                console.log(`[${new Date().toISOString()}] 🧹 Marked token as invalid (${errorCode})`);
               }
-            });
-
-            await Promise.all(promises);
-            console.log(`✅ All notifications processed. Sent to ${tokens.length} device(s)`);
-
-          } catch (notifErr) {
-            console.error("❌ Error sending notifications:", notifErr);
+            }
           }
+
+          // Remove invalid tokens from vendor document
+          if (invalidTokens.length > 0) {
+            try {
+              await vendorModel.updateOne(
+                { _id: vendorIdString },
+                { $pull: { fcmTokens: { $in: invalidTokens } } }
+              );
+              console.log(`[${new Date().toISOString()}] 🧹 Removed ${invalidTokens.length} invalid FCM token(s) from vendor ${vendorDoc.vendorId}`);
+            } catch (updateErr) {
+              console.error(`[${new Date().toISOString()}] ❌ Error removing invalid tokens:`, updateErr);
+            }
+          }
+
+          if (sentToAtLeastOneToken) {
+            console.log(`[${new Date().toISOString()}] ✅ At least one notification sent successfully to vendor ${vendorDoc.vendorId}`);
+          } else {
+            console.log(`[${new Date().toISOString()}] ⚠️ No notifications were sent successfully to vendor ${vendorDoc.vendorId} (all tokens may be invalid)`);
+          }
+
         } else {
-          console.log("⚠️ Vendor found but no FCM tokens available");
+          console.log(`[${new Date().toISOString()}] ⚠️ Vendor found but no FCM tokens available for vendor ${vendorDoc.vendorId}`);
         }
       } else {
         console.log("❌ Vendor not found with vendorId:", vendorIdString);
