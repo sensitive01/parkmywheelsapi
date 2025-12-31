@@ -990,7 +990,7 @@ const closeChat = async (req, res) => {
 
           for (const token of tokens) {
             try {
-              await admin.messaging().send({
+              const fcmPayload = {
                 notification: {
                   title: "Support Ticket Closed",
                   body: `Your support ticket #${helpRequest._id} has been closed. Please check the app for details.`,
@@ -998,12 +998,32 @@ const closeChat = async (req, res) => {
                 data: {
                   type: "support_ticket_closed",
                   helpRequestId: helpRequest._id.toString(),
+                  click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
-                android: { notification: { sound: "default", priority: "high" } },
-                apns: { payload: { aps: { sound: "default" } } },
+                android: { 
+                  notification: { 
+                    sound: "default", 
+                    priority: "high",
+                    channelId: "default",
+                    clickAction: "FLUTTER_NOTIFICATION_CLICK"
+                  },
+                  priority: "high"
+                },
+                apns: { 
+                  payload: { 
+                    aps: { 
+                      sound: "default",
+                      badge: 1,
+                      contentAvailable: true
+                    } 
+                  } 
+                },
                 token: token
-              });
+              };
+
+              const response = await admin.messaging().send(fcmPayload);
               console.log(`[${new Date().toISOString()}] ✅ FCM notification sent successfully to vendor ${vendorDoc.vendorId} (token: ${token.substring(0, 10)}...)`);
+              console.log(`[${new Date().toISOString()}] 📋 FCM Response Message ID:`, response || 'No message ID returned');
               sentToAtLeastOneToken = true;
             } catch (sendErr) {
               const errorCode = sendErr?.errorInfo?.code || sendErr?.code || 'unknown';
