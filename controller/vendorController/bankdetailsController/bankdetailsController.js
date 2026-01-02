@@ -32,7 +32,9 @@ const createOrUpdateBankDetail = async (req, res) => {
           accountnumber: accountnumber || existingBankDetail.accountnumber,
           confirmaccountnumber: confirmaccountnumber || existingBankDetail.confirmaccountnumber,
           accountholdername: accountholdername || existingBankDetail.accountholdername,
-          ifsccode: ifsccode || existingBankDetail.ifsccode
+          ifsccode: ifsccode || existingBankDetail.ifsccode,
+          status:"Pending"
+          
         };
 
         // Only update bankpassbookimage if a new one is provided

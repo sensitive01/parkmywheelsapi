@@ -1,78 +1,97 @@
 const planModel = require("../../models/planSchema");
 const { uploadImage } = require("../../config/cloudinary");
-const Vendor = require('../../models/venderSchema');
+const Vendor = require("../../models/venderSchema");
 const addNewPlan = async (req, res) => {
-    try {
-      const { planName, role, validity, vendorid,amount, features, status } = req.body;
-  
-      // Check if image is provided
-      if (!req.file) {
-        return res.status(400).json({ message: "No image provided" });
-      }
-  
-      const imageFile = req.file;
-  
-      // Upload image to cloudinary
-      const imageUrl = await uploadImage(imageFile.buffer, "plans");
-  
-      // Parse features (comma-separated string or array)
-      const parsedFeatures = Array.isArray(features)
-        ? features
-        : features.split(",").map((feature) => feature.trim());
-  
-      // Create new plan
-      const newPlan = new planModel({
-        planName,
-        role,
-        vendorid,
-        validity: Number(validity),
-        amount: Number(amount),
-        features: parsedFeatures,
-        status: status || "disable",
-        image: imageUrl,
-      });
-  
-      // Save plan
-      const savedPlan = await newPlan.save();
-  
-      res.status(201).json({
-        message: "Plan added successfully",
-        plan: savedPlan,
-      });
-    } catch (err) {
-      console.error("Error in adding plan", err);
-      res.status(500).json({
-        message: "Error in adding plan",
-        error: err.message,
-      });
-    }
-  };
-  
+  try {
+    const {
+      planName,
+      role,
+      validity,
+      vendorid,
+      amount,
+      features,
+      status,
+      subscriptionGivenTo,
+    } = req.body;
 
-  const getAllPlans = async (req, res) => {
-    try {
-      const { status } = req.query;
-  
-      // Build query object
-      const query = {};
-      if (status) query.status = status;
-  
-      // Fetch all plans
-      const plans = await planModel.find(query).sort({ createdAt: -1 });
-  
-      res.status(200).json({
-        message: "Plans retrieved successfully",
-        plans,
-      });
-    } catch (err) {
-      console.error("Error in retrieving plans", err);
-      res.status(500).json({
-        message: "Error in retrieving plans",
-        error: err.message,
-      });
+    let subscriptionData = subscriptionGivenTo;
+
+    if (typeof subscriptionData === "string") {
+      try {
+        subscriptionData = JSON.parse(subscriptionData);
+      } catch (err) {
+        subscriptionData = [];
+      }
     }
-  };
-  
+
+    // Check if image is provided
+    if (!req.file) {
+      return res.status(400).json({ message: "No image provided" });
+    }
+
+    const imageFile = req.file;
+
+    // Upload image to cloudinary
+    const imageUrl = await uploadImage(imageFile.buffer, "plans");
+
+    // Parse features (comma-separated string or array)
+    const parsedFeatures = Array.isArray(features)
+      ? features
+      : features.split(",").map((feature) => feature.trim());
+
+    // Create new plan
+    const newPlan = new planModel({
+      planName,
+      role,
+      vendorid,
+      validity: Number(validity),
+      amount: Number(amount),
+      features: parsedFeatures,
+      status: status || "disable",
+      image: imageUrl,
+      subscriptionGivenTo:Array.isArray(subscriptionData) ? subscriptionData : [],
+    });
+
+    // Save plan
+    const savedPlan = await newPlan.save();
+
+    res.status(201).json({
+      message: "Plan added successfully",
+      plan: savedPlan,
+    });
+  } catch (err) {
+    console.error("Error in adding plan", err);
+    res.status(500).json({
+      message: "Error in adding plan",
+      error: err.message,
+    });
+  }
+};
+
+const getAllPlans = async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    // Build query object
+    const query = {};
+    if (status) query.status = status;
+
+    // Fetch all plans
+    const plans = await planModel.find(query).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Plans retrieved successfully",
+      plans,
+    });
+  } catch (err) {
+    console.error("Error in retrieving plans", err);
+    res.status(500).json({
+      message: "Error in retrieving plans",
+      error: err.message,
+    });
+  }
+};
+
 const getUserPlan = async (req, res) => {
   try {
     console.log("User Role:", req.user?.role);
@@ -80,78 +99,15 @@ const getUserPlan = async (req, res) => {
     // Base filter for enabled user plans
     const baseQuery = { status: "enable", role: "user" };
 
-    const userId = req.params.vendorid || req.query.vendorid; // vendorId passed for user context
     let plans = [];
 
-    if (userId) {
-      console.log("Fetching plans for user:", userId);
+    if (req.params.vendorid || req.query.vendorid) {
+      const vendorid = req.params.vendorid || req.query.vendorid;
 
-      // Fetch the vendor/user details
-      const vendor = await Vendor.findOne({ vendorId: userId });
-      if (!vendor) {
-        return res.status(404).json({ message: "Vendor not found" });
-      }
-
-      console.log("User found:", vendor.vendorName, "Trial:", vendor.trial);
-
-      // Determine amount filter: only exclude free plans if trial is active
-      let amountFilter = {};
-      if (vendor.trial && vendor.trial !== "false") {
-        amountFilter.amount = { $ne: "0" }; // exclude free plans
-      }
-      // If trial is "false" → include all plans
-
-      console.log("Amount filter:", amountFilter);
-
-      // Fetch plans where subscriptionGivenTo includes userId OR empty/missing
-      plans = await planModel
-        .find({
-          ...baseQuery,
-          $or: [
-            { subscriptionGivenTo: userId },                       // Assigned plans
-            { subscriptionGivenTo: { $exists: true, $eq: [] } },   // Empty array
-            { subscriptionGivenTo: { $exists: false } },           // Missing field
-          ],
-          ...amountFilter,
-        })
-        .sort({ createdAt: -1 });
-
-      console.log("Plans retrieved:", plans);
-    } else {
-      // No userId → fetch all enabled user plans
-      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
-      console.log("All plans retrieved:", plans);
-    }
-
-    res.status(200).json({
-      message: "Plans retrieved successfully",
-      plans,
-    });
-
-  } catch (err) {
-    console.error("Error in retrieving plans:", err);
-    res.status(500).json({
-      message: "Error in retrieving plans",
-      error: err.message,
-    });
-  }
-};
-
-
-const getvendorplan = async (req, res) => {
-  try {
-    console.log("User Role:", req.user?.role);
-
-    // Base filter for enabled vendor plans
-    const baseQuery = { status: "enable", role: "vendor" };
-
-    let plans = [];
-
-    // Check if vendorid is provided
-    const vendorid = req.params.vendorid || req.query.vendorid;
-
-    if (vendorid) {
-      console.log("Fetching plans for vendorid:", vendorid);
+      console.log(
+        "Fetching vendor-specific + global user plans for:",
+        vendorid
+      );
 
       // Get vendor details
       const vendor = await Vendor.findOne({ vendorId: vendorid });
@@ -159,46 +115,40 @@ const getvendorplan = async (req, res) => {
         return res.status(404).json({ message: "Vendor not found" });
       }
 
-      console.log("Vendor found:", vendor.vendorName, "Trial:", vendor.trial);
-
-      // Build amount filter based on trial status
+      // Apply trial filter
       let amountFilter = {};
-      if (vendor.trial && vendor.trial !== "false") {
-        // Vendor is on trial → exclude free plans (amount = 0)
-        amountFilter.amount = { $ne: "0" };
+      if (vendor.trial === "true") {
+        amountFilter.amount = { $ne: 0 }; // exclude free plans
       }
-      // If trial is "false" → show all plans, including free ones
 
-      console.log("Amount filter applied:", amountFilter);
+      // Vendor-specific plans
+      const vendorPlans = await planModel
+        .find({ ...baseQuery, vendorid, ...amountFilter })
+        .sort({ createdAt: -1 });
 
-      // Query for plans
-      plans = await planModel
+      // Global plans (no vendorid field or null)
+      const globalPlans = await planModel
         .find({
           ...baseQuery,
-          $or: [
-            { subscriptionGivenTo: vendorid },                        // Plans where vendor is subscribed
-            { subscriptionGivenTo: { $exists: true, $eq: [] } },       // Empty array
-            { subscriptionGivenTo: { $exists: false } },               // Field missing
-          ],
+          $or: [{ vendorid: { $exists: false } }, { vendorid: null }],
           ...amountFilter,
         })
         .sort({ createdAt: -1 });
 
-      console.log("Plans retrieved:", plans);
-
+      plans = [...vendorPlans, ...globalPlans];
     } else {
-      // No vendorid → fetch all enabled vendor plans
+      // No vendorid provided → all user plans
       plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
-      console.log("All plans retrieved:", plans);
     }
+
+    console.log("Retrieved Plans:", plans);
 
     res.status(200).json({
       message: "Plans retrieved successfully",
       plans,
     });
-
   } catch (err) {
-    console.error("Error in retrieving plans:", err);
+    console.error("Error in retrieving plans", err);
     res.status(500).json({
       message: "Error in retrieving plans",
       error: err.message,
@@ -206,12 +156,70 @@ const getvendorplan = async (req, res) => {
   }
 };
 
+const getvendorplan = async (req, res) => {
+  try {
+    console.log("User Role:", req.user?.role);
 
+    const baseQuery = { status: "enable", role: "vendor" };
 
+    let plans = [];
 
+    if (req.params.vendorid || req.query.vendorid) {
+      const vendorid = req.params.vendorid || req.query.vendorid;
 
-  
-  
+      console.log(
+        "Fetching vendor-specific + global vendor plans for:",
+        vendorid
+      );
+
+      // Get vendor details
+      const vendor = await Vendor.findOne({ vendorId: vendorid });
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+
+      // Build additional filter based on trial
+      let amountFilter = {};
+      if (vendor.trial === "true") {
+        amountFilter.amount = { $ne: 0 }; // exclude free plans
+      }
+
+      // Vendor-specific vendor plans
+      const vendorPlans = await planModel
+        .find({ ...baseQuery, vendorid, ...amountFilter })
+        .sort({ createdAt: -1 });
+
+      // Global vendor plans (no vendorid field or null)
+      const globalPlans = await planModel
+        .find({
+          ...baseQuery,
+          $or: [{ vendorid: { $exists: false } }, { vendorid: null }],
+          ...amountFilter,
+        })
+        .sort({ createdAt: -1 });
+
+      // Merge results
+      plans = [...vendorPlans, ...globalPlans];
+    } else {
+      // No vendorid provided → fetch all vendor plans
+      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+    }
+
+    console.log("Retrieved Plans:", plans);
+
+    res.status(200).json({
+      message: "Plans retrieved successfully",
+      plans,
+    });
+  } catch (err) {
+    console.error("Error in retrieving plans", err);
+    res.status(500).json({
+      message: "Error in retrieving plans",
+      error: err.message,
+    });
+  }
+};
+
 const getPlanById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -220,13 +228,13 @@ const getPlanById = async (req, res) => {
 
     if (!plan) {
       return res.status(404).json({
-        message: "Plan not found"
+        message: "Plan not found",
       });
     }
 
     res.status(200).json({
       message: "Plan retrieved successfully",
-      plan: plan
+      plan: plan,
     });
   } catch (err) {
     console.error("Error in retrieving plan", err);
@@ -238,57 +246,77 @@ const getPlanById = async (req, res) => {
 };
 
 const updatePlan = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { planName, role, validity, amount, features, status } = req.body;
-  
-      // Prepare update object
-      const updateData = {
-        planName,
-        role,
-        validity: Number(validity),
-        amount: Number(amount),
-        status: status || "disable",
-      };
-  
-      // Parse features (assuming it's a comma-separated string or array)
-      if (features) {
-        updateData.features = Array.isArray(features)
-          ? features
-          : features.split(",").map((feature) => feature.trim());
+  try {
+    const { id } = req.params;
+    const {
+      planName,
+      role,
+      validity,
+      amount,
+      features,
+      status,
+      subscriptionGivenTo,
+    } = req.body
+
+    let subscriptionData = subscriptionGivenTo;
+
+    if (typeof subscriptionData === "string") {
+      try {
+        subscriptionData = JSON.parse(subscriptionData);
+      } catch (err) {
+        subscriptionData = [];
       }
-  
-      // Check if new image is uploaded
-      if (req.file) {
-        const imageFile = req.file; // `req.file` contains uploaded file
-        updateData.image = await uploadImage(imageFile.buffer, "plans");
-      }
-  
-      // Update plan
-      const updatedPlan = await planModel.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      });
-  
-      if (!updatedPlan) {
-        return res.status(404).json({
-          message: "Plan not found",
-        });
-      }
-  
-      res.status(200).json({
-        message: "Plan updated successfully",
-        plan: updatedPlan,
-      });
-    } catch (err) {
-      console.error("Error in updating plan", err);
-      res.status(500).json({
-        message: "Error in updating plan",
-        error: err.message,
+    }
+
+    // Prepare update object
+    const updateData = {
+      planName,
+      role,
+      validity: Number(validity),
+      amount: Number(amount),
+      status: status || "disable",
+      subscriptionGivenTo: Array.isArray(subscriptionData)
+        ? subscriptionData
+        : [],
+    };
+
+    // Parse features (assuming it's a comma-separated string or array)
+    if (features) {
+      updateData.features = Array.isArray(features)
+        ? features
+        : features.split(",").map((feature) => feature.trim());
+    }
+
+    // Check if new image is uploaded
+    if (req.file) {
+      const imageFile = req.file; // `req.file` contains uploaded file
+      updateData.image = await uploadImage(imageFile.buffer, "plans");
+    }
+
+    // Update plan
+    const updatedPlan = await planModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedPlan) {
+      return res.status(404).json({
+        message: "Plan not found",
       });
     }
-  };
-  
+
+    res.status(200).json({
+      message: "Plan updated successfully",
+      plan: updatedPlan,
+    });
+  } catch (err) {
+    console.error("Error in updating plan", err);
+    res.status(500).json({
+      message: "Error in updating plan",
+      error: err.message,
+    });
+  }
+};
 
 const deletePlan = async (req, res) => {
   try {
@@ -298,13 +326,13 @@ const deletePlan = async (req, res) => {
 
     if (!deletedPlan) {
       return res.status(404).json({
-        message: "Plan not found"
+        message: "Plan not found",
       });
     }
 
     res.status(200).json({
       message: "Plan deleted successfully",
-      plan: deletedPlan
+      plan: deletedPlan,
     });
   } catch (err) {
     console.error("Error in deleting plan", err);
@@ -322,5 +350,5 @@ module.exports = {
   updatePlan,
   getUserPlan,
   getvendorplan,
-  deletePlan
+  deletePlan,
 };
