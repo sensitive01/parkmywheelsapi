@@ -142,7 +142,7 @@ const vendorChangePassword = async (req, res) => {
   try {
     console.log("Welcome to user change password");
 
-    const { mobile, password, confirmPassword } = req.body;
+    const { mobile , password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match" });
@@ -262,7 +262,7 @@ const vendorSignup = async (req, res) => {
         address: newVendor.address,
         newuser: newVendor.newuser,
         image: newVendor.image,
-        subscription: newVendor.subscription,
+        subscription: newVendor.subscription, 
         subscriptionleft: newVendor.subscriptionleft,
         subscriptionenddate: newVendor.subscriptionenddate,
         businessHours: newVendor.businessHours, // Include business hours in response
@@ -361,7 +361,7 @@ const fetchsinglespacedata = async (req, res) => {
     console.log("Welcome to fetch vendor data");
 
     const { vendorId } = req.query;
-    console.log("Welcome to fetch vendor data", vendorId);
+    console.log("Welcome to fetch vendor data",vendorId);
     // Check if the ID is provided
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -446,7 +446,7 @@ const getVendorTrialStatus = async (req, res) => {
       vendorId: vendor._id,
       vendorName: vendor.vendorName,
       trial: vendor.trial, // "true" means trial is completed, "false" means still in trial
-
+    
     });
   } catch (err) {
     console.error("Error fetching vendor trial status", err);
@@ -607,7 +607,7 @@ const fetchVendorData = async (req, res) => {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-
+    
     return res.status(200).json({
       message: "Vendor data fetched successfully",
       data: vendorData
@@ -727,8 +727,8 @@ const fetchSlotVendorData = async (req, res) => {
   try {
     console.log("Welcome to fetch vendor data");
 
-    const { id } = req.params;
-    console.log("Vendor ID:", id);
+    const { id } = req.params; 
+    console.log("Vendor ID:", id); 
 
     const vendorData = await vendorModel.findOne({ _id: id }, { parkingEntries: 1 });
 
@@ -737,16 +737,16 @@ const fetchSlotVendorData = async (req, res) => {
     }
 
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
-      const type = entry.type.trim();
+      const type = entry.type.trim(); 
       acc[type] = parseInt(entry.count) || 0;
       return acc;
     }, {});
-
+   
     console.log("Processed Parking Entries:", parkingEntries);
-
+    
     return res.status(200).json({
       totalCount: Object.values(parkingEntries).reduce((acc, count) => acc + count, 0),
-      Cars: parkingEntries["Cars"] || 0,
+      Cars: parkingEntries["Cars"] || 0, 
       Bikes: parkingEntries["Bikes"] || 0,
       Others: parkingEntries["Others"] || 0
     });
@@ -847,7 +847,7 @@ const updateParkingEntriesVendorData = async (req, res) => {
     const updatedVendor = await vendorModel.findByIdAndUpdate(
       vendorId,
       { $set: { parkingEntries } },
-      { new: true, projection: { parkingEntries: 1, _id: 0 } }
+      { new: true, projection: { parkingEntries: 1, _id: 0 } } 
     );
 
     if (!updatedVendor) {
@@ -920,10 +920,10 @@ const fetchAllVendorDetails = async (req, res) => {
   try {
     console.log("Fetching all vendor details");
     const allVendors = await vendorModel.find({}, { password: 0 });
-
+    
     if (!allVendors || allVendors.length === 0) {
-      return res.status(404).json({
-        message: "No vendors found in the database"
+      return res.status(404).json({ 
+        message: "No vendors found in the database" 
       });
     }
     return res.status(200).json({
@@ -933,9 +933,9 @@ const fetchAllVendorDetails = async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching all vendor details:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: err.message
+    return res.status(500).json({ 
+      message: "Internal server error", 
+      error: err.message 
     });
   }
 };
@@ -1373,17 +1373,11 @@ const updateValidity = async (req, res) => {
     const vendorId = req.params.id;
     const { day } = req.body;
 
-    if (!day || isNaN(day)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid day value",
-      });
-    }
 
     const vendor = await vendorModel.findByIdAndUpdate(
       vendorId,
-      { $inc: { subscriptionleft: Number(day) } }, // 👈 ADD to existing value
-      { new: true }
+      { subscriptionleft: day },
+      { new: true } 
     );
 
     if (!vendor) {
@@ -1398,6 +1392,7 @@ const updateValidity = async (req, res) => {
         vendorId: vendor.vendorId,
         vendorName: vendor.vendorName,
         subscriptionleft: vendor.subscriptionleft,
+       
       },
     });
   } catch (err) {
@@ -1409,7 +1404,6 @@ const updateValidity = async (req, res) => {
     });
   }
 };
-
 
 
 
@@ -1459,10 +1453,10 @@ const sendNewLocationNotificationToAllUsers = async (vendor) => {
   try {
     // Get vendor landmark or address
     const landmark = vendor.landMark || vendor.address || "your area";
-
+    
     // Get all users
     const users = await userModel.find({}, { uuid: 1, userfcmTokens: 1 });
-
+    
     if (!users || users.length === 0) {
       console.log("No users found to send notifications");
       return;
@@ -1561,7 +1555,7 @@ module.exports = {
   fetchhours,
   vendorLogoutById,
   updateVendorVisibility,
-  updateVendorHours,
+  updateVendorHours ,
   vendorSignup,
   vendorLogin,
   vendorForgotPassword,
