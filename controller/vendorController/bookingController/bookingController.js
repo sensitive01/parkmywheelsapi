@@ -36,9 +36,9 @@ function parseDDMMYYYY(dateStr) {
 // 📌 Helper function to find charges by type pattern (not by chargeid)
 function findChargeByType(charges, category, chargeType) {
   if (!charges || !Array.isArray(charges)) return null;
-  
+
   const categoryCharges = charges.filter(c => c.category === category);
-  
+
   // Find by type pattern matching
   const typePatterns = {
     hourly: /^(0\s+to|hourly)/i,
@@ -46,10 +46,10 @@ function findChargeByType(charges, category, chargeType) {
     monthly: /monthly/i,
     additional: /additional/i
   };
-  
+
   const pattern = typePatterns[chargeType];
   if (!pattern) return null;
-  
+
   return categoryCharges.find(c => pattern.test(c.type || "")) || null;
 }
 
@@ -66,35 +66,35 @@ function extractChargeAmounts(parkingCharges) {
     bikemonthly: "",
     othersmonthly: ""
   };
-  
+
   if (!parkingCharges || !parkingCharges.charges || !Array.isArray(parkingCharges.charges)) {
     return amounts;
   }
-  
+
   // Find hourly charges (first charge that starts with "0 to" or contains "hour")
-  const carHourly = findChargeByType(parkingCharges.charges, "Car", "hourly") || 
-                    parkingCharges.charges.find(c => c.category === "Car" && /^(0\s+to|hourly)/i.test(c.type || ""));
-  const bikeHourly = findChargeByType(parkingCharges.charges, "Bike", "hourly") || 
-                      parkingCharges.charges.find(c => c.category === "Bike" && /^(0\s+to|hourly)/i.test(c.type || ""));
-  const othersHourly = findChargeByType(parkingCharges.charges, "Others", "hourly") || 
-                        parkingCharges.charges.find(c => c.category === "Others" && /^(0\s+to|hourly)/i.test(c.type || ""));
-  
+  const carHourly = findChargeByType(parkingCharges.charges, "Car", "hourly") ||
+    parkingCharges.charges.find(c => c.category === "Car" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  const bikeHourly = findChargeByType(parkingCharges.charges, "Bike", "hourly") ||
+    parkingCharges.charges.find(c => c.category === "Bike" && /^(0\s+to|hourly)/i.test(c.type || ""));
+  const othersHourly = findChargeByType(parkingCharges.charges, "Others", "hourly") ||
+    parkingCharges.charges.find(c => c.category === "Others" && /^(0\s+to|hourly)/i.test(c.type || ""));
+
   // Find full day charges
-  const carFullDay = findChargeByType(parkingCharges.charges, "Car", "fullday") || 
-                     parkingCharges.charges.find(c => c.category === "Car" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
-  const bikeFullDay = findChargeByType(parkingCharges.charges, "Bike", "fullday") || 
-                      parkingCharges.charges.find(c => c.category === "Bike" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
-  const othersFullDay = findChargeByType(parkingCharges.charges, "Others", "fullday") || 
-                        parkingCharges.charges.find(c => c.category === "Others" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
-  
+  const carFullDay = findChargeByType(parkingCharges.charges, "Car", "fullday") ||
+    parkingCharges.charges.find(c => c.category === "Car" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  const bikeFullDay = findChargeByType(parkingCharges.charges, "Bike", "fullday") ||
+    parkingCharges.charges.find(c => c.category === "Bike" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+  const othersFullDay = findChargeByType(parkingCharges.charges, "Others", "fullday") ||
+    parkingCharges.charges.find(c => c.category === "Others" && /(full\s+day|24\s+hours?|fullday)/i.test(c.type || ""));
+
   // Find monthly charges
-  const carMonthly = findChargeByType(parkingCharges.charges, "Car", "monthly") || 
-                     parkingCharges.charges.find(c => c.category === "Car" && /monthly/i.test(c.type || ""));
-  const bikeMonthly = findChargeByType(parkingCharges.charges, "Bike", "monthly") || 
-                      parkingCharges.charges.find(c => c.category === "Bike" && /monthly/i.test(c.type || ""));
-  const othersMonthly = findChargeByType(parkingCharges.charges, "Others", "monthly") || 
-                        parkingCharges.charges.find(c => c.category === "Others" && /monthly/i.test(c.type || ""));
-  
+  const carMonthly = findChargeByType(parkingCharges.charges, "Car", "monthly") ||
+    parkingCharges.charges.find(c => c.category === "Car" && /monthly/i.test(c.type || ""));
+  const bikeMonthly = findChargeByType(parkingCharges.charges, "Bike", "monthly") ||
+    parkingCharges.charges.find(c => c.category === "Bike" && /monthly/i.test(c.type || ""));
+  const othersMonthly = findChargeByType(parkingCharges.charges, "Others", "monthly") ||
+    parkingCharges.charges.find(c => c.category === "Others" && /monthly/i.test(c.type || ""));
+
   amounts.cartemp = carHourly?.amount?.toString() || "";
   amounts.biketemp = bikeHourly?.amount?.toString() || "";
   amounts.otherstemp = othersHourly?.amount?.toString() || "";
@@ -104,7 +104,7 @@ function extractChargeAmounts(parkingCharges) {
   amounts.carmonthly = carMonthly?.amount?.toString() || "";
   amounts.bikemonthly = bikeMonthly?.amount?.toString() || "";
   amounts.othersmonthly = othersMonthly?.amount?.toString() || "";
-  
+
   return amounts;
 }
 
@@ -219,11 +219,11 @@ exports.createBooking = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     let subscriptionEndDate = null;
-if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
-  const date = parseDDMMYYYY(parkingDate); // ✅ safe parser
-  date.setDate(date.getDate() + 30);
-  subscriptionEndDate = date.toISOString().split("T")[0];
-}
+    if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
+      const date = parseDDMMYYYY(parkingDate); // ✅ safe parser
+      date.setDate(date.getDate() + 30);
+      subscriptionEndDate = date.toISOString().split("T")[0];
+    }
 
     // Fetch charges based on vendorId at booking time
     let chargesData = null;
@@ -242,15 +242,15 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
             _id: charge._id?.toString() || ""
           }));
         }
-        
+
         // Get the charge that matches the vehicle type (for the matching charge object)
         const matchingCharge = parkingCharges.charges?.find(
           (charge) => charge.category === vehicleType
         ) || parkingCharges.charges?.[0] || {};
-        
+
         // Extract all charge amounts using helper function (finds by type, not chargeid)
         const chargeAmounts = extractChargeAmounts(parkingCharges);
-        
+
         // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
         chargesData = {
           type: matchingCharge.type || "",
@@ -310,7 +310,7 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
       recievableamount: receivableAmount,
       payableamout: payableAmount,
       hour,
-        invoice, 
+      invoice,
       personName,
       mobileNumber,
       vehicleType,
@@ -348,189 +348,189 @@ if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
 
     // Skip all notifications if subscription booking with spaceid
     if (!isSubscriptionWithSpaceid) {
-    // Vendor Notification
-    const vendorNotification = new Notification({
-      vendorId,
-      userId: userid,
-      bookingId: newBooking._id,
-      title: "New Booking Received",
-      message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
-      vehicleType,
-      vehicleNumber,
-      createdAt: new Date(),
-      read: false,
-      sts,
-      bookingtype: bookType,
-      otp: otp.toString(),
-      vendorname: vendorName,
-      parkingDate,
-      parkingTime,
-      bookingdate: bookingDate,
-      schedule: `${parkingDate} ${parkingTime}`,
-      notificationdtime: `${bookingDate} ${bookingTime}`,
-      status,
-    });
+      // Vendor Notification
+      const vendorNotification = new Notification({
+        vendorId,
+        userId: userid,
+        bookingId: newBooking._id,
+        title: "New Booking Received",
+        message: `New booking received from ${personName} for ${parkingDate} at ${parkingTime}`,
+        vehicleType,
+        vehicleNumber,
+        createdAt: new Date(),
+        read: false,
+        sts,
+        bookingtype: bookType,
+        otp: otp.toString(),
+        vendorname: vendorName,
+        parkingDate,
+        parkingTime,
+        bookingdate: bookingDate,
+        schedule: `${parkingDate} ${parkingTime}`,
+        notificationdtime: `${bookingDate} ${bookingTime}`,
+        status,
+      });
 
-    await vendorNotification.save();
+      await vendorNotification.save();
 
-    // User Notification
-    const userNotification = new Notification({
-      vendorId,
-      userId: userid,
-      bookingId: newBooking._id,
-      title: "Booking Confirmed",
-      message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
-      vehicleType,
-      vehicleNumber,
-      createdAt: new Date(),
-      read: false,
-      sts,
-      bookingtype: bookType,
-      otp: otp.toString(),
-      vendorname: vendorName,
-      parkingDate,
-      parkingTime,
-      bookingdate: bookingDate,
-      notificationdtime: `${bookingDate} ${bookingTime}`,
-      schedule: `${parkingDate} ${parkingTime}`,
-      status,
-    });
+      // User Notification
+      const userNotification = new Notification({
+        vendorId,
+        userId: userid,
+        bookingId: newBooking._id,
+        title: "Booking Confirmed",
+        message: `Your booking with ${vendorName} has been successfully confirmed for ${parkingDate} at ${parkingTime}`,
+        vehicleType,
+        vehicleNumber,
+        createdAt: new Date(),
+        read: false,
+        sts,
+        bookingtype: bookType,
+        otp: otp.toString(),
+        vendorname: vendorName,
+        parkingDate,
+        parkingTime,
+        bookingdate: bookingDate,
+        notificationdtime: `${bookingDate} ${bookingTime}`,
+        schedule: `${parkingDate} ${parkingTime}`,
+        status,
+      });
 
-    await userNotification.save();
+      await userNotification.save();
 
-    // Check if this is user's first booking and send first-time booking notification
-    try {
-      const previousBookingCount = await Booking.countDocuments({ userid: userid });
-      if (previousBookingCount === 1) {
-        // This is the first booking (current booking is the only one)
-        const firstTimeNotification = new Notification({
-          vendorId,
-          userId: userid,
-          bookingId: newBooking._id,
-          title: "First-time Booking",
-          message: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
-          vehicleType,
-          vehicleNumber,
-          createdAt: new Date(),
-          read: false,
-          sts,
-          bookingtype: bookType,
-          vendorname: vendorName,
-          parkingDate,
-          parkingTime,
-          bookingdate: bookingDate,
-          notificationdtime: `${bookingDate} ${bookingTime}`,
-          schedule: `${parkingDate} ${parkingTime}`,
-          status,
-        });
-        await firstTimeNotification.save();
-        console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+      // Check if this is user's first booking and send first-time booking notification
+      try {
+        const previousBookingCount = await Booking.countDocuments({ userid: userid });
+        if (previousBookingCount === 1) {
+          // This is the first booking (current booking is the only one)
+          const firstTimeNotification = new Notification({
+            vendorId,
+            userId: userid,
+            bookingId: newBooking._id,
+            title: "First-time Booking",
+            message: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+            vehicleType,
+            vehicleNumber,
+            createdAt: new Date(),
+            read: false,
+            sts,
+            bookingtype: bookType,
+            vendorname: vendorName,
+            parkingDate,
+            parkingTime,
+            bookingdate: bookingDate,
+            notificationdtime: `${bookingDate} ${bookingTime}`,
+            schedule: `${parkingDate} ${parkingTime}`,
+            status,
+          });
+          await firstTimeNotification.save();
+          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
 
-        // Send FCM notification for first-time booking
-        const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
-        if (user?.userfcmTokens?.length > 0) {
-          const firstTimeFcmMessage = {
-            notification: {
-              title: "First-time Booking",
-              body: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
-            },
-            data: {
-              bookingId: newBooking._id.toString(),
-              vehicleType,
-              type: "first_booking",
-            },
-            android: { notification: { sound: "default", priority: "high" } },
-            apns: { payload: { aps: { sound: "default" } } },
-          };
-          const invalidTokens = [];
-          for (const token of user.userfcmTokens) {
-            try {
-              await admin.messaging().send({ ...firstTimeFcmMessage, token });
-            } catch (error) {
-              if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
-                invalidTokens.push(token);
+          // Send FCM notification for first-time booking
+          const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+          if (user?.userfcmTokens?.length > 0) {
+            const firstTimeFcmMessage = {
+              notification: {
+                title: "First-time Booking",
+                body: `You're all set! Congratulations on your 1st booking with parkmywheels @ ${vendorName}`,
+              },
+              data: {
+                bookingId: newBooking._id.toString(),
+                vehicleType,
+                type: "first_booking",
+              },
+              android: { notification: { sound: "default", priority: "high" } },
+              apns: { payload: { aps: { sound: "default" } } },
+            };
+            const invalidTokens = [];
+            for (const token of user.userfcmTokens) {
+              try {
+                await admin.messaging().send({ ...firstTimeFcmMessage, token });
+              } catch (error) {
+                if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+                  invalidTokens.push(token);
+                }
               }
             }
-          }
-          if (invalidTokens.length > 0) {
-            await userModel.updateOne(
-              { uuid: userid },
-              { $pull: { userfcmTokens: { $in: invalidTokens } } }
-            );
+            if (invalidTokens.length > 0) {
+              await userModel.updateOne(
+                { uuid: userid },
+                { $pull: { userfcmTokens: { $in: invalidTokens } } }
+              );
+            }
           }
         }
+      } catch (firstTimeErr) {
+        console.error(`[${new Date().toISOString()}] ❌ Error sending first-time booking notification:`, firstTimeErr);
       }
-    } catch (firstTimeErr) {
-      console.error(`[${new Date().toISOString()}] ❌ Error sending first-time booking notification:`, firstTimeErr);
-    }
 
-    // Send GST Invoice Ready Notification for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
-      try {
-        await sendInvoiceReadyNotification(newBooking, newBooking._id);
-      } catch (invoiceErr) {
-        console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after subscription booking creation:`, invoiceErr);
-      }
-    }
-
-    // FCM Notifications
-    const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
-      const invalidTokens = [];
-      const promises = tokens.map(async (token) => {
+      // Send GST Invoice Ready Notification for subscription bookings
+      if ((sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
         try {
-          await admin.messaging().send({ ...messageTemplate, token });
-        } catch (error) {
-          if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
-            invalidTokens.push(token);
-          }
+          await sendInvoiceReadyNotification(newBooking, newBooking._id);
+        } catch (invoiceErr) {
+          console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after subscription booking creation:`, invoiceErr);
         }
-      });
-      await Promise.all(promises);
-      if (invalidTokens.length > 0) {
-        await model.updateOne(
-          { [idType]: idField },
-          { $pull: { fcmTokens: { $in: invalidTokens } } }
-        );
-      }
-    };
-
-    if (vendorData.fcmTokens?.length > 0) {
-      const vendorFcmMessage = {
-        notification: { title: "New Booking Received", body: `New booking from ${personName}` },
-        android: { notification: { sound: "default", priority: "high" } },
-        apns: { payload: { aps: { sound: "default" } } },
-      };
-      await sendFcmNotification(vendorData.fcmTokens, vendorFcmMessage, vendorModel, vendorId, '_id');
-    }
-
-    const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
-    if (user?.userfcmTokens?.length > 0) {
-      const userFcmMessage = {
-        notification: { title: "Booking Confirmed", body: `Your booking with ${vendorName} is confirmed` },
-        data: { bookingId: newBooking._id.toString(), vehicleType },
-        android: { notification: { sound: "default", priority: "high" } },
-        apns: { payload: { aps: { sound: "default" } } },
-      };
-      await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid, 'uuid');
-    }
-
-    // --- Subscription SMS Handling ---
-    if (mobileNumber && (sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
-      let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
-      if (cleanedMobile.length === 10) {
-        cleanedMobile = "91" + cleanedMobile;
       }
 
-      // 1️⃣ First subscription SMS - REMOVED as requested
-      // const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
-      // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
-      // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+      // FCM Notifications
+      const sendFcmNotification = async (tokens, messageTemplate, model, idField, idType = '_id') => {
+        const invalidTokens = [];
+        const promises = tokens.map(async (token) => {
+          try {
+            await admin.messaging().send({ ...messageTemplate, token });
+          } catch (error) {
+            if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
+              invalidTokens.push(token);
+            }
+          }
+        });
+        await Promise.all(promises);
+        if (invalidTokens.length > 0) {
+          await model.updateOne(
+            { [idType]: idField },
+            { $pull: { fcmTokens: { $in: invalidTokens } } }
+          );
+        }
+      };
 
-      // 2️⃣ Second subscription receipt SMS
-      const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking.invoice}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
-      const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
-      await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
-    }
+      if (vendorData.fcmTokens?.length > 0) {
+        const vendorFcmMessage = {
+          notification: { title: "New Booking Received", body: `New booking from ${personName}` },
+          android: { notification: { sound: "default", priority: "high" } },
+          apns: { payload: { aps: { sound: "default" } } },
+        };
+        await sendFcmNotification(vendorData.fcmTokens, vendorFcmMessage, vendorModel, vendorId, '_id');
+      }
+
+      const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
+      if (user?.userfcmTokens?.length > 0) {
+        const userFcmMessage = {
+          notification: { title: "Booking Confirmed", body: `Your booking with ${vendorName} is confirmed` },
+          data: { bookingId: newBooking._id.toString(), vehicleType },
+          android: { notification: { sound: "default", priority: "high" } },
+          apns: { payload: { aps: { sound: "default" } } },
+        };
+        await sendFcmNotification(user.userfcmTokens, userFcmMessage, userModel, userid, 'uuid');
+      }
+
+      // --- Subscription SMS Handling ---
+      if (mobileNumber && (sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
+        let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
+        if (cleanedMobile.length === 10) {
+          cleanedMobile = "91" + cleanedMobile;
+        }
+
+        // 1️⃣ First subscription SMS - REMOVED as requested
+        // const smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
+        // const dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
+        // await sendSMS(cleanedMobile, smsText1, dltTemplateId1);
+
+        // 2️⃣ Second subscription receipt SMS
+        const smsText2 = `Dear ${personName}, your monthly parking subscription confirmed. Period ${parkingDate} to ${newBooking.subsctiptionenddate || ""} at location ${vendorName}. Fees paid ${amount}. Transaction ID ${newBooking.invoice}. Download invoice from ParkMyWheels app. Issued by ParkMyWheels-Smart Parking Made Easy.`;
+        const dltTemplateId2 = process.env.VISPL_TEMPLATE_SUNRECEIPT || "1007109197298830403";
+        await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
+      }
     } // End of notification skip block
 
     res.status(200).json({
@@ -715,15 +715,15 @@ exports.vendorcreateBooking = async (req, res) => {
             _id: charge._id?.toString() || ""
           }));
         }
-        
+
         // Get the charge that matches the vehicle type (for the matching charge object)
         const matchingCharge = parkingCharges.charges?.find(
           (charge) => charge.category === vehicleType
         ) || parkingCharges.charges?.[0] || {};
-        
+
         // Extract all charge amounts using helper function (finds by type, not chargeid)
         const chargeAmounts = extractChargeAmounts(parkingCharges);
-        
+
         // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
         chargesData = {
           type: matchingCharge.type || "",
@@ -1398,15 +1398,15 @@ exports.livecreateBooking = async (req, res) => {
             _id: charge._id?.toString() || ""
           }));
         }
-        
+
         // Get the charge that matches the vehicle type (for the matching charge object)
         const matchingCharge = parkingCharges.charges?.find(
           (charge) => charge.category === vehicleType
         ) || parkingCharges.charges?.[0] || {};
-        
+
         // Extract all charge amounts using helper function (finds by type, not chargeid)
         const chargeAmounts = extractChargeAmounts(parkingCharges);
-        
+
         // IMPORTANT: Store the actual amounts extracted from charges array, not boolean flags
         chargesData = {
           type: matchingCharge.type || "",
@@ -1860,10 +1860,10 @@ exports.updateApproveBooking = async (req, res) => {
     console.log("approvedDate", approvedDate, "approvedTime", approvedTime);
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { 
-        status: "Approved", 
-        approvedDate, 
-        approvedTime 
+      {
+        status: "Approved",
+        approvedDate,
+        approvedTime
       },
       { new: true }
     );
@@ -1878,7 +1878,7 @@ exports.updateApproveBooking = async (req, res) => {
       vehicleType: booking.vehicleType,
       vehicleNumber: booking.vehicleNumber,
       createdAt: new Date(),
-        notificationdtime:`${approvedDate} ${approvedTime}`,
+      notificationdtime: `${approvedDate} ${approvedTime}`,
       read: false,
     });
 
@@ -1954,7 +1954,7 @@ exports.updateApproveBooking = async (req, res) => {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        
+
         // Find users by mobile number OR vehicle number
         const matchedUsers = await userModel.find({
           $or: [
@@ -2159,7 +2159,7 @@ exports.updateCancelBooking = async (req, res) => {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        
+
         // Find users by mobile number OR vehicle number
         const matchedUsers = await userModel.find({
           $or: [
@@ -2387,7 +2387,7 @@ exports.updateApprovedCancelBooking = async (req, res) => {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        
+
         // Find users by mobile number OR vehicle number
         const matchedUsers = await userModel.find({
           $or: [
@@ -2608,7 +2608,7 @@ exports.allowParking = async (req, res) => {
       try {
         const rawMobile = booking.mobileNumber || '';
         const cleanedMobile = String(rawMobile).replace(/\D/g, '');
-        
+
         // Find users by mobile number OR vehicle number
         const matchedUsers = await userModel.find({
           $or: [
@@ -2694,10 +2694,10 @@ exports.allowParking = async (req, res) => {
         // Check if vendor has spaceid
         const vendorIdToFind = booking.vendorId._id || booking.vendorId;
         const vendor = await vendorModel.findOne({ _id: vendorIdToFind }, { spaceid: 1, vendorName: 1, fcmTokens: 1 });
-        
+
         if (vendor && vendor.spaceid) {
           console.log("📧 Sending subscription notifications for spaceid booking at allowParking time");
-          
+
           // Send subscription SMS messages
           if (booking.mobileNumber) {
             let cleanedMobile = booking.mobileNumber.replace(/[^0-9]/g, "");
@@ -3026,7 +3026,7 @@ exports.directallowParking = async (req, res) => {
 
 exports.getBookingsByVendorId = async (req, res) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
 
     const bookings = await Booking.find({ vendorId: id });
 
@@ -3041,11 +3041,11 @@ exports.getBookingsByVendorId = async (req, res) => {
 
 exports.getBookingsparked = async (req, res) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
 
-    const bookings = await Booking.find({ 
+    const bookings = await Booking.find({
       vendorId: id,
-      status: { $in: ['PARKED', 'Parked'] } 
+      status: { $in: ['PARKED', 'Parked'] }
     });
 
     if (!bookings || bookings.length === 0) {
@@ -3152,7 +3152,7 @@ exports.fetchmonthlysubuser = async (req, res) => {
     bookings.forEach((booking) => {
       const vehicleNum = (booking.vehicleNumber || 'No vehicle').padEnd(15);
       const mobile = (booking.mobileNumber || 'NO MOBILE').padEnd(20);
-      
+
       // Determine match type
       let matchType = '';
       if (booking.userid === id) {
@@ -3164,7 +3164,7 @@ exports.fetchmonthlysubuser = async (req, res) => {
       } else {
         matchType = 'UNKNOWN';
       }
-      
+
       console.log(`${vehicleNum} | ${mobile} | ${matchType}`);
     });
 
@@ -3181,7 +3181,7 @@ exports.fetchmonthlysubuser = async (req, res) => {
     console.log(`📋 === END MONTHLY SUBSCRIPTION MATCHING SUMMARY ===\n`);
 
     const convertTo24Hour = (time) => {
-      if (!time) return '00:00'; 
+      if (!time) return '00:00';
       const [timePart, modifier] = time.split(' ');
       let [hours, minutes] = timePart.split(':');
       if (modifier === 'PM' && hours !== '12') hours = parseInt(hours, 10) + 12;
@@ -3200,7 +3200,7 @@ exports.fetchmonthlysubuser = async (req, res) => {
     const bookingsWithSpaceid = await Promise.all(
       bookings.map(async (booking) => {
         const bookingObj = booking.toObject ? booking.toObject() : booking;
-        
+
         // Fetch vendor by vendorId to get spaceid
         if (booking.vendorId) {
           const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
@@ -3208,7 +3208,7 @@ exports.fetchmonthlysubuser = async (req, res) => {
             bookingObj.spaceid = vendor.spaceid;
           }
         }
-        
+
         return bookingObj;
       })
     );
@@ -3305,7 +3305,7 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
 
 exports.getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id); 
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
@@ -3345,12 +3345,12 @@ exports.deleteBooking = async (req, res) => {
   }
 };
 
-exports.updateBookingStatus = async(req,res)=>{
-  try{
+exports.updateBookingStatus = async (req, res) => {
+  try {
     console.log("Parking Started to update status")
 
-  }catch(err){
-    console.log("err in updare the status",err)
+  } catch (err) {
+    console.log("err in updare the status", err)
   }
 }
 
@@ -3363,7 +3363,7 @@ exports.updateBooking = async (req, res) => {
     }
 
     const updatedBooking = await Booking.findByIdAndUpdate(
-      req.params.id, 
+      req.params.id,
       {
         carType,
         personName,
@@ -3438,7 +3438,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Convert DD/MM/YYYY to DD-MM-YYYY
     const [day, month, year] = datePart.split("/");
     const exitvehicledate = `${day}-${month}-${year}`;
-    
+
     // Format time as "HH:MM AM/PM" (remove seconds if present)
     const parts = timePart.split(" ");
     const ampm = parts[parts.length - 1]; // Get AM/PM from the end
@@ -3540,7 +3540,7 @@ const sendInvoiceReadyNotification = async (booking, bookingId) => {
     const invoiceId = booking.invoiceid || booking.invoice || bookingId || booking._id;
     const title = "GST Invoice Ready";
     const message = `Your invoice for ${invoiceId} is ready. Download now.`;
-    
+
     const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     const [datePart, timePart] = now.split(", ");
     const [day, month, year] = datePart.split("/");
@@ -3723,7 +3723,7 @@ exports.exitvendorsub = async (req, res) => {
     // ✅ Convert DD/MM/YYYY → DD-MM-YYYY
     const [day, month, year] = datePart.split("/");
     const exitvehicledate = `${day}-${month}-${year}`;
-    
+
     // Format time as "HH:MM AM/PM" (remove seconds if present)
     const parts = timePart.split(" ");
     const ampm = parts[parts.length - 1]; // Get AM/PM from the end
@@ -3764,12 +3764,12 @@ exports.exitvendorsub = async (req, res) => {
 // Suggested backend endpoint for renewal (add this to your Node.js exports)
 exports.renewSubscription = async (req, res) => {
   try {
-    const { 
-      gst_amount, 
-      handling_fee, 
-      total_additional, 
-      new_total_amount, 
-      new_subscription_enddate 
+    const {
+      gst_amount,
+      handling_fee,
+      total_additional,
+      new_total_amount,
+      new_subscription_enddate
     } = req.body;
 
     if (new_total_amount === undefined || new_subscription_enddate === undefined) {
@@ -3799,8 +3799,8 @@ exports.renewSubscription = async (req, res) => {
 
     // ✅ Round inputs
     const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0); // base subscription
-    const roundedTotalAdditional = total_additional !== undefined 
-      ? Math.ceil(parseFloat(total_additional) || 0) 
+    const roundedTotalAdditional = total_additional !== undefined
+      ? Math.ceil(parseFloat(total_additional) || 0)
       : 0;
     const roundedGstAmount = gst_amount !== undefined ? Math.ceil(parseFloat(gst_amount) || 0) : 0;
     const roundedHandlingFee = handling_fee !== undefined ? Math.ceil(parseFloat(handling_fee) || 0) : 0;
@@ -3889,7 +3889,7 @@ exports.getParkedVehicleCount = async (req, res) => {
 
     const aggregationResult = await Booking.aggregate([
       {
-        $match: { 
+        $match: {
           vendorId: trimmedVendorId,
           status: "PARKED"
         }
@@ -3935,10 +3935,10 @@ exports.getAvailableSlotCount = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    console.log("Received Vendor ID:", vendorId); 
-    const trimmedVendorId = vendorId.trim(); 
+    console.log("Received Vendor ID:", vendorId);
+    const trimmedVendorId = vendorId.trim();
 
-    console.log("Trimmed Vendor ID:", trimmedVendorId); 
+    console.log("Trimmed Vendor ID:", trimmedVendorId);
 
     const vendorData = await vendorModel.findOne({ _id: trimmedVendorId }, { parkingEntries: 1 });
 
@@ -3960,7 +3960,7 @@ exports.getAvailableSlotCount = async (req, res) => {
 
     const aggregationResult = await Booking.aggregate([
       {
-        $match: { 
+        $match: {
           vendorId: trimmedVendorId,
           status: "PARKED"
         }
@@ -4031,7 +4031,7 @@ exports.getReceivableAmount = async (req, res) => {
     }
     const bookingsWithUpdatedPlatformFee = await Promise.all(
       completedBookings.map(async (booking) => {
-        const amount = parseFloat(booking.amount); 
+        const amount = parseFloat(booking.amount);
         const platformfee = (amount * platformFeePercentage) / 100;
         const receivableAmount = amount - platformfee;
         booking.platformfee = platformfee.toFixed(2);
@@ -4042,7 +4042,7 @@ exports.getReceivableAmount = async (req, res) => {
           amount,
           platformfee: booking.platformfee,
           receivableAmount: receivableAmount.toFixed(2),
-          amount :booking.amount,
+          amount: booking.amount,
           gstamout: booking.gstamout,
           totalamout: booking.totalamout,
           handlingfee: booking.handlingfee,
@@ -4077,9 +4077,9 @@ exports.getUserCancelledCount = async (req, res) => {
     const { userId } = req.params;
 
     if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "User ID is required" 
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required"
       });
     }
 
@@ -4282,58 +4282,58 @@ exports.getVendorcBookingDetails = async (req, res) => {
     }
 
     // Fetch bookings with userid, completed status, and settlement pending
-const bookings = await Booking.find({
-  vendorId,
-  status: "COMPLETED",
-  userid: { $exists: true, $ne: "" },
-  $or: [
-    { settlemtstatus: { $regex: /^pending$/i } },
-    { settlemtstatus: { $exists: false } }, // Optional: If you want to include unset values too
-  ],
-});
+    const bookings = await Booking.find({
+      vendorId,
+      status: "COMPLETED",
+      userid: { $exists: true, $ne: "" },
+      $or: [
+        { settlemtstatus: { $regex: /^pending$/i } },
+        { settlemtstatus: { $exists: false } }, // Optional: If you want to include unset values too
+      ],
+    });
 
 
     if (bookings.length === 0) {
       return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
     }
 
- const bookingData = bookings.map((b) => ({
-  _id: b._id,
-  userid: b.userid,
-  vendorId: b.vendorId,
-  vendorName: b.vendorName || null,
-  vehicleType: b.vehicleType || null,
-  vehicleNumber: b.vehicleNumber || null,
-  personName: b.personName || null,
-  mobileNumber: b.mobileNumber || null,
-  carType: b.carType || null,
+    const bookingData = bookings.map((b) => ({
+      _id: b._id,
+      userid: b.userid,
+      vendorId: b.vendorId,
+      vendorName: b.vendorName || null,
+      vehicleType: b.vehicleType || null,
+      vehicleNumber: b.vehicleNumber || null,
+      personName: b.personName || null,
+      mobileNumber: b.mobileNumber || null,
+      carType: b.carType || null,
 
-  status: b.status,
-  bookingDate: b.bookingDate || null,
-  bookingTime: b.bookingTime || null,
-  parkingDate: b.parkingDate || null,
-  parkingTime: b.parkingTime || null,
-  exitvehicledate: b.exitvehicledate || null,
-  exitvehicletime: b.exitvehicletime || null,
-  parkedDate: b.parkedDate || null,
-  parkedTime: b.parkedTime || null,
-  tenditivecheckout: b.tenditivecheckout || null,
-  approvedDate: b.approvedDate || null,
-  approvedTime: b.approvedTime || null,
-  cancelledDate: b.cancelledDate || null,
-  cancelledTime: b.cancelledTime || null,
+      status: b.status,
+      bookingDate: b.bookingDate || null,
+      bookingTime: b.bookingTime || null,
+      parkingDate: b.parkingDate || null,
+      parkingTime: b.parkingTime || null,
+      exitvehicledate: b.exitvehicledate || null,
+      exitvehicletime: b.exitvehicletime || null,
+      parkedDate: b.parkedDate || null,
+      parkedTime: b.parkedTime || null,
+      tenditivecheckout: b.tenditivecheckout || null,
+      approvedDate: b.approvedDate || null,
+      approvedTime: b.approvedTime || null,
+      cancelledDate: b.cancelledDate || null,
+      cancelledTime: b.cancelledTime || null,
 
-  amount: b.amount || "0.00",
-  totalamount: b.totalamout || "0.00",       // <- fixed
-  gstamount: b.gstamout || "0.00",           // <- fixed
-  handlingfee: b.handlingfee || "0.00",
-  releasefee: b.releasefee || "0.00",
-  recievableamount: b.recievableamount || "0.00",
-  payableamount: b.payableamout || "0.00",   // <- fixed
-  settlementstatus: b.settlemtstatus || "pending", // <- fixed
+      amount: b.amount || "0.00",
+      totalamount: b.totalamout || "0.00",       // <- fixed
+      gstamount: b.gstamout || "0.00",           // <- fixed
+      handlingfee: b.handlingfee || "0.00",
+      releasefee: b.releasefee || "0.00",
+      recievableamount: b.recievableamount || "0.00",
+      payableamount: b.payableamout || "0.00",   // <- fixed
+      settlementstatus: b.settlemtstatus || "pending", // <- fixed
 
-  subscriptiontype: b.subsctiptiontype || null, // <- fixed
-}));
+      subscriptiontype: b.subsctiptiontype || null, // <- fixed
+    }));
 
 
     return res.status(200).json({
@@ -4373,17 +4373,17 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     }
 
     // Fetch bookings to calculate totals
- const bookings = await Booking.find({
-  _id: { $in: bookingIds },
-  vendorId,
-  status: "COMPLETED",
-  $or: [
-    { settlementstatus: { $regex: /^pending$/i } },
-    { settlementstatus: { $exists: false } },
-    { settlemtstatus: { $regex: /^pending$/i } },
-    { settlemtstatus: { $exists: false } },
-  ],
-});
+    const bookings = await Booking.find({
+      _id: { $in: bookingIds },
+      vendorId,
+      status: "COMPLETED",
+      $or: [
+        { settlementstatus: { $regex: /^pending$/i } },
+        { settlementstatus: { $exists: false } },
+        { settlemtstatus: { $regex: /^pending$/i } },
+        { settlemtstatus: { $exists: false } },
+      ],
+    });
 
 
     console.log("🔍 Matched Bookings Count:", bookings.length);
@@ -4409,7 +4409,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
 
     const bookingDetails = bookings.map((b) => {
       const amount = parseFloat(b.amount || "0.00");
-const platformFee = parseFloat(b.releasefee || "0.00");
+      const platformFee = parseFloat(b.releasefee || "0.00");
       const gst = parseFloat(b.gstamout || "0.00");
       const receivableAmount = parseFloat(b.recievableamount || "0.00");
 
@@ -4423,7 +4423,7 @@ const platformFee = parseFloat(b.releasefee || "0.00");
         userid: b.userid || "",
         vendorId: b.vendorId || "",
         amount: b.amount || "0.00",
-    platformfee: b.releasefee || "0.00",
+        platformfee: b.releasefee || "0.00",
         receivableAmount: b.recievableamount || "0.00",
         bookingDate: b.bookingDate || "",
         parkingDate: b.parkingDate || "",
@@ -4473,21 +4473,21 @@ const platformFee = parseFloat(b.releasefee || "0.00");
     const newId = new mongoose.Types.ObjectId().toString();
     const orderid = `ORD-${newId.slice(-8)}`;
 
-const settlement = new Settlement({
-  orderid,
-  parkingamout: totalParkingAmount.toFixed(2),
-platformfee: totalPlatformFee.toFixed(2),
-  gst: totalGst.toFixed(2),
-  tds: tds,
-  payableammout: payableAmount,
-  date: new Date().toISOString().split("T")[0],
-  time: new Date().toISOString().split("T")[1].split(".")[0],
-  status: "settled",
-  settlementid: newId,
-  vendorid: vendorId,
-  bookingtotal: totalReceivableAmount.toFixed(2),
-  bookings: bookingDetails,
-});
+    const settlement = new Settlement({
+      orderid,
+      parkingamout: totalParkingAmount.toFixed(2),
+      platformfee: totalPlatformFee.toFixed(2),
+      gst: totalGst.toFixed(2),
+      tds: tds,
+      payableammout: payableAmount,
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toISOString().split("T")[1].split(".")[0],
+      status: "settled",
+      settlementid: newId,
+      vendorid: vendorId,
+      bookingtotal: totalReceivableAmount.toFixed(2),
+      bookings: bookingDetails,
+    });
 
 
     await settlement.save();
@@ -4507,7 +4507,7 @@ platformfee: totalPlatformFee.toFixed(2),
 exports.getBookingById = async (req, res) => {
   try {
     const bookingId = req.params.id;
-    
+
     // Validate ObjectId
     if (!bookingId.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ error: "Invalid booking ID format" });
@@ -4562,7 +4562,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
     }
 
     const bookings = completedBookings.map((booking) => ({
-      invoice:booking.invoice || null,
+      invoice: booking.invoice || null,
       username: booking.personName || null,
       _id: booking._id,
       invoiceid: booking.invoiceid || null,
@@ -4570,16 +4570,16 @@ exports.getReceivableAmountByUser = async (req, res) => {
       bookingDate: booking.bookingDate,
       parkingDate: booking.parkingDate,
       parkingTime: booking.parkingTime,
-        vehiclenumber: booking.vehicleNumber || null,
-      exitdate:booking.exitvehicledate || null,
+      vehiclenumber: booking.vehicleNumber || null,
+      exitdate: booking.exitvehicledate || null,
       exittime: booking.exitvehicletime || null,
-    status: booking.status,
-    sts: booking.sts || null,
-    otp: booking.otp || null,
-    vendorname: booking.vendorName || null,
-    vendorid: booking.vendorId || null,
-    bookingtype: booking.bookType || null,
-    vehicleType: booking.vehicleType || null,
+      status: booking.status,
+      sts: booking.sts || null,
+      otp: booking.otp || null,
+      vendorname: booking.vendorName || null,
+      vendorid: booking.vendorId || null,
+      bookingtype: booking.bookType || null,
+      vehicleType: booking.vehicleType || null,
       amount: parseFloat(booking.amount).toFixed(2),
       handlingfee: parseFloat(booking.handlingfee).toFixed(2),
       releasefee: parseFloat(booking.releasefee).toFixed(2),
@@ -4622,10 +4622,10 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     });
 
     if (completedBookings.length === 0) {
-      return res.status(200).json({ 
-        success: true, 
-        message: "No completed bookings without userid found", 
-        data: [] 
+      return res.status(200).json({
+        success: true,
+        message: "No completed bookings without userid found",
+        data: []
       });
     }
 
@@ -4635,30 +4635,31 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
       return {
         invoiceid: booking.invoiceid || null,
-           invoice:booking.invoice || null,
-      username: booking.personName || null,
-       _id: booking._id,
-      userid: booking.userid || null,
-      bookingDate: booking.bookingDate,
-      parkingDate: booking.parkingDate,
-      parkingTime: booking.parkingTime,
+        invoice: booking.invoice || null,
+        username: booking.personName || null,
+        _id: booking._id,
+        userid: booking.userid || null,
+        bookingDate: booking.bookingDate,
+        parkingDate: booking.parkingDate,
+        parkingTime: booking.parkingTime,
         vehiclenumber: booking.vehicleNumber || null,
-      exitdate:booking.exitvehicledate || null,
-      exittime: booking.exitvehicletime || null,
-    status: booking.status,
-    sts: booking.sts || null,
-    otp: booking.otp || null,
-     vendorname: booking.vendorName || null,
-    vendorid: booking.vendorId || null,
-    bookingtype: booking.bookType || null,
-    vehicleType: booking.vehicleType || null,
-      amount: parseFloat(booking.amount).toFixed(2),
-      // handlingfee: parseFloat(booking.handlingfee).toFixed(2),
-      releasefee: parseFloat(booking.releasefee).toFixed(2),
-      recievableamount: parseFloat(booking.recievableamount).toFixed(2),
-      payableamout: parseFloat(booking.payableamout).toFixed(2),
-      gstamout: booking.gstamout,
-      totalamout: booking.totalamout,
+        exitdate: booking.exitvehicledate || null,
+        exittime: booking.exitvehicletime || null,
+        status: booking.status,
+        sts: booking.sts || null,
+        otp: booking.otp || null,
+        vendorname: booking.vendorName || null,
+        vendorid: booking.vendorId || null,
+        bookingtype: booking.bookType || null,
+        vehicleType: booking.vehicleType || null,
+        amount: parseFloat(booking.amount).toFixed(2),
+        // handlingfee: parseFloat(booking.handlingfee).toFixed(2),
+        releasefee: parseFloat(booking.releasefee).toFixed(2),
+        recievableamount: parseFloat(booking.recievableamount).toFixed(2),
+        payableamout: parseFloat(booking.payableamout).toFixed(2),
+        gstamout: booking.gstamout,
+        totalamout: booking.totalamout,
+        handlingFee: booking.handlingfee
       };
     });
 

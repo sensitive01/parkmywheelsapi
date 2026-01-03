@@ -7,6 +7,10 @@ const subscriptionController = require('../../controller/adminController/subscri
 const CommercialController = require('../../controller/adminController/commercialController');
 const CorporateController = require('../../controller/adminController/corporateController');
 const adminChatboxController = require("../../controller/adminController/chatboxController/chatboxController");
+const customerHandlingFeeController = require("../../controller/adminController/customerHanglingFee");
+const bankVerificationController = require("../../controller/adminController/bankVerificationController");
+const notificationController = require("../../controller/adminController/notificationController");
+
 
 const agenda = require("../../config/agenda");
 
@@ -126,5 +130,27 @@ adminRoute.get("/chatbox/user/:userId", adminChatboxController.getUserChatHistor
 adminRoute.post("/chatbox/send/:userId", upload.single("image"), adminChatboxController.sendAdminMessage);
 adminRoute.get("/chatbox/users", adminChatboxController.getUsersWithChats);
 adminRoute.get("/chatbox/unread-count", adminChatboxController.getUnreadMessageCount);
+
+
+
+adminRoute.post("/add-customer-handling-fee", customerHandlingFeeController.addCustomerHandlingFee);
+adminRoute.get("/get-customer-handling-fee", customerHandlingFeeController.getCustomerHandlingFee);
+adminRoute.put("/update-customer-handling-fee/:id", customerHandlingFeeController.updateCustomerHandlingFee);
+adminRoute.delete("/delete-customer-handling-fee/:id", customerHandlingFeeController.deleteCustomerHandlingFee);
+
+adminRoute.get("/get-active-customer-handling-fee", customerHandlingFeeController.getActiveCustomerHandlingFee);
+
+
+adminRoute.get("/get-all-vendor-bank-details", bankVerificationController.getAllVendorBankDetails);
+adminRoute.put('/verify-vendor-bank-details/:id', bankVerificationController.verifyVendorBankDetails);
+
+
+adminRoute.get("/get-admin-notifications", notificationController.getNotification);
+adminRoute.put("/update-admin-notification/:id", notificationController.updateNotification);
+
+
+
+
+
 
 module.exports = adminRoute;

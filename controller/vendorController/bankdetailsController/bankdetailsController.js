@@ -33,7 +33,8 @@ const createOrUpdateBankDetail = async (req, res) => {
           confirmaccountnumber: confirmaccountnumber || existingBankDetail.confirmaccountnumber,
           accountholdername: accountholdername || existingBankDetail.accountholdername,
           ifsccode: ifsccode || existingBankDetail.ifsccode,
-          status:"Pending"
+          status:"Pending",
+          isApproved:false
           
         };
 

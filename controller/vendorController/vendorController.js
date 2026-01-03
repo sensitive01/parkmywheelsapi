@@ -1278,7 +1278,7 @@ const fetchvisiblevendordata = async (req, res) => {
 const updateVendorPlatformFee = async (req, res) => {
   try {
     const vendorId = req.params.id;
-    const { platformfee, handlingFee } = req.body;
+    const { platformfee, platformFeeVendor } = req.body;
 
     // Validate input
     if (
@@ -1301,7 +1301,7 @@ const updateVendorPlatformFee = async (req, res) => {
     // Find and update vendor
     const vendor = await vendorModel.findByIdAndUpdate(
       vendorId,
-      { platformfee: String(platformfee), vendorplatformfee: String(handlingFee) },
+      { platformfee: String(platformfee), vendorplatformfee: String(platformFeeVendor) },
       { new: true } // return updated document
     );
 

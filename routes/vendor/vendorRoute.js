@@ -23,6 +23,12 @@ const Plan = require("../../models/planSchema");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const orderController = require("../../controller/vendorController/orderController");
+const notificationController = require("../../controller/adminController/notificationController")
+
+
+
+
+
 vendorRoute.get("/fetchnotification/:vendorId", bookingController.getNotificationsByVendor);
 
 vendorRoute.post("/forgotpassword", vendorController.vendorForgotPassword);
@@ -229,6 +235,9 @@ vendorRoute.delete("/delte/:vendorId", vendorController.deleteBookingsByVendorId
 vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlementsByVendorId);
 vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsBySettlementId);
 vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCharges);
+
+vendorRoute.get('/get-my-notification/:vendorId', notificationController.getNotificationsByVendor);
+
 
 // --- Test endpoint to trigger 5-day reminders from Postman ---
 vendorRoute.get('/test-subscription-reminders', async (req, res) => {

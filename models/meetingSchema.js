@@ -21,7 +21,14 @@ const meetingSchema = new mongoose.Schema({
     },
     vendorId:{
         type: String
+    },
+    isRead:{
+        type: Boolean,
+        default: false
     }
+
+},{
+    timestamps:true
 });
 
 module.exports = mongoose.model("Meeting", meetingSchema);

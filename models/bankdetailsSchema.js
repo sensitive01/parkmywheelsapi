@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 const bankdetailsSchema = new mongoose.Schema(
   {
     vendorId: {
-        type: String,
-      },
+      type: String,
+    },
     accountnumber: {
       type: String,
     },
@@ -20,6 +20,10 @@ const bankdetailsSchema = new mongoose.Schema(
     bankpassbookimage: {
       type: String,
     },
+    isApproved: { type: Boolean, default: false }
+  },
+  {
+    timestamps: true,
   }
 );
 
