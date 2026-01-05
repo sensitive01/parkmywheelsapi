@@ -124,44 +124,58 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
       return { exists: false };
     }
 
-    // Check for existing bookings with same vehicle and date at ANY vendor
-    // Don't consider vendorId - same vehicle can't be booked at multiple vendors on same date
-    // Fetch all bookings matching the date, then filter by normalized vehicle number and case-insensitive status
-    const bookings = await Booking.find({
-      parkingDate: parkingDate,
+    // STEP 1: First check if vehicle has bookings with status PENDING, APPROVED, or PARKED (case-insensitive)
+    const bookingsWithActiveStatus = await Booking.find({
       status: { 
         $regex: /^(pending|approved|parked)$/i  // Case-insensitive regex for status
       }
     });
 
-    // Filter by normalized vehicle number (case-insensitive, space-insensitive)
-    const existingBooking = bookings.find(booking => {
-      const bookingVehicleNormalized = normalizeVehicleNumber(booking.vehicleNumber);
-      const matches = bookingVehicleNormalized === normalizedVehicleNumber;
-      if (matches) {
-        console.log(`🔍 Duplicate booking found: Original="${booking.vehicleNumber}", Normalized="${bookingVehicleNormalized}", Status="${booking.status}", Date="${booking.parkingDate}"`);
-      }
-      return matches;
-    });
-
-    // If booking exists
-    if (existingBooking) {
-      console.log(`🚫 Blocking duplicate booking: Vehicle="${vehicleNumber}" (normalized: "${normalizedVehicleNumber}"), Date="${parkingDate}", Existing Status="${existingBooking.status}"`);
-      // Allow if existing booking is subscription OR new booking is subscription
-      const existingIsSubscription = (existingBooking.sts || "").toLowerCase() === "subscription";
-      const newIsSubscription = (currentSts || "").toLowerCase() === "subscription";
-      
-      // If neither is subscription, block the booking
-      if (!existingIsSubscription && !newIsSubscription) {
-        return {
-          exists: true,
-          message: "This vehicle is already booked for this date"
-        };
-      }
-      // If at least one is subscription, allow the booking
+    if (!bookingsWithActiveStatus || bookingsWithActiveStatus.length === 0) {
+      return { exists: false };
     }
 
+    // STEP 2: Filter by normalized vehicle number (case-insensitive, space-insensitive)
+    const vehicleBookings = bookingsWithActiveStatus.filter(booking => {
+      const bookingVehicleNormalized = normalizeVehicleNumber(booking.vehicleNumber);
+      return bookingVehicleNormalized === normalizedVehicleNumber;
+    });
+
+    if (!vehicleBookings || vehicleBookings.length === 0) {
+      return { exists: false };
+    }
+
+    // STEP 3: Then check parking date
+    const bookingsOnSameDate = vehicleBookings.filter(booking => {
+      return booking.parkingDate === parkingDate;
+    });
+
+    if (!bookingsOnSameDate || bookingsOnSameDate.length === 0) {
+      return { exists: false };
+    }
+
+    // STEP 4: Finally check subscription logic
+    // If we found bookings with same vehicle, active status, and same date, check subscription
+    const existingBooking = bookingsOnSameDate[0]; // Take the first matching booking
+    
+    console.log(`🔍 Duplicate booking found: Original="${existingBooking.vehicleNumber}", Normalized="${normalizedVehicleNumber}", Status="${existingBooking.status}", Date="${existingBooking.parkingDate}"`);
+    console.log(`🚫 Blocking duplicate booking: Vehicle="${vehicleNumber}" (normalized: "${normalizedVehicleNumber}"), Date="${parkingDate}", Existing Status="${existingBooking.status}"`);
+    
+    // Allow if existing booking is subscription OR new booking is subscription
+    const existingIsSubscription = (existingBooking.sts || "").toLowerCase() === "subscription";
+    const newIsSubscription = (currentSts || "").toLowerCase() === "subscription";
+    
+    // If neither is subscription, block the booking
+    if (!existingIsSubscription && !newIsSubscription) {
+      return {
+        exists: true,
+        message: "This vehicle is already booked for this date"
+      };
+    }
+    
+    // If at least one is subscription, allow the booking
     return { exists: false };
+
   } catch (error) {
     console.error("Error checking existing booking:", error);
     // On error, allow booking to proceed (fail open)
