@@ -47,6 +47,7 @@ vendorRoute.get("/fetchmeeting/:id", meetingController.getMeetingsByVendor);
 vendorRoute.put("/updatemeeting/:id", meetingController.updateMeeting);
 vendorRoute.delete("/deletemeeting/:id", meetingController.deleteMeeting);
 
+vendorRoute.get("/checkduplicatebooking", bookingController.checkDuplicateBooking);
 vendorRoute.post("/createbooking", bookingController.createBooking);
 vendorRoute.post("/vendorcreatebooking", bookingController.vendorcreateBooking);
 vendorRoute.post("/livebooking", bookingController.livecreateBooking);

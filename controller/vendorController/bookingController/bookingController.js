@@ -108,6 +108,76 @@ function extractChargeAmounts(parkingCharges) {
   return amounts;
 }
 
+// Check for existing bookings with same vehicle number and date (across all vendors)
+const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, currentSts) => {
+  try {
+    // Check for existing bookings with same vehicle and date at ANY vendor
+    // Don't consider vendorId - same vehicle can't be booked at multiple vendors on same date
+    const existingBooking = await Booking.findOne({
+      vehicleNumber: vehicleNumber,
+      parkingDate: parkingDate, // Match exact date
+      status: { $in: ["PENDING", "APPROVED", "PARKED"] }
+    });
+
+    // If booking exists
+    if (existingBooking) {
+      // Allow if existing booking is subscription OR new booking is subscription
+      const existingIsSubscription = (existingBooking.sts || "").toLowerCase() === "subscription";
+      const newIsSubscription = (currentSts || "").toLowerCase() === "subscription";
+      
+      // If neither is subscription, block the booking
+      if (!existingIsSubscription && !newIsSubscription) {
+        return {
+          exists: true,
+          message: "This vehicle is already booked for this date"
+        };
+      }
+      // If at least one is subscription, allow the booking
+    }
+
+    return { exists: false };
+  } catch (error) {
+    console.error("Error checking existing booking:", error);
+    // On error, allow booking to proceed (fail open)
+    return { exists: false };
+  }
+};
+
+// Check duplicate booking endpoint - for real-time validation
+exports.checkDuplicateBooking = async (req, res) => {
+  try {
+    const { vehicleNumber, parkingDate, sts } = req.query;
+
+    if (!vehicleNumber || !parkingDate) {
+      return res.status(400).json({ 
+        message: "Vehicle number and parking date are required",
+        isDuplicate: false 
+      });
+    }
+
+    const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, null, sts);
+    
+    if (bookingCheck.exists) {
+      return res.status(200).json({
+        isDuplicate: true,
+        message: bookingCheck.message,
+        error: "DUPLICATE_BOOKING"
+      });
+    }
+
+    return res.status(200).json({
+      isDuplicate: false,
+      message: "Vehicle is available for booking"
+    });
+  } catch (error) {
+    console.error("Error in checkDuplicateBooking:", error);
+    return res.status(500).json({ 
+      message: "Error checking duplicate booking",
+      isDuplicate: false 
+    });
+  }
+};
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -190,6 +260,17 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: "No available slots for Bikes" });
     if (vehicleType === "Others" && availableSlots.Others <= 0)
       return res.status(400).json({ message: "No available slots for Others" });
+
+    // Check for existing booking with same vehicle and date
+    if (vehicleNumber && parkingDate) {
+      const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
+      if (bookingCheck.exists) {
+        return res.status(400).json({ 
+          message: bookingCheck.message,
+          error: "DUPLICATE_BOOKING"
+        });
+      }
+    }
 
     // Fetch GST and Handling Fee
     const gstFeeData = await Gstfee.findOne({});
@@ -1368,6 +1449,17 @@ exports.livecreateBooking = async (req, res) => {
       return res.status(400).json({ message: "No available slots for Bikes" });
     } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
       return res.status(400).json({ message: "No available slots for Others" });
+    }
+
+    // Check for existing booking with same vehicle and date
+    if (vehicleNumber && parkingDate) {
+      const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
+      if (bookingCheck.exists) {
+        return res.status(400).json({ 
+          message: bookingCheck.message,
+          error: "DUPLICATE_BOOKING"
+        });
+      }
     }
 
     // Step 2: Generate OTP and create booking
