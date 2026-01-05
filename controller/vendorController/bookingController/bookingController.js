@@ -108,19 +108,45 @@ function extractChargeAmounts(parkingCharges) {
   return amounts;
 }
 
+// Normalize vehicle number for comparison (remove spaces, convert to uppercase)
+const normalizeVehicleNumber = (vehicleNumber) => {
+  if (!vehicleNumber) return '';
+  return vehicleNumber.toString().replace(/\s+/g, '').toUpperCase().trim();
+};
+
 // Check for existing bookings with same vehicle number and date (across all vendors)
 const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, currentSts) => {
   try {
+    // Normalize the vehicle number for comparison
+    const normalizedVehicleNumber = normalizeVehicleNumber(vehicleNumber);
+    
+    if (!normalizedVehicleNumber || !parkingDate) {
+      return { exists: false };
+    }
+
     // Check for existing bookings with same vehicle and date at ANY vendor
     // Don't consider vendorId - same vehicle can't be booked at multiple vendors on same date
-    const existingBooking = await Booking.findOne({
-      vehicleNumber: vehicleNumber,
-      parkingDate: parkingDate, // Match exact date
-      status: { $in: ["PENDING", "APPROVED", "PARKED"] }
+    // Fetch all bookings matching the date, then filter by normalized vehicle number and case-insensitive status
+    const bookings = await Booking.find({
+      parkingDate: parkingDate,
+      status: { 
+        $regex: /^(pending|approved|parked)$/i  // Case-insensitive regex for status
+      }
+    });
+
+    // Filter by normalized vehicle number (case-insensitive, space-insensitive)
+    const existingBooking = bookings.find(booking => {
+      const bookingVehicleNormalized = normalizeVehicleNumber(booking.vehicleNumber);
+      const matches = bookingVehicleNormalized === normalizedVehicleNumber;
+      if (matches) {
+        console.log(`🔍 Duplicate booking found: Original="${booking.vehicleNumber}", Normalized="${bookingVehicleNormalized}", Status="${booking.status}", Date="${booking.parkingDate}"`);
+      }
+      return matches;
     });
 
     // If booking exists
     if (existingBooking) {
+      console.log(`🚫 Blocking duplicate booking: Vehicle="${vehicleNumber}" (normalized: "${normalizedVehicleNumber}"), Date="${parkingDate}", Existing Status="${existingBooking.status}"`);
       // Allow if existing booking is subscription OR new booking is subscription
       const existingIsSubscription = (existingBooking.sts || "").toLowerCase() === "subscription";
       const newIsSubscription = (currentSts || "").toLowerCase() === "subscription";
@@ -745,6 +771,17 @@ exports.vendorcreateBooking = async (req, res) => {
       return res.status(400).json({ message: "No available slots for Bikes" });
     } else if (vehicleType === "Others" && availableSlots.Others <= 0) {
       return res.status(400).json({ message: "No available slots for Others" });
+    }
+
+    // Check for existing booking with same vehicle and date
+    if (vehicleNumber && parkingDate) {
+      const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
+      if (bookingCheck.exists) {
+        return res.status(400).json({ 
+          message: bookingCheck.message,
+          error: "DUPLICATE_BOOKING"
+        });
+      }
     }
 
     // ✅ Initialize booking financials
