@@ -1013,7 +1013,7 @@ const closeChat = async (req, res) => {
                   payload: { 
                     aps: { 
                       sound: "default",
-                      badge: 1,
+                      badge: 0,
                       contentAvailable: true
                     } 
                   } 
