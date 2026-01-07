@@ -63,18 +63,30 @@ exports.getAllSubscriptions = async (req, res) => {
   try {
     const subscriptions = await Subscription.aggregate([
       {
+        $addFields: {
+          userObjId: {
+            $convert: {
+              input: '$userId',
+              to: 'objectId',
+              onError: null,
+              onNull: null
+            }
+          }
+        }
+      },
+      {
         $lookup: {
           from: 'users',
-          let: { userIdStr: '$userId' },
+          let: { uObjId: '$userObjId' },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: [{ $toString: '$_id' }, '$$userIdStr'] }
+                $expr: { $eq: ['$_id', '$$uObjId'] }
               }
             },
             {
               $project: {
-                _id: 1,
+                _id: 0,
                 userName: 1,
                 userMobile: 1
               }
@@ -86,21 +98,21 @@ exports.getAllSubscriptions = async (req, res) => {
       {
         $lookup: {
           from: 'vendors',
-          let: { userIdStr: '$userId' },
+          let: { uStrId: '$userId', uObjId: '$userObjId' },
           pipeline: [
             {
               $match: {
                 $expr: {
                   $or: [
-                    { $eq: [{ $toString: '$_id' }, '$$userIdStr'] },
-                    { $eq: ['$vendorId', '$$userIdStr'] }
+                    { $eq: ['$vendorId', '$$uStrId'] },
+                    { $eq: ['$_id', '$$uObjId'] }
                   ]
                 }
               }
             },
             {
               $project: {
-                _id: 1,
+                _id: 0,
                 userName: '$vendorName',
                 userMobile: { $arrayElemAt: ['$contacts.mobile', 0] }
               }
@@ -130,10 +142,12 @@ exports.getAllSubscriptions = async (req, res) => {
         $project: {
           uDetails: 0,
           vDetails: 0,
-          resolvedUser: 0
+          resolvedUser: 0,
+          userObjId: 0
         }
       }
     ]);
+    console.log(subscriptions);
     res.status(200).json(subscriptions);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching subscriptions', error });

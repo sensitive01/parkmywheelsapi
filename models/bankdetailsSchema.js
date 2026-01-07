@@ -20,7 +20,8 @@ const bankdetailsSchema = new mongoose.Schema(
     bankpassbookimage: {
       type: String,
     },
-    isApproved: { type: Boolean, default: false }
+    isApproved: { type: Boolean, default: false },
+    isRead: { type: Boolean, default: false },
   },
   {
     timestamps: true,

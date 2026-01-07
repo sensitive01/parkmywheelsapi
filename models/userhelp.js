@@ -2,24 +2,24 @@ const mongoose = require("mongoose");
 
 const chatboxSchema = new mongoose.Schema({
   userId: {
-    type: String,  
-  
+    type: String,
+
   },
   image: {
-    type: String,  
-    
+    type: String,
+
   },
   message: {
     type: String,
-    
+
   },
   time: {
     type: String,
-    default: () => new Date().toLocaleTimeString(), 
+    default: () => new Date().toLocaleTimeString(),
   },
   timestamp: {
     type: Date,
-    default: Date.now,  
+    default: Date.now,
   },
 });
 const chatMessageSchema = new mongoose.Schema({
@@ -37,7 +37,7 @@ const helpSupportSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
-    
+
     },
     vendoractive: {
       type: Boolean,
@@ -45,11 +45,11 @@ const helpSupportSchema = new mongoose.Schema(
     },
     vendorid: {
       type: String,
-    
+
     },
     chatbox: [chatMessageSchema],
     description: {
-      type: String, 
+      type: String,
     },
     date: {
       type: Date,
@@ -66,6 +66,10 @@ const helpSupportSchema = new mongoose.Schema(
     userActive: {
       type: Boolean,
       default: true,
+    },
+    isRead: {
+      type: Boolean,
+      default: false,
     },
     chatbox: [chatboxSchema],
   },

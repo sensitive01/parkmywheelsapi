@@ -1301,7 +1301,7 @@ const updateVendorPlatformFee = async (req, res) => {
     // Find and update vendor
     const vendor = await vendorModel.findByIdAndUpdate(
       vendorId,
-      { platformfee: String(platformfee), vendorplatformfee: String(platformFeeVendor) },
+      { platformfee: String(platformFeeVendor), vendorplatformfee: String(platformfee) },
       { new: true } // return updated document
     );
 

@@ -87,7 +87,7 @@ adminRoute.get("/fetchspace/:spaceid", adminController.fetchspacedatabyuser);
 adminRoute.delete("/delete/:id", adminController.deleteKycData);
 adminRoute.get("/fetchallbookingtransactions", adminController.getAllVendorsTransaction);
 
-adminRoute.get("/get-admin-notifications", adminController.getAdminNotifications);
+// adminRoute.get("/get-admin-notifications", adminController.getAdminNotifications);
 
 
 
@@ -147,6 +147,7 @@ adminRoute.put('/verify-vendor-bank-details/:id', bankVerificationController.ver
 
 adminRoute.get("/get-admin-notifications", notificationController.getNotification);
 adminRoute.put("/update-admin-notification/:id", notificationController.updateNotification);
+adminRoute.put("/clear-all-admin-notifications", notificationController.clearAllAdminNotification);
 
 
 
