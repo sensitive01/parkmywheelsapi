@@ -12,10 +12,10 @@ const qs = require("qs");
 const Parkingcharges = require("../../../models/chargesSchema");
 const Vehicle = require("../../../models/vehicleModel");
 const User = require("../../../models/userModel");
-
-
-
-
+const chatboxSchema = require("../../../models/chatbox");
+const advNotification = require("../../../models/meetingSchema");
+const VendorHelpSupport = require("../../../models/userhelp");
+const bankApprovalSchema = require("../../../models/bankdetailsSchema");
 const Gstfee = require("../../../models/gstfeeschema"); // Adjust path as per your project
 const BookingTransaction = require("../../../models/bookingtransactionSechma");
 
@@ -155,14 +155,14 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
   try {
     // Normalize the vehicle number for comparison
     const normalizedVehicleNumber = normalizeVehicleNumber(vehicleNumber);
-    
+
     if (!normalizedVehicleNumber) {
       return { exists: false };
     }
 
     // STEP 1: First check if vehicle has bookings with status PENDING, APPROVED, or PARKED (case-insensitive)
     const bookingsWithActiveStatus = await Booking.find({
-      status: { 
+      status: {
         $regex: /^(pending|approved|parked)$/i  // Case-insensitive regex for status
       }
     });
@@ -211,19 +211,19 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
         const existingBooking = bookingsOnSameDate[0]; // Take the first matching booking
         const existingStatus = (existingBooking.status || "").toLowerCase();
         const vendorName = existingBooking.vendorName || 'the vendor';
-        
+
         console.log(`🔍 Duplicate booking found: Original="${existingBooking.vehicleNumber}", Normalized="${normalizedVehicleNumber}", Status="${existingBooking.status}", Date="${existingBooking.parkingDate}", Vendor="${vendorName}"`);
-        
+
         // First check: If existing booking has status PENDING, APPROVED, or PARKED, block it
         if (existingStatus === "pending" || existingStatus === "approved" || existingStatus === "parked") {
           // Check subscription logic - only allow if at least one booking is subscription
           const existingIsSubscription = (existingBooking.sts || "").toLowerCase() === "subscription";
           const newIsSubscription = (currentSts || "").toLowerCase() === "subscription";
-          
+
           // If neither is subscription, block the booking
           if (!existingIsSubscription && !newIsSubscription) {
             console.log(`🚫 Blocking duplicate booking: Vehicle="${vehicleNumber}" (normalized: "${normalizedVehicleNumber}"), Date="${parkingDate}", Existing Status="${existingBooking.status}", Vendor="${vendorName}"`);
-            
+
             // Generate status-specific error messages
             let errorMessage = '';
             if (existingStatus === "parked") {
@@ -235,13 +235,13 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
             } else {
               errorMessage = `This vehicle is already booked for this date (Status: ${existingBooking.status.toUpperCase()}) with ${vendorName}`;
             }
-            
+
             return {
               exists: true,
               message: errorMessage
             };
           }
-          
+
           // If at least one is subscription, allow the booking
         }
       }
@@ -262,15 +262,15 @@ exports.checkDuplicateBooking = async (req, res) => {
     const { vehicleNumber, parkingDate, sts } = req.query;
 
     if (!vehicleNumber) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: "Vehicle number is required",
-        isDuplicate: false 
+        isDuplicate: false
       });
     }
 
     // parkingDate is optional - if not provided, we'll still check for PARKED status on any date
     const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate || null, null, sts);
-    
+
     if (bookingCheck.exists) {
       return res.status(200).json({
         isDuplicate: true,
@@ -285,9 +285,9 @@ exports.checkDuplicateBooking = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in checkDuplicateBooking:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: "Error checking duplicate booking",
-      isDuplicate: false 
+      isDuplicate: false
     });
   }
 };
@@ -379,7 +379,7 @@ exports.createBooking = async (req, res) => {
     if (vehicleNumber && parkingDate) {
       const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
       if (bookingCheck.exists) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: bookingCheck.message,
           error: "DUPLICATE_BOOKING"
         });
@@ -542,7 +542,7 @@ exports.createBooking = async (req, res) => {
     if ((sts || "").toLowerCase() === "subscription") {
       try {
         const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
-        
+
         const bookingTransaction = new BookingTransaction({
           bookingId: newBooking._id,
           vendorId: newBooking.vendorId,
@@ -919,7 +919,7 @@ exports.vendorcreateBooking = async (req, res) => {
     if (vehicleNumber && parkingDate) {
       const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
       if (bookingCheck.exists) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: bookingCheck.message,
           error: "DUPLICATE_BOOKING"
         });
@@ -1078,7 +1078,7 @@ exports.vendorcreateBooking = async (req, res) => {
     if ((sts || "").toLowerCase() === "subscription") {
       try {
         const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
-        
+
         const bookingTransaction = new BookingTransaction({
           bookingId: newBooking._id,
           vendorId: newBooking.vendorId,
@@ -1688,7 +1688,7 @@ exports.livecreateBooking = async (req, res) => {
     if (vehicleNumber && parkingDate) {
       const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
       if (bookingCheck.exists) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: bookingCheck.message,
           error: "DUPLICATE_BOOKING"
         });
@@ -1821,7 +1821,7 @@ exports.livecreateBooking = async (req, res) => {
     if ((sts || "").toLowerCase() === "subscription") {
       try {
         const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
-        
+
         const bookingTransaction = new BookingTransaction({
           bookingId: newBooking._id,
           vendorId: newBooking.vendorId,
@@ -2633,7 +2633,10 @@ exports.getNotificationsByVendor = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    const notifications = await Notification.find({ vendorId }).sort({ createdAt: -1 });
+    const notifications = await Notification.find({ vendorId ,isVendorRead:false}).sort({ createdAt: -1 });
+    const advNotifications = await advNotification.find({ vendorId: vendorId ,isVendorRead:false}).sort({createdAt:-1});
+    const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId ,isVendorRead:false}).sort({createdAt:-1});
+    const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId ,isVendorRead:false}).sort({createdAt:-1});
 
     if (!notifications || notifications.length === 0) {
       return res.status(404).json({
@@ -2646,6 +2649,9 @@ exports.getNotificationsByVendor = async (req, res) => {
       success: true,
       count: notifications.length,
       notifications,
+      advNotifications,
+      helpAndSupports,
+      bankAccountNotifications,
     });
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -4349,7 +4355,7 @@ exports.renewSubscription = async (req, res) => {
       const [datePart, timePart] = nowInIndia.split(", ");
       const [day, month, year] = datePart.split("/");
       const renewalDate = `${day}-${month}-${year}`;
-      
+
       // Format time as "HH:MM AM/PM"
       const parts = timePart.split(" ");
       const ampm = parts[parts.length - 1];
@@ -4757,7 +4763,12 @@ exports.clearNotificationById = async (req, res) => {
   try {
     const { notificationId } = req.params;
 
-    const deleted = await Notification.findByIdAndDelete(notificationId);
+    const deleted = await Notification.findByIdAndDelete(notificationId, { isVendorRead: true });
+
+    const notifications = await Notification.findOneAndUpdate({ notificationId }, { isVendorRead: true }).sort({ createdAt: -1 });
+    const advNotifications = await advNotification.findOneAndUpdate({ notificationId }, { isVendorRead: true });
+    const helpAndSupports = await VendorHelpSupport.findOneAndUpdate({ notificationId }, { isVendorRead: true });
+    const bankAccountNotifications = await bankApprovalSchema.findOneAndUpdate({ notificationId }, { isVendorRead: true });
 
     if (!deleted) {
       return res.status(404).json({
@@ -5288,12 +5299,12 @@ exports.setVendorVisibility = async (req, res) => {
 
     // ✅ Update visibility
     vendor.visibility = visibility;
-    
+
     // If enabling visibility, check and update customer platform fee if needed
     if (visibility === true) {
       const currentCustomerPlatformFee = vendor.customerplatformfee || "";
       const customerPlatformFeeValue = parseFloat(currentCustomerPlatformFee) || 0;
-      
+
       // If customer platform fee is 0 or empty, set it to 5
       // If customer platform fee is already 10, 15, or any other value, keep it as is
       if (customerPlatformFeeValue === 0 || currentCustomerPlatformFee === "" || currentCustomerPlatformFee === null || currentCustomerPlatformFee === undefined) {
@@ -5303,7 +5314,7 @@ exports.setVendorVisibility = async (req, res) => {
         console.log(`[${new Date().toISOString()}] Keeping existing customer platform fee ${currentCustomerPlatformFee} for vendor ${vendorId}`);
       }
     }
-    
+
     await vendor.save();
 
     // If visibility changed to true and vendor is approved, send notifications to all users

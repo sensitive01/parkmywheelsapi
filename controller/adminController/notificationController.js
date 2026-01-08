@@ -45,14 +45,17 @@ const updateNotification = async (req, res) => {
 const getNotificationsByVendor = async (req, res) => {
     try {
         const { vendorId } = req.params;
-        const notifications = await advNotification.find({ vendorId: vendorId, isRead: true });
-        const helpAndSupports = await chatboxSchema.find({ vendorId: vendorId, isRead: true });
+        const notifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false ,isRead:true});
+        const helpAndSupports = await chatboxSchema.find({ vendorId: vendorId, isVendorRead: false ,isRead:true});
+        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false ,isRead:true});
 
         res.json({
             notifications,
             helpAndSupports,
+            bankAccountNotifications,
             notificationCount: notifications.length,
-            helpAndSupportCount: helpAndSupports.length
+            helpAndSupportCount: helpAndSupports.length,
+            bankAccountNotificationCount: bankAccountNotifications.length
         });
     } catch (error) {
         console.error(error);

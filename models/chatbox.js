@@ -49,6 +49,10 @@ const chatboxSchema = new mongoose.Schema(
     isRead: {
       type: Boolean,
       default: false
+    },
+    isVendorRead: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }
