@@ -2634,9 +2634,9 @@ exports.getNotificationsByVendor = async (req, res) => {
     const { vendorId } = req.params;
 
     const notifications = await Notification.find({ vendorId ,isVendorRead:false}).sort({ createdAt: -1 });
-    const advNotifications = await advNotification.find({ vendorId: vendorId ,isVendorRead:false}).sort({createdAt:-1});
-    const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId ,isVendorRead:false}).sort({createdAt:-1});
-    const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId ,isVendorRead:false}).sort({createdAt:-1});
+    const advNotifications = await advNotification.find({ vendorId: vendorId ,isVendorRead:false,isRead:true}).sort({createdAt:-1});
+    const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId ,isVendorRead:false,status:{ $eq: "Completed" }}).sort({createdAt:-1});
+    const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId ,isApproved:false,isRead:true}).sort({createdAt:-1});
 
     if (!notifications || notifications.length === 0) {
       return res.status(404).json({

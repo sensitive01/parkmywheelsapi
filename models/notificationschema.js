@@ -29,6 +29,7 @@ notificationdtime: { type: String }, // Added notificationType field
   bookingdate: { type: String },
   schedule: { type: String },
   status: { type: String },
+  isVendorRead:{type:Boolean,default:false}
 });
 
 module.exports = mongoose.model('Notification', notificationSchema);
