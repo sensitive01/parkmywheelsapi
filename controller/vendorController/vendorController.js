@@ -1301,7 +1301,7 @@ const updateVendorPlatformFee = async (req, res) => {
     // Find and update vendor
     const vendor = await vendorModel.findByIdAndUpdate(
       vendorId,
-      { platformfee: String(platformfee), vendorplatformfee: String(platformFeeVendor) },
+      { platformfee: String(platformfee), customerplatformfee: String(platformFeeVendor) },
       { new: true } // return updated document
     );
 
@@ -1329,22 +1329,22 @@ const updateVendorPlatformFee = async (req, res) => {
 const updateVendorPlatformFeeForVendor = async (req, res) => {
   try {
     const vendorId = req.params.id;
-    const { vendorplatformfee } = req.body;
+    const { customerplatformfee } = req.body;
 
     // Validate input
-    if (vendorplatformfee === undefined || vendorplatformfee === null || String(vendorplatformfee).trim() === "") {
-      return res.status(400).json({ message: "Vendor platform fee is required" });
+    if (customerplatformfee === undefined || customerplatformfee === null || String(customerplatformfee).trim() === "") {
+      return res.status(400).json({ message: "Customer platform fee is required" });
     }
 
     // Check if it's a valid non-negative number
-    if (isNaN(vendorplatformfee) || Number(vendorplatformfee) < 0) {
-      return res.status(400).json({ message: "Vendor platform fee must be a valid non-negative number" });
+    if (isNaN(customerplatformfee) || Number(customerplatformfee) < 0) {
+      return res.status(400).json({ message: "Customer platform fee must be a valid non-negative number" });
     }
 
     // Find and update vendor
     const vendor = await vendorModel.findByIdAndUpdate(
       vendorId,
-      { vendorplatformfee: String(vendorplatformfee) },
+      { customerplatformfee: String(customerplatformfee) },
       { new: true } // return updated document
     );
 
@@ -1353,12 +1353,12 @@ const updateVendorPlatformFeeForVendor = async (req, res) => {
     }
 
     res.json({
-      message: "Vendor platform fee (for non-user bookings) updated successfully",
+      message: "Customer platform fee (for non-user bookings) updated successfully",
       vendor: {
         id: vendor._id,
         vendorId: vendor.vendorId,
         vendorName: vendor.vendorName,
-        vendorplatformfee: vendor.vendorplatformfee
+        customerplatformfee: vendor.customerplatformfee
       }
     });
 

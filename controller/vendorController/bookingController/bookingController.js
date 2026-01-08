@@ -292,7 +292,7 @@ exports.createBooking = async (req, res) => {
     // Check available slots
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, vendorplatformfee: 1, spaceid: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, spaceid: 1 }
     );
 
     if (!vendorData) {
@@ -363,12 +363,12 @@ exports.createBooking = async (req, res) => {
     const handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
     const totalAmount = (bookingAmount + gstAmount + handlingFee).toFixed(2);
 
-    // Platform fee calculation: use platformfee if userid exists, otherwise use vendorplatformfee
+    // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (userid) {
       platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     } else {
-      platformFeePercentage = parseFloat(vendorData.vendorplatformfee) || 0;
+      platformFeePercentage = parseFloat(vendorData.customerplatformfee) || 0;
     }
     const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
     const releaseFee = platformFee.toFixed(2);
@@ -779,7 +779,7 @@ exports.vendorcreateBooking = async (req, res) => {
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, vendorplatformfee: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1 }
     );
 
     if (!vendorData) {
@@ -850,12 +850,12 @@ exports.vendorcreateBooking = async (req, res) => {
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
-    // Platform fee calculation: use platformfee if userid exists, otherwise use vendorplatformfee
+    // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (userid) {
       platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     } else {
-      platformFeePercentage = parseFloat(vendorData.vendorplatformfee) || 0;
+      platformFeePercentage = parseFloat(vendorData.customerplatformfee) || 0;
     }
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
@@ -3587,12 +3587,12 @@ exports.updateBookingAmountAndHour = async (req, res) => {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use vendorplatformfee
+    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (booking.userid) {
       platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     } else {
-      platformFeePercentage = parseFloat(vendor.vendorplatformfee) || 0;
+      platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
     }
     // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
     platformFeePercentage = Math.ceil(platformFeePercentage);
@@ -3968,12 +3968,12 @@ exports.renewSubscription = async (req, res) => {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use vendorplatformfee
+    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (booking.userid) {
       platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     } else {
-      platformFeePercentage = parseFloat(vendor.vendorplatformfee) || 0;
+      platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
     }
     // Always round UP the platform fee %
     platformFeePercentage = Math.ceil(platformFeePercentage);
@@ -4901,18 +4901,18 @@ exports.setVendorVisibility = async (req, res) => {
     // ✅ Update visibility
     vendor.visibility = visibility;
     
-    // If enabling visibility, check and update platform fee if needed
+    // If enabling visibility, check and update customer platform fee if needed
     if (visibility === true) {
-      const currentPlatformFee = vendor.platformfee || vendor.vendorplatformfee || "";
-      const platformFeeValue = parseFloat(currentPlatformFee) || 0;
+      const currentCustomerPlatformFee = vendor.customerplatformfee || "";
+      const customerPlatformFeeValue = parseFloat(currentCustomerPlatformFee) || 0;
       
-      // If platform fee is 0 or empty, set it to 5
-      // If platform fee is already 10, 15, or any other value, keep it as is
-      if (platformFeeValue === 0 || currentPlatformFee === "" || currentPlatformFee === null || currentPlatformFee === undefined) {
-        vendor.platformfee = "5";
-        console.log(`[${new Date().toISOString()}] Updated platform fee to 5 for vendor ${vendorId} when enabling visibility`);
+      // If customer platform fee is 0 or empty, set it to 5
+      // If customer platform fee is already 10, 15, or any other value, keep it as is
+      if (customerPlatformFeeValue === 0 || currentCustomerPlatformFee === "" || currentCustomerPlatformFee === null || currentCustomerPlatformFee === undefined) {
+        vendor.customerplatformfee = "5";
+        console.log(`[${new Date().toISOString()}] Updated customer platform fee to 5 for vendor ${vendorId} when enabling visibility`);
       } else {
-        console.log(`[${new Date().toISOString()}] Keeping existing platform fee ${currentPlatformFee} for vendor ${vendorId}`);
+        console.log(`[${new Date().toISOString()}] Keeping existing customer platform fee ${currentCustomerPlatformFee} for vendor ${vendorId}`);
       }
     }
     
