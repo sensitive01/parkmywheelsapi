@@ -97,6 +97,9 @@ const bookingTransactionSchema = new mongoose.Schema({
   subscriptionEndDate: {
     type: String
   },
+  sts: {
+    type: String // Booking status type (subscription, instant, etc.)
+  },
   // Transaction date for filtering
   transactionDate: {
     type: Date,

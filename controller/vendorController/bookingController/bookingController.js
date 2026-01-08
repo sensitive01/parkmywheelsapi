@@ -575,6 +575,7 @@ exports.createBooking = async (req, res) => {
           bookingType: newBooking.bookType,
           subscriptionType: newBooking.subsctiptiontype,
           subscriptionEndDate: newBooking.subsctiptionenddate,
+          sts: newBooking.sts || null, // Store sts from booking
           // Transaction date
           transactionDateString: transactionDateString,
           status: 'active',
@@ -1110,6 +1111,7 @@ exports.vendorcreateBooking = async (req, res) => {
           bookingType: newBooking.bookType,
           subscriptionType: newBooking.subsctiptiontype,
           subscriptionEndDate: newBooking.subsctiptionenddate,
+          sts: newBooking.sts || null, // Store sts from booking
           // Transaction date
           transactionDateString: transactionDateString,
           status: 'active',
@@ -1852,6 +1854,7 @@ exports.livecreateBooking = async (req, res) => {
           bookingType: newBooking.bookType,
           subscriptionType: newBooking.subsctiptiontype,
           subscriptionEndDate: newBooking.subsctiptionenddate,
+          sts: newBooking.sts || null, // Store sts from booking
           // Transaction date
           transactionDateString: transactionDateString,
           status: 'active',
@@ -3880,6 +3883,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
         bookingType: updatedBooking.bookType,
         subscriptionType: updatedBooking.subsctiptiontype,
         subscriptionEndDate: updatedBooking.subsctiptionenddate,
+        sts: updatedBooking.sts || null, // Store sts from booking
         // Transaction date
         transactionDateString: exitvehicledate,
         status: 'active',
@@ -4323,6 +4327,7 @@ exports.renewSubscription = async (req, res) => {
         bookingType: updatedBooking.bookType,
         subscriptionType: updatedBooking.subsctiptiontype,
         subscriptionEndDate: updatedBooking.subsctiptionenddate, // Updated end date
+        sts: updatedBooking.sts || null, // Store sts from booking
         // Transaction date - renewal date
         transactionDateString: renewalDate,
         status: 'active',
