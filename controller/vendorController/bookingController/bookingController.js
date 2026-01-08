@@ -4853,32 +4853,36 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Fetch bookings to calculate totals
-    const bookings = await Booking.find({
+    // Fetch transactions from BookingTransaction to calculate totals
+    // bookingIds can be either BookingTransaction._id or bookingId (Booking._id)
+    // Try to find by _id first, then by bookingId if not found
+    let transactions = await BookingTransaction.find({
       _id: { $in: bookingIds },
       vendorId,
-      status: "COMPLETED",
-      $or: [
-        { settlementstatus: { $regex: /^pending$/i } },
-        { settlementstatus: { $exists: false } },
-        { settlemtstatus: { $regex: /^pending$/i } },
-        { settlemtstatus: { $exists: false } },
-      ],
+      settlemtstatus: { $regex: /^pending$/i }
     });
 
+    // If not found by _id, try finding by bookingId
+    if (transactions.length === 0) {
+      transactions = await BookingTransaction.find({
+        bookingId: { $in: bookingIds },
+        vendorId,
+        settlemtstatus: { $regex: /^pending$/i }
+      });
+    }
 
-    console.log("🔍 Matched Bookings Count:", bookings.length);
-    console.log("📄 Bookings Details:", bookings.map(b => ({
-      _id: b._id,
-      status: b.status,
-      settlementstatus: b.settlementstatus,
-      settlemtstatus: b.settlemtstatus
+    console.log("🔍 Matched Transactions Count:", transactions.length);
+    console.log("📄 Transactions Details:", transactions.map(t => ({
+      _id: t._id,
+      bookingId: t.bookingId,
+      status: t.status,
+      settlemtstatus: t.settlemtstatus
     })));
 
-    if (bookings.length === 0) {
+    if (transactions.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "No matching bookings found or already settled",
+        message: "No matching transactions found or already settled",
       });
     }
 
@@ -4888,11 +4892,11 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     let totalGst = 0;
     let totalReceivableAmount = 0;
 
-    const bookingDetails = bookings.map((b) => {
-      const amount = parseFloat(b.amount || "0.00");
-      const platformFee = parseFloat(b.releasefee || "0.00");
-      const gst = parseFloat(b.gstamout || "0.00");
-      const receivableAmount = parseFloat(b.recievableamount || "0.00");
+    const bookingDetails = transactions.map((t) => {
+      const amount = parseFloat(t.bookingAmount || "0.00");
+      const platformFee = parseFloat(t.platformFee || "0.00");
+      const gst = parseFloat(t.gstAmount || "0.00");
+      const receivableAmount = parseFloat(t.receivableAmount || "0.00");
 
       totalParkingAmount += amount;
       totalPlatformFee += platformFee;
@@ -4900,20 +4904,20 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
       totalReceivableAmount += receivableAmount;
 
       return {
-        _id: b._id.toString(),
-        userid: b.userid || "",
-        vendorId: b.vendorId || "",
-        amount: b.amount || "0.00",
-        platformfee: b.releasefee || "0.00",
-        receivableAmount: b.recievableamount || "0.00",
-        bookingDate: b.bookingDate || "",
-        parkingDate: b.parkingDate || "",
-        parkingTime: b.parkingTime || "",
-        exitvehicledate: b.exitvehicledate || "",
-        exitvehicletime: b.exitvehicletime || "",
-        vendorName: b.vendorName || "",
-        vehicleType: b.vehicleType || "",
-        vehicleNumber: b.vehicleNumber || "",
+        _id: t._id.toString(),
+        userid: t.userId || "",
+        vendorId: t.vendorId || "",
+        amount: t.bookingAmount || "0.00",
+        platformfee: t.platformFee || "0.00",
+        receivableAmount: t.receivableAmount || "0.00",
+        bookingDate: t.bookingDate || "",
+        parkingDate: t.parkingDate || "",
+        parkingTime: t.parkingTime || "",
+        exitvehicledate: t.exitDate || "",
+        exitvehicletime: t.exitTime || "",
+        vendorName: t.vendorName || "",
+        vehicleType: t.vehicleType || "",
+        vehicleNumber: t.vehicleNumber || "",
       };
     });
 
@@ -4921,32 +4925,28 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     const tds = (totalReceivableAmount * 0.1).toFixed(2);
     const payableAmount = (totalReceivableAmount - parseFloat(tds)).toFixed(2);
 
-    // Update bookings' settlement status
-    const updateResult = await Booking.updateMany(
+    // Update transactions' settlement status
+    const transactionIds = transactions.map(t => t._id);
+    const updateResult = await BookingTransaction.updateMany(
       {
-        _id: { $in: bookingIds },
+        _id: { $in: transactionIds },
         vendorId,
-        status: "COMPLETED",
-        $or: [
-          { settlementstatus: { $regex: /^pending$/i } },
-          { settlemtstatus: { $regex: /^pending$/i } },
-        ],
+        settlemtstatus: { $regex: /^pending$/i }
       },
       {
         $set: {
-          settlementstatus: "settled",
           settlemtstatus: "settled",
           updatedAt: new Date(),
         },
       }
     );
 
-    console.log("✅ Booking Update Result:", updateResult);
+    console.log("✅ Transaction Update Result:", updateResult);
 
     if (updateResult.matchedCount === 0) {
       return res.status(404).json({
         success: false,
-        message: "No matching bookings found or already settled",
+        message: "No matching transactions found or already settled",
       });
     }
 
@@ -4975,7 +4975,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Booking settlement status updated and settlement record created successfully",
+      message: "Transaction settlement status updated and settlement record created successfully",
       updatedCount: updateResult.modifiedCount,
       matchedCount: updateResult.matchedCount,
       settlementId: settlement.settlementid,
