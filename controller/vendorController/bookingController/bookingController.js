@@ -17,6 +17,7 @@ const User = require("../../../models/userModel");
 
 
 const Gstfee = require("../../../models/gstfeeschema"); // Adjust path as per your project
+const BookingTransaction = require("../../../models/bookingtransactionSechma");
 
 // 📌 Parse "DD-MM-YYYY" string safely
 function parseDDMMYYYY(dateStr) {
@@ -31,6 +32,41 @@ function parseDDMMYYYY(dateStr) {
 
   // Fallback: try letting JS parse it
   return new Date(dateStr);
+}
+
+// 📌 Format date to DD-MM-YYYY string
+function formatToDDMMYYYY(dateStr) {
+  if (!dateStr) {
+    // Use current date in India timezone
+    const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const [datePart] = nowInIndia.split(", ");
+    const [day, month, year] = datePart.split("/");
+    return `${day}-${month}-${year}`;
+  }
+
+  // If already in DD-MM-YYYY format, return as is
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // Try to parse and format
+  try {
+    const date = parseDDMMYYYY(dateStr);
+    if (date && !isNaN(date.getTime())) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    }
+  } catch (e) {
+    // Fallback to current date
+  }
+
+  // Final fallback to current date
+  const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+  const [datePart] = nowInIndia.split(", ");
+  const [day, month, year] = datePart.split("/");
+  return `${day}-${month}-${year}`;
 }
 
 // 📌 Helper function to find charges by type pattern (not by chargeid)
@@ -501,6 +537,56 @@ exports.createBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Create BookingTransaction record at booking creation time
+    try {
+      const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
+      
+      const bookingTransaction = new BookingTransaction({
+        bookingId: newBooking._id,
+        vendorId: newBooking.vendorId,
+        vendorName: newBooking.vendorName,
+        userId: newBooking.userid,
+        vehicleNumber: newBooking.vehicleNumber,
+        vehicleType: newBooking.vehicleType,
+        personName: newBooking.personName,
+        mobileNumber: newBooking.mobileNumber,
+        // Transaction details
+        bookingAmount: newBooking.amount,
+        gstAmount: newBooking.gstamout,
+        handlingFee: newBooking.handlingfee,
+        totalAmount: newBooking.totalamout,
+        platformFee: newBooking.releasefee,
+        receivableAmount: newBooking.recievableamount,
+        payableAmount: newBooking.payableamout,
+        // Charges details
+        charges: newBooking.charges,
+        vendorCharges: newBooking.vendorCharges,
+        allCharges: newBooking.allCharges || [],
+        // Booking details
+        bookingDate: newBooking.bookingDate,
+        parkingDate: newBooking.parkingDate,
+        exitDate: newBooking.exitvehicledate || null,
+        bookingTime: newBooking.bookingTime,
+        parkingTime: newBooking.parkingTime,
+        exitTime: newBooking.exitvehicletime || null,
+        // Booking type
+        bookingType: newBooking.bookType,
+        subscriptionType: newBooking.subsctiptiontype,
+        subscriptionEndDate: newBooking.subsctiptionenddate,
+        // Transaction date
+        transactionDateString: transactionDateString,
+        status: 'active',
+        invoiceId: newBooking.invoiceid,
+        completedAt: null // Not completed yet at booking creation
+      });
+
+      await bookingTransaction.save();
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation for booking ${newBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation:`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
+    }
 
     // Feedback is now stored directly in the booking document (initialized with default values)
     // No need to create separate feedback entry
@@ -983,6 +1069,56 @@ exports.vendorcreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Create BookingTransaction record at booking creation time
+    try {
+      const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
+      
+      const bookingTransaction = new BookingTransaction({
+        bookingId: newBooking._id,
+        vendorId: newBooking.vendorId,
+        vendorName: newBooking.vendorName,
+        userId: newBooking.userid,
+        vehicleNumber: newBooking.vehicleNumber,
+        vehicleType: newBooking.vehicleType,
+        personName: newBooking.personName,
+        mobileNumber: newBooking.mobileNumber,
+        // Transaction details
+        bookingAmount: newBooking.amount,
+        gstAmount: newBooking.gstamout,
+        handlingFee: newBooking.handlingfee,
+        totalAmount: newBooking.totalamout,
+        platformFee: newBooking.releasefee,
+        receivableAmount: newBooking.recievableamount,
+        payableAmount: newBooking.payableamout,
+        // Charges details
+        charges: newBooking.charges,
+        vendorCharges: newBooking.vendorCharges,
+        allCharges: newBooking.allCharges || [],
+        // Booking details
+        bookingDate: newBooking.bookingDate,
+        parkingDate: newBooking.parkingDate,
+        exitDate: newBooking.exitvehicledate || null,
+        bookingTime: newBooking.bookingTime,
+        parkingTime: newBooking.parkingTime,
+        exitTime: newBooking.exitvehicletime || null,
+        // Booking type
+        bookingType: newBooking.bookType,
+        subscriptionType: newBooking.subsctiptiontype,
+        subscriptionEndDate: newBooking.subsctiptionenddate,
+        // Transaction date
+        transactionDateString: transactionDateString,
+        status: 'active',
+        invoiceId: newBooking.invoiceid,
+        completedAt: null // Not completed yet at booking creation
+      });
+
+      await bookingTransaction.save();
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor) for booking ${newBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
+    }
 
     // Feedback is now stored directly in the booking document (initialized with default values)
     // No need to create separate feedback entry
@@ -1672,6 +1808,56 @@ exports.livecreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Create BookingTransaction record at booking creation time
+    try {
+      const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
+      
+      const bookingTransaction = new BookingTransaction({
+        bookingId: newBooking._id,
+        vendorId: newBooking.vendorId,
+        vendorName: newBooking.vendorName,
+        userId: newBooking.userid,
+        vehicleNumber: newBooking.vehicleNumber,
+        vehicleType: newBooking.vehicleType,
+        personName: newBooking.personName,
+        mobileNumber: newBooking.mobileNumber,
+        // Transaction details
+        bookingAmount: newBooking.amount,
+        gstAmount: newBooking.gstamout,
+        handlingFee: newBooking.handlingfee,
+        totalAmount: newBooking.totalamout,
+        platformFee: newBooking.releasefee,
+        receivableAmount: newBooking.recievableamount,
+        payableAmount: newBooking.payableamout,
+        // Charges details
+        charges: newBooking.charges,
+        vendorCharges: newBooking.vendorCharges,
+        allCharges: newBooking.allCharges || [],
+        // Booking details
+        bookingDate: newBooking.bookingDate,
+        parkingDate: newBooking.parkingDate,
+        exitDate: newBooking.exitvehicledate || null,
+        bookingTime: newBooking.bookingTime,
+        parkingTime: newBooking.parkingTime,
+        exitTime: newBooking.exitvehicletime || null,
+        // Booking type
+        bookingType: newBooking.bookType,
+        subscriptionType: newBooking.subsctiptiontype,
+        subscriptionEndDate: newBooking.subsctiptionenddate,
+        // Transaction date
+        transactionDateString: transactionDateString,
+        status: 'active',
+        invoiceId: newBooking.invoiceid,
+        completedAt: null // Not completed yet at booking creation
+      });
+
+      await bookingTransaction.save();
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (live) for booking ${newBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (live):`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
+    }
 
     // Feedback is now stored directly in the booking document (initialized with default values)
     // No need to create separate feedback entry
@@ -3650,6 +3836,55 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     booking.payableamout = receivableAmount.toFixed(2);
 
     const updatedBooking = await booking.save();
+
+    // Create BookingTransaction record
+    try {
+      const bookingTransaction = new BookingTransaction({
+        bookingId: updatedBooking._id,
+        vendorId: updatedBooking.vendorId,
+        vendorName: updatedBooking.vendorName,
+        userId: updatedBooking.userid,
+        vehicleNumber: updatedBooking.vehicleNumber,
+        vehicleType: updatedBooking.vehicleType,
+        personName: updatedBooking.personName,
+        mobileNumber: updatedBooking.mobileNumber,
+        // Transaction details
+        bookingAmount: updatedBooking.amount,
+        gstAmount: updatedBooking.gstamout,
+        handlingFee: updatedBooking.handlingfee,
+        totalAmount: updatedBooking.totalamout,
+        platformFee: updatedBooking.releasefee,
+        receivableAmount: updatedBooking.recievableamount,
+        payableAmount: updatedBooking.payableamout,
+        // Charges details
+        charges: updatedBooking.charges,
+        vendorCharges: updatedBooking.vendorCharges,
+        allCharges: updatedBooking.allCharges || [],
+        // Booking details
+        bookingDate: updatedBooking.bookingDate,
+        parkingDate: updatedBooking.parkingDate,
+        exitDate: exitvehicledate,
+        bookingTime: updatedBooking.bookingTime,
+        parkingTime: updatedBooking.parkingTime,
+        exitTime: exitvehicletime,
+        // Booking type
+        bookingType: updatedBooking.bookType,
+        subscriptionType: updatedBooking.subsctiptiontype,
+        subscriptionEndDate: updatedBooking.subsctiptionenddate,
+        // Transaction date
+        transactionDateString: exitvehicledate,
+        status: 'active',
+        invoiceId: updatedBooking.invoiceid,
+        completedAt: new Date()
+      });
+
+      await bookingTransaction.save();
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created for booking ${updatedBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction:`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
+    }
+
     if (updatedBooking.mobileNumber) {
       const smsText = `Hi ${updatedBooking.personName || "Customer"}, your vehicle ${updatedBooking.vehicleNumber} has exited from ${updatedBooking.vendorName} on ${updatedBooking.exitvehicledate}. Parking duration ${updatedBooking.hour} hrs. Amount paid ₹${updatedBooking.totalamout}. Thank you for parking with ParkMyWheels.`;
 
