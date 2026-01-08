@@ -3684,15 +3684,79 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
 
 exports.getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const bookingId = req.params.id;
 
-    if (!booking) {
-      return res.status(404).json({ error: "Booking not found" });
+    // Validate ObjectId format
+    if (!bookingId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: "Invalid booking ID format" });
     }
 
-    res.status(200).json({ booking });
+    // Try to find by BookingTransaction._id first
+    let transaction = await BookingTransaction.findById(bookingId);
+
+    // If not found by _id, try finding by bookingId (Booking._id)
+    if (!transaction) {
+      transaction = await BookingTransaction.findOne({ bookingId: bookingId });
+    }
+
+    if (!transaction) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    // Map BookingTransaction fields to match expected response format
+    const bookingData = {
+      _id: transaction._id,
+      bookingId: transaction.bookingId,
+      userid: transaction.userId || null,
+      vendorId: transaction.vendorId || null,
+      vendorName: transaction.vendorName || null,
+      vehicleNumber: transaction.vehicleNumber || null,
+      vehicleType: transaction.vehicleType || null,
+      personName: transaction.personName || null,
+      mobileNumber: transaction.mobileNumber || null,
+      // Transaction details - map to Flutter expected format
+      amount: transaction.bookingAmount || "0.00",
+      gstamout: transaction.gstAmount || "0.00",
+      handlingfee: transaction.handlingFee || "0.00",
+      totalamout: transaction.totalAmount || "0.00",
+      releasefee: transaction.platformFee || "0.00",
+      recievableamount: transaction.receivableAmount || "0.00",
+      payableamout: transaction.payableAmount || "0.00",
+      // Booking details
+      bookingDate: transaction.bookingDate || null,
+      parkingDate: transaction.parkingDate || null,
+      exitvehicledate: transaction.exitDate || null,
+      bookingTime: transaction.bookingTime || null,
+      parkingTime: transaction.parkingTime || null,
+      exitvehicletime: transaction.exitTime || null,
+      // Booking type
+      bookType: transaction.bookingType || null,
+      subsctiptiontype: transaction.subscriptionType || null,
+      subsctiptionenddate: transaction.subscriptionEndDate || null,
+      sts: transaction.sts || null,
+      // Status
+      status: transaction.status || null,
+      settlemtstatus: transaction.settlemtstatus || "pending",
+      invoiceid: transaction.invoiceId || null,
+      // Charges
+      charges: transaction.charges || null,
+      vendorCharges: transaction.vendorCharges || null,
+      allCharges: transaction.allCharges || [],
+      // Dates
+      transactionDate: transaction.transactionDate || null,
+      transactionDateString: transaction.transactionDateString || null,
+      completedAt: transaction.completedAt || null,
+      createdAt: transaction.createdAt || null,
+      updatedAt: transaction.updatedAt || null
+    };
+
+    res.status(200).json({
+      message: "Booking details fetched successfully",
+      data: bookingData
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error fetching booking:", error);
+    res.status(500).json({ error: "An error occurred while fetching the booking" });
   }
 };
 
