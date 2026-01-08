@@ -4900,6 +4900,22 @@ exports.setVendorVisibility = async (req, res) => {
 
     // ✅ Update visibility
     vendor.visibility = visibility;
+    
+    // If enabling visibility, check and update platform fee if needed
+    if (visibility === true) {
+      const currentPlatformFee = vendor.platformfee || vendor.vendorplatformfee || "";
+      const platformFeeValue = parseFloat(currentPlatformFee) || 0;
+      
+      // If platform fee is 0 or empty, set it to 5
+      // If platform fee is already 10, 15, or any other value, keep it as is
+      if (platformFeeValue === 0 || currentPlatformFee === "" || currentPlatformFee === null || currentPlatformFee === undefined) {
+        vendor.platformfee = "5";
+        console.log(`[${new Date().toISOString()}] Updated platform fee to 5 for vendor ${vendorId} when enabling visibility`);
+      } else {
+        console.log(`[${new Date().toISOString()}] Keeping existing platform fee ${currentPlatformFee} for vendor ${vendorId}`);
+      }
+    }
+    
     await vendor.save();
 
     // If visibility changed to true and vendor is approved, send notifications to all users
