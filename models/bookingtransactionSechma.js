@@ -87,6 +87,10 @@ const bookingTransactionSchema = new mongoose.Schema({
   bookingType: {
     type: String, // subscription, instant, scheduled, etc.
   },
+  settlemtstatus: {
+    type: String,
+    default: 'pending'
+  },
   subscriptionType: {
     type: String
   },

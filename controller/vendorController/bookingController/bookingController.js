@@ -1797,7 +1797,7 @@ exports.livecreateBooking = async (req, res) => {
       parkedTime,
       cancelledDate: null,
       cancelledTime: null,
-      settlemtstatus: "PARKED",
+      settlemtstatus: "pending",
       exitvehicledate,
       exitvehicletime,
       bookType,
@@ -3875,7 +3875,8 @@ exports.updateBookingAmountAndHour = async (req, res) => {
         transactionDateString: exitvehicledate,
         status: 'active',
         invoiceId: updatedBooking.invoiceid,
-        completedAt: new Date()
+        completedAt: new Date(),
+        settlemtstatus: 'pending'
       });
 
       await bookingTransaction.save();
@@ -4317,7 +4318,8 @@ exports.renewSubscription = async (req, res) => {
         transactionDateString: renewalDate,
         status: 'active',
         invoiceId: updatedBooking.invoiceid,
-        completedAt: null // Renewal is not a completion
+        completedAt: null, // Renewal is not a completion
+        settlemtstatus: 'pending'
       });
 
       await bookingTransaction.save();
