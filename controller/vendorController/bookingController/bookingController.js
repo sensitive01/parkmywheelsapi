@@ -4771,64 +4771,58 @@ exports.getVendorcBookingDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Fetch bookings with userid, completed status, and settlement pending
-    const bookings = await Booking.find({
+    // Fetch transactions from BookingTransaction with userId and settlement pending - no status filter
+    const transactions = await BookingTransaction.find({
       vendorId,
-      status: "COMPLETED",
-      userid: { $exists: true, $ne: "" },
-      $or: [
-        { settlemtstatus: { $regex: /^pending$/i } },
-        { settlemtstatus: { $exists: false } }, // Optional: If you want to include unset values too
-      ],
+      userId: { $exists: true, $ne: null, $ne: "" },
+      settlemtstatus: { $regex: /^pending$/i }
     });
 
-
-    if (bookings.length === 0) {
-      return res.status(404).json({ success: false, message: "No unsettled completed bookings found" });
+    if (transactions.length === 0) {
+      return res.status(404).json({ success: false, message: "No unsettled transactions found" });
     }
 
-    const bookingData = bookings.map((b) => ({
-      _id: b._id,
-      userid: b.userid,
-      vendorId: b.vendorId,
-      vendorName: b.vendorName || null,
-      vehicleType: b.vehicleType || null,
-      vehicleNumber: b.vehicleNumber || null,
-      personName: b.personName || null,
-      mobileNumber: b.mobileNumber || null,
-      carType: b.carType || null,
+    const bookingData = transactions.map((t) => ({
+      _id: t._id,
+      userid: t.userId || null,
+      vendorId: t.vendorId || null,
+      vendorName: t.vendorName || null,
+      vehicleType: t.vehicleType || null,
+      vehicleNumber: t.vehicleNumber || null,
+      personName: t.personName || null,
+      mobileNumber: t.mobileNumber || null,
+      carType: null, // Not stored in BookingTransaction
 
-      status: b.status,
-      bookingDate: b.bookingDate || null,
-      bookingTime: b.bookingTime || null,
-      parkingDate: b.parkingDate || null,
-      parkingTime: b.parkingTime || null,
-      exitvehicledate: b.exitvehicledate || null,
-      exitvehicletime: b.exitvehicletime || null,
-      parkedDate: b.parkedDate || null,
-      parkedTime: b.parkedTime || null,
-      tenditivecheckout: b.tenditivecheckout || null,
-      approvedDate: b.approvedDate || null,
-      approvedTime: b.approvedTime || null,
-      cancelledDate: b.cancelledDate || null,
-      cancelledTime: b.cancelledTime || null,
+      status: t.status || null,
+      bookingDate: t.bookingDate || null,
+      bookingTime: t.bookingTime || null,
+      parkingDate: t.parkingDate || null,
+      parkingTime: t.parkingTime || null,
+      exitvehicledate: t.exitDate || null,
+      exitvehicletime: t.exitTime || null,
+      parkedDate: null, // Not stored in BookingTransaction
+      parkedTime: null, // Not stored in BookingTransaction
+      tenditivecheckout: null, // Not stored in BookingTransaction
+      approvedDate: null, // Not stored in BookingTransaction
+      approvedTime: null, // Not stored in BookingTransaction
+      cancelledDate: null, // Not stored in BookingTransaction
+      cancelledTime: null, // Not stored in BookingTransaction
 
-      amount: b.amount || "0.00",
-      totalamount: b.totalamout || "0.00",       // <- fixed
-      gstamount: b.gstamout || "0.00",           // <- fixed
-      handlingfee: b.handlingfee || "0.00",
-      releasefee: b.releasefee || "0.00",
-      recievableamount: b.recievableamount || "0.00",
-      payableamount: b.payableamout || "0.00",   // <- fixed
-      settlementstatus: b.settlemtstatus || "pending", // <- fixed
+      amount: t.bookingAmount || "0.00",
+      totalamount: t.totalAmount || "0.00",
+      gstamount: t.gstAmount || "0.00",
+      handlingfee: t.handlingFee || "0.00",
+      releasefee: t.platformFee || "0.00",
+      recievableamount: t.receivableAmount || "0.00",
+      payableamount: t.payableAmount || "0.00",
+      settlementstatus: t.settlemtstatus || "pending",
 
-      subscriptiontype: b.subsctiptiontype || null, // <- fixed
+      subscriptiontype: t.subscriptionType || null,
     }));
-
 
     return res.status(200).json({
       success: true,
-      message: "Booking details retrieved successfully",
+      message: "Transaction details retrieved successfully",
       count: bookingData.length,
       data: bookingData,
     });
