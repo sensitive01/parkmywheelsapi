@@ -1278,7 +1278,7 @@ const fetchvisiblevendordata = async (req, res) => {
 const updateVendorPlatformFee = async (req, res) => {
   try {
     const vendorId = req.params.id;
-    const { platformfee, platformFeeVendor } = req.body;
+    const { platformfee, customerplatformfee } = req.body;
 
     // Validate input
     if (
