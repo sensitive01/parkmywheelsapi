@@ -4264,6 +4264,69 @@ exports.renewSubscription = async (req, res) => {
 
     const updatedBooking = await booking.save();
 
+    // Create BookingTransaction record for renewal
+    try {
+      // Get India date & time for renewal transaction
+      const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+      const [datePart, timePart] = nowInIndia.split(", ");
+      const [day, month, year] = datePart.split("/");
+      const renewalDate = `${day}-${month}-${year}`;
+      
+      // Format time as "HH:MM AM/PM"
+      const parts = timePart.split(" ");
+      const ampm = parts[parts.length - 1];
+      const timeOnly = parts.slice(0, -1).join(" ");
+      const timeComponents = timeOnly.split(":");
+      const hours = timeComponents[0];
+      const minutes = timeComponents[1];
+      const renewalTime = `${hours}:${minutes} ${ampm}`;
+
+      const bookingTransaction = new BookingTransaction({
+        bookingId: updatedBooking._id,
+        vendorId: updatedBooking.vendorId,
+        vendorName: updatedBooking.vendorName,
+        userId: updatedBooking.userid,
+        vehicleNumber: updatedBooking.vehicleNumber,
+        vehicleType: updatedBooking.vehicleType,
+        personName: updatedBooking.personName,
+        mobileNumber: updatedBooking.mobileNumber,
+        // Transaction details - renewal amounts
+        bookingAmount: roundedNewTotal.toFixed(2), // New subscription amount
+        gstAmount: roundedGstAmount.toFixed(2),
+        handlingFee: roundedHandlingFee.toFixed(2),
+        totalAmount: (roundedNewTotal + roundedTotalAdditional).toFixed(2),
+        platformFee: platformfee.toFixed(2),
+        receivableAmount: additionalReceivable.toFixed(2),
+        payableAmount: additionalReceivable.toFixed(2),
+        // Charges details
+        charges: updatedBooking.charges,
+        vendorCharges: updatedBooking.vendorCharges,
+        allCharges: updatedBooking.allCharges || [],
+        // Booking details
+        bookingDate: updatedBooking.bookingDate,
+        parkingDate: updatedBooking.parkingDate,
+        exitDate: updatedBooking.exitvehicledate || null,
+        bookingTime: updatedBooking.bookingTime,
+        parkingTime: updatedBooking.parkingTime,
+        exitTime: updatedBooking.exitvehicletime || null,
+        // Booking type
+        bookingType: updatedBooking.bookType,
+        subscriptionType: updatedBooking.subsctiptiontype,
+        subscriptionEndDate: updatedBooking.subsctiptionenddate, // Updated end date
+        // Transaction date - renewal date
+        transactionDateString: renewalDate,
+        status: 'active',
+        invoiceId: updatedBooking.invoiceid,
+        completedAt: null // Renewal is not a completion
+      });
+
+      await bookingTransaction.save();
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created for subscription renewal - booking ${updatedBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction for renewal:`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
+    }
+
     // Send Invoice Ready Notification after monthly renewal
     try {
       await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
