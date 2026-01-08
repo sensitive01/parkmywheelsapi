@@ -5030,6 +5030,10 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
+    // Get platform fee percentage for user bookings (customerplatformfee)
+    let platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
+    platformFeePercentage = Math.ceil(platformFeePercentage);
+
     // Base filter - fetch from BookingTransaction, no status filter
     let filter = { vendorId };
 
@@ -5051,33 +5055,40 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return res.status(200).json({ success: true, message: "No transactions found", data: [] });
     }
 
-    const bookings = transactions.map((transaction) => ({
-      invoice: null, // Not stored in BookingTransaction
-      username: transaction.personName || null,
-      _id: transaction._id,
-      invoiceid: transaction.invoiceId || null,
-      userid: transaction.userId || null,
-      bookingDate: transaction.bookingDate || null,
-      parkingDate: transaction.parkingDate || null,
-      parkingTime: transaction.parkingTime || null,
-      vehiclenumber: transaction.vehicleNumber || null,
-      exitdate: transaction.exitDate || null,
-      exittime: transaction.exitTime || null,
-      status: transaction.status || null,
-      sts: transaction.subscriptionType || null,
-      otp: null, // Not stored in BookingTransaction
-      vendorname: transaction.vendorName || null,
-      vendorid: transaction.vendorId || null,
-      bookingtype: transaction.bookingType || null,
-      vehicleType: transaction.vehicleType || null,
-      amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
-      handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
-      releasefee: transaction.platformFee ? parseFloat(transaction.platformFee).toFixed(2) : "0.00",
-      recievableamount: transaction.receivableAmount ? parseFloat(transaction.receivableAmount).toFixed(2) : "0.00",
-      payableamout: transaction.payableAmount ? parseFloat(transaction.payableAmount).toFixed(2) : "0.00",
-      gstamout: transaction.gstAmount || "0.00",
-      totalamout: transaction.totalAmount || "0.00",
-    }));
+    const bookings = transactions.map((transaction) => {
+      // Recalculate platform fee using customerplatformfee
+      const totalAmount = parseFloat(transaction.totalAmount || "0.00");
+      const platformFee = (totalAmount * platformFeePercentage) / 100;
+      const receivableAmount = totalAmount - platformFee;
+
+      return {
+        invoice: null, // Not stored in BookingTransaction
+        username: transaction.personName || null,
+        _id: transaction._id,
+        invoiceid: transaction.invoiceId || null,
+        userid: transaction.userId || null,
+        bookingDate: transaction.bookingDate || null,
+        parkingDate: transaction.parkingDate || null,
+        parkingTime: transaction.parkingTime || null,
+        vehiclenumber: transaction.vehicleNumber || null,
+        exitdate: transaction.exitDate || null,
+        exittime: transaction.exitTime || null,
+        status: transaction.status || null,
+        sts: transaction.subscriptionType || null,
+        otp: null, // Not stored in BookingTransaction
+        vendorname: transaction.vendorName || null,
+        vendorid: transaction.vendorId || null,
+        bookingtype: transaction.bookingType || null,
+        vehicleType: transaction.vehicleType || null,
+        amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
+        handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
+        releasefee: platformFee.toFixed(2), // Recalculated using customerplatformfee
+        recievableamount: receivableAmount.toFixed(2), // Recalculated
+        payableamout: receivableAmount.toFixed(2), // Recalculated
+        gstamout: transaction.gstAmount || "0.00",
+        totalamout: transaction.totalAmount || "0.00",
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -5104,6 +5115,10 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
+    // Get platform fee percentage for non-user bookings (platformfee)
+    let platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+    platformFeePercentage = Math.ceil(platformFeePercentage);
+
     // Get all transactions for the vendor where userId is null or not present - no status filter
     const transactions = await BookingTransaction.find({
       vendorId,
@@ -5119,6 +5134,11 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     }
 
     const bookings = transactions.map((transaction) => {
+      // Recalculate platform fee using platformfee
+      const totalAmount = parseFloat(transaction.totalAmount || "0.00");
+      const platformFee = (totalAmount * platformFeePercentage) / 100;
+      const receivableAmount = totalAmount - platformFee;
+
       return {
         invoiceid: transaction.invoiceId || null,
         invoice: null, // Not stored in BookingTransaction
@@ -5140,9 +5160,9 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
         vehicleType: transaction.vehicleType || null,
         amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
         handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
-        releasefee: transaction.platformFee ? parseFloat(transaction.platformFee).toFixed(2) : "0.00",
-        recievableamount: transaction.receivableAmount ? parseFloat(transaction.receivableAmount).toFixed(2) : "0.00",
-        payableamout: transaction.payableAmount ? parseFloat(transaction.payableAmount).toFixed(2) : "0.00",
+        releasefee: platformFee.toFixed(2), // Recalculated using platformfee
+        recievableamount: receivableAmount.toFixed(2), // Recalculated
+        payableamout: receivableAmount.toFixed(2), // Recalculated
         gstamout: transaction.gstAmount || "0.00",
         totalamout: transaction.totalAmount || "0.00",
         handlingFee: transaction.handlingFee || "0.00"
