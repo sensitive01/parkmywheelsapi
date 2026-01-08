@@ -5019,53 +5019,53 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Base filter
-    let filter = { vendorId, status: "COMPLETED" };
+    // Base filter - fetch from BookingTransaction, no status filter
+    let filter = { vendorId };
 
-    // Apply user filter if present; otherwise exclude null userids
+    // Apply user filter if present; otherwise exclude null userIds
     if (userId) {
-      filter.userid = userId;
+      filter.userId = userId;
     } else {
-      filter.userid = { $ne: null }; // exclude userid: null
+      filter.userId = { $ne: null, $exists: true }; // exclude userId: null
     }
 
-    let completedBookings = await Booking.find(filter);
+    let transactions = await BookingTransaction.find(filter);
 
-    // If userId is provided but no bookings found, fallback to all vendor bookings
-    if (userId && completedBookings.length === 0) {
-      completedBookings = await Booking.find({ vendorId, status: "COMPLETED", userid: { $ne: null } });
+    // If userId is provided but no transactions found, fallback to all vendor transactions with userId
+    if (userId && transactions.length === 0) {
+      transactions = await BookingTransaction.find({ vendorId, userId: { $ne: null, $exists: true } });
     }
 
-    if (completedBookings.length === 0) {
-      return res.status(200).json({ success: true, message: "No completed bookings found", data: [] });
+    if (transactions.length === 0) {
+      return res.status(200).json({ success: true, message: "No transactions found", data: [] });
     }
 
-    const bookings = completedBookings.map((booking) => ({
-      invoice: booking.invoice || null,
-      username: booking.personName || null,
-      _id: booking._id,
-      invoiceid: booking.invoiceid || null,
-      userid: booking.userid || null,
-      bookingDate: booking.bookingDate,
-      parkingDate: booking.parkingDate,
-      parkingTime: booking.parkingTime,
-      vehiclenumber: booking.vehicleNumber || null,
-      exitdate: booking.exitvehicledate || null,
-      exittime: booking.exitvehicletime || null,
-      status: booking.status,
-      sts: booking.sts || null,
-      otp: booking.otp || null,
-      vendorname: booking.vendorName || null,
-      vendorid: booking.vendorId || null,
-      bookingtype: booking.bookType || null,
-      vehicleType: booking.vehicleType || null,
-      amount: parseFloat(booking.amount).toFixed(2),
-      handlingfee: parseFloat(booking.handlingfee).toFixed(2),
-      releasefee: parseFloat(booking.releasefee).toFixed(2),
-      recievableamount: parseFloat(booking.recievableamount).toFixed(2),
-      payableamout: parseFloat(booking.payableamout).toFixed(2),
-      gstamout: booking.gstamout,
-      totalamout: booking.totalamout,
+    const bookings = transactions.map((transaction) => ({
+      invoice: null, // Not stored in BookingTransaction
+      username: transaction.personName || null,
+      _id: transaction._id,
+      invoiceid: transaction.invoiceId || null,
+      userid: transaction.userId || null,
+      bookingDate: transaction.bookingDate || null,
+      parkingDate: transaction.parkingDate || null,
+      parkingTime: transaction.parkingTime || null,
+      vehiclenumber: transaction.vehicleNumber || null,
+      exitdate: transaction.exitDate || null,
+      exittime: transaction.exitTime || null,
+      status: transaction.status || null,
+      sts: transaction.subscriptionType || null,
+      otp: null, // Not stored in BookingTransaction
+      vendorname: transaction.vendorName || null,
+      vendorid: transaction.vendorId || null,
+      bookingtype: transaction.bookingType || null,
+      vehicleType: transaction.vehicleType || null,
+      amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
+      handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
+      releasefee: transaction.platformFee ? parseFloat(transaction.platformFee).toFixed(2) : "0.00",
+      recievableamount: transaction.receivableAmount ? parseFloat(transaction.receivableAmount).toFixed(2) : "0.00",
+      payableamout: transaction.payableAmount ? parseFloat(transaction.payableAmount).toFixed(2) : "0.00",
+      gstamout: transaction.gstAmount || "0.00",
+      totalamout: transaction.totalAmount || "0.00",
     }));
 
     res.status(200).json({
@@ -5093,52 +5093,48 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Get all COMPLETED bookings for the vendor where userid is null or not present
-    const completedBookings = await Booking.find({
+    // Get all transactions for the vendor where userId is null or not present - no status filter
+    const transactions = await BookingTransaction.find({
       vendorId,
-      status: "COMPLETED",
-      $or: [{ userid: null }, { userid: { $exists: false } }]
+      $or: [{ userId: null }, { userId: { $exists: false } }]
     });
 
-    if (completedBookings.length === 0) {
+    if (transactions.length === 0) {
       return res.status(200).json({
         success: true,
-        message: "No completed bookings without userid found",
+        message: "No transactions without userId found",
         data: []
       });
     }
 
-    const bookings = completedBookings.map((booking) => {
-      const amount = parseFloat(booking.amount) || 0;
-      const platformfee = parseFloat(booking.platformfee) || 0;
-
+    const bookings = transactions.map((transaction) => {
       return {
-        invoiceid: booking.invoiceid || null,
-        invoice: booking.invoice || null,
-        username: booking.personName || null,
-        _id: booking._id,
-        userid: booking.userid || null,
-        bookingDate: booking.bookingDate,
-        parkingDate: booking.parkingDate,
-        parkingTime: booking.parkingTime,
-        vehiclenumber: booking.vehicleNumber || null,
-        exitdate: booking.exitvehicledate || null,
-        exittime: booking.exitvehicletime || null,
-        status: booking.status,
-        sts: booking.sts || null,
-        otp: booking.otp || null,
-        vendorname: booking.vendorName || null,
-        vendorid: booking.vendorId || null,
-        bookingtype: booking.bookType || null,
-        vehicleType: booking.vehicleType || null,
-        amount: parseFloat(booking.amount).toFixed(2),
-        // handlingfee: parseFloat(booking.handlingfee).toFixed(2),
-        releasefee: parseFloat(booking.releasefee).toFixed(2),
-        recievableamount: parseFloat(booking.recievableamount).toFixed(2),
-        payableamout: parseFloat(booking.payableamout).toFixed(2),
-        gstamout: booking.gstamout,
-        totalamout: booking.totalamout,
-        handlingFee: booking.handlingfee
+        invoiceid: transaction.invoiceId || null,
+        invoice: null, // Not stored in BookingTransaction
+        username: transaction.personName || null,
+        _id: transaction._id,
+        userid: transaction.userId || null,
+        bookingDate: transaction.bookingDate || null,
+        parkingDate: transaction.parkingDate || null,
+        parkingTime: transaction.parkingTime || null,
+        vehiclenumber: transaction.vehicleNumber || null,
+        exitdate: transaction.exitDate || null,
+        exittime: transaction.exitTime || null,
+        status: transaction.status || null,
+        sts: transaction.subscriptionType || null,
+        otp: null, // Not stored in BookingTransaction
+        vendorname: transaction.vendorName || null,
+        vendorid: transaction.vendorId || null,
+        bookingtype: transaction.bookingType || null,
+        vehicleType: transaction.vehicleType || null,
+        amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
+        handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
+        releasefee: transaction.platformFee ? parseFloat(transaction.platformFee).toFixed(2) : "0.00",
+        recievableamount: transaction.receivableAmount ? parseFloat(transaction.receivableAmount).toFixed(2) : "0.00",
+        payableamout: transaction.payableAmount ? parseFloat(transaction.payableAmount).toFixed(2) : "0.00",
+        gstamout: transaction.gstAmount || "0.00",
+        totalamout: transaction.totalAmount || "0.00",
+        handlingFee: transaction.handlingFee || "0.00"
       };
     });
 
