@@ -13,11 +13,11 @@ const chargesController = require("../../controller/vendorController/chargesCont
 const bannerController = require("../../controller/vendorController/bannerController/bannerController");
 const amenitiesController = require("../../controller/vendorController/amenitiesController/amenitiesController");
 const kycController = require("../../controller/vendorController/kycController/kycDetails");
-const  helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
+const helpfeedbackController = require("../../controller/vendorController/helpfeedback/helpfeedbackController");
 const bankdetailsConroller = require("../../controller/vendorController/bankdetailsController/bankdetailsController");
 const agenda = require("../../config/agenda");
 const settlementcontroller = require("../../controller/vendorController/settlementController");
-const  verifyPaymentResponse  = require("../../controller/vendorController/transaction/transaction");
+const verifyPaymentResponse = require("../../controller/vendorController/transaction/transaction");
 const gstcontroler = require("../../controller/vendorController/gstcontroler");
 const Plan = require("../../models/planSchema");
 const storage = multer.memoryStorage();
@@ -30,6 +30,10 @@ const notificationController = require("../../controller/adminController/notific
 
 
 vendorRoute.get("/fetchnotification/:vendorId", bookingController.getNotificationsByVendor);
+
+
+vendorRoute.get("/fetchnotification-in-web/:vendorId", notificationController.getNotificationsByVendorWeb);
+
 
 vendorRoute.post("/forgotpassword", vendorController.vendorForgotPassword);
 vendorRoute.post("/verify-otp", vendorController.verifyOTP);
@@ -80,23 +84,23 @@ vendorRoute.get("/bookavailability", bookingController.getVendorParkingSummaryBy
 
 vendorRoute.post("/addparkingcharges", chargesController.parkingCharges);
 vendorRoute.get("/getchargesdata/:id", chargesController.getChargesbyId);
-vendorRoute.get("/getchargesbycategoryandtype/:vendorid/:category/:chargeid", chargesController.getChargesByCategoryAndType );
+vendorRoute.get("/getchargesbycategoryandtype/:vendorid/:category/:chargeid", chargesController.getChargesByCategoryAndType);
 vendorRoute.get("/explorecharge/:id", chargesController.Explorecharge);
 
-vendorRoute.put("/upadatefulldaycar/:vendorId",chargesController.updateExtraParkingDataCar)
-vendorRoute.put("/upadatefulldaybike/:vendorId",chargesController.updateExtraParkingDataBike)
-vendorRoute.put("/upadatefulldayothers/:vendorId",chargesController.updateExtraParkingDataOthers)
-vendorRoute.get("/getfullday/:vendorId",chargesController.getFullDayModes)
-vendorRoute.get('/fetchenable/:vendorId',chargesController. getEnabledVehicles);
+vendorRoute.put("/upadatefulldaycar/:vendorId", chargesController.updateExtraParkingDataCar)
+vendorRoute.put("/upadatefulldaybike/:vendorId", chargesController.updateExtraParkingDataBike)
+vendorRoute.put("/upadatefulldayothers/:vendorId", chargesController.updateExtraParkingDataOthers)
+vendorRoute.get("/getfullday/:vendorId", chargesController.getFullDayModes)
+vendorRoute.get('/fetchenable/:vendorId', chargesController.getEnabledVehicles);
 
 // Update carenable flag
-vendorRoute.put('/updateenable/:vendorId',chargesController. updateEnabledVehicles);
-vendorRoute.put('/updatebottom/:vendorId',chargesController. updatelistv);
+vendorRoute.put('/updateenable/:vendorId', chargesController.updateEnabledVehicles);
+vendorRoute.put('/updatebottom/:vendorId', chargesController.updatelistv);
 
 
 vendorRoute.get("/privacy/:id", privacyController.getPrivacyPolicy)
 
-vendorRoute.post("/update-status",bookingController.updateBookingStatus)
+vendorRoute.post("/update-status", bookingController.updateBookingStatus)
 
 
 vendorRoute.post("/createbanner", upload.fields([{ name: 'image', maxCount: 1 }]), bannerController.createBanner)
@@ -105,7 +109,7 @@ vendorRoute.get("/getbanner", bannerController.getBanners)
 
 vendorRoute.post("/amenities", amenitiesController.addAmenitiesData)
 vendorRoute.get("/getamenitiesdata/:id", amenitiesController.getAmenitiesData)
-vendorRoute.put("/updateamenitiesdata/:id",amenitiesController.updateAmenitiesData )
+vendorRoute.put("/updateamenitiesdata/:id", amenitiesController.updateAmenitiesData)
 vendorRoute.put("/updateparkingentries/:id", amenitiesController.updateParkingEntries)
 vendorRoute.get("/fetchmonth/:id/:vehicleType", chargesController.fetchbookmonth);
 vendorRoute.put("/approvebooking/:id", bookingController.updateApproveBooking);
@@ -146,12 +150,12 @@ vendorRoute.get("/fetch-slot-vendor-data/:id", vendorController.fetchSlotVendorD
 vendorRoute.get("/fetchspace/:spaceid", vendorController.fetchspacedata);
 vendorRoute.put(
   "/updatevendor/:vendorId",
-   upload.single("image"), 
-   vendorController.updateVendorData);
-   vendorRoute.put(
-    "/updatespace/:vendorId",
-     upload.single("image"), 
-     vendorController.updatespacedata);
+  upload.single("image"),
+  vendorController.updateVendorData);
+vendorRoute.put(
+  "/updatespace/:vendorId",
+  upload.single("image"),
+  vendorController.updatespacedata);
 vendorRoute.post("/addExtraDays/:vendorId", vendorController.addExtraDaysToSubscription);
 vendorRoute.put("/update-parking-entries-vendor-data/:vendorId", vendorController.updateParkingEntriesVendorData);
 vendorRoute.get('/fetchtrial/:vendorId', vendorController.getVendorTrialStatus);
@@ -170,10 +174,10 @@ vendorRoute.put("/:id/visibility", vendorController.updateVendorVisibility);
 
 vendorRoute.put("/visibility/:id", vendorController.updateVendorVisibilityOnly);
 
-vendorRoute.post("/createkyc",  upload.fields([
+vendorRoute.post("/createkyc", upload.fields([
   { name: "idProofImage", maxCount: 1 },
   { name: "addressProofImage", maxCount: 1 }
-]),kycController.createKycData)
+]), kycController.createKycData)
 vendorRoute.get("/getkyc/:id", kycController.getKycData)
 vendorRoute.put(
   "/updatekyc/:vendorId",
@@ -204,7 +208,7 @@ vendorRoute.get("/gateclose", gateController.closeGate);
 vendorRoute.get("/charges/:id/:vehicleType", chargesController.fetchexit);
 vendorRoute.get("/run-agenda-job", async (req, res) => {
   try {
-    await agenda.now("decrease subscription left"); 
+    await agenda.now("decrease subscription left");
     res.status(200).json({ message: "Agenda job triggered successfully." });
   } catch (error) {
     res.status(500).json({ error: "Failed to trigger agenda job." });
@@ -238,6 +242,7 @@ vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsByS
 vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCharges);
 
 vendorRoute.get('/get-my-notification/:vendorId', notificationController.getNotificationsByVendor);
+vendorRoute.delete('/delete-my-notification/:notificationId', notificationController.deleteNotificationByVendor);
 
 
 // --- Test endpoint to trigger 5-day reminders from Postman ---
@@ -254,9 +259,9 @@ vendorRoute.get('/test-subscription-reminders', async (req, res) => {
 vendorRoute.get('/check-kyc-status', async (req, res) => {
   try {
     const result = await agenda.checkKycStatus();
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'KYC status check completed. Check console for detailed output.',
-      ...result 
+      ...result
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to check KYC status', details: e?.message || e });
@@ -267,9 +272,9 @@ vendorRoute.get('/check-kyc-status', async (req, res) => {
 vendorRoute.get('/check-vendor-7day-subscription-status', async (req, res) => {
   try {
     const result = await agenda.checkVendorSevenDaySubscriptionStatus();
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Vendor 7-day subscription status check completed. Check console for detailed output.',
-      ...result 
+      ...result
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to check vendor 7-day subscription status', details: e?.message || e });

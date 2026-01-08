@@ -22,6 +22,7 @@ const bankdetailsSchema = new mongoose.Schema(
     },
     isApproved: { type: Boolean, default: false },
     isRead: { type: Boolean, default: false },
+    isVendorRead: { type: Boolean, default: false },
   },
   {
     timestamps: true,

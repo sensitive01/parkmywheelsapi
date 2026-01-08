@@ -36,6 +36,7 @@ const createOrUpdateBankDetail = async (req, res) => {
         status: "Pending",
         isApproved: false,
         isRead: false,
+        isVendorRead: false,
 
       };
 

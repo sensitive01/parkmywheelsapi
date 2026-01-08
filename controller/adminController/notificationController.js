@@ -2,6 +2,7 @@ const chatboxSchema = require("../../models/chatbox");
 const advNotification = require("../../models/meetingSchema");
 const VendorHelpSupport = require("../../models/userhelp");
 const bankApprovalSchema = require("../../models/bankdetailsSchema");
+const Notification = require("../../models/notificationschema"); // Adjust the path as necessary
 
 
 const getNotification = async (req, res) => {
@@ -45,9 +46,9 @@ const updateNotification = async (req, res) => {
 const getNotificationsByVendor = async (req, res) => {
     try {
         const { vendorId } = req.params;
-        const notifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false ,isRead:true});
-        const helpAndSupports = await chatboxSchema.find({ vendorId: vendorId, isVendorRead: false ,isRead:true});
-        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false ,isRead:true});
+        const notifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false, isRead: true });
+        const helpAndSupports = await chatboxSchema.find({ vendorId: vendorId, isVendorRead: false, isRead: true });
+        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false, isRead: true });
 
         res.json({
             notifications,
@@ -77,7 +78,53 @@ const clearAllAdminNotification = async (req, res) => {
 
 
 
+const getNotificationsByVendorWeb = async (req, res) => {
+    try {
+        const { vendorId } = req.params;
 
+        const notifications = await Notification.find({ vendorId, isVendorRead: false }).sort({ createdAt: -1 });
+        const advNotifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false, isRead: true }).sort({ createdAt: -1 });
+        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false, status: "Completed" }).sort({ createdAt: -1 });
+        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isApproved: true, isVendorRead: false }).sort({ createdAt: -1 });
+
+
+
+        res.status(200).json({
+            success: true,
+            count: notifications.length,
+            notifications,
+            advNotifications,
+            helpAndSupports,
+            bankAccountNotifications,
+        });
+    } catch (error) {
+        console.error("Error fetching notifications:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+const deleteNotificationByVendor = async (req, res) => {
+    try {
+        const { notificationId } = req.params;
+
+        // Try to delete from all potential collections
+        // Since IDs are usually unique, it will likely only be found in one
+        const del1 = await Notification.findByIdAndDelete(notificationId);
+        const del2 = await advNotification.findByIdAndDelete(notificationId);
+        const del3 = await VendorHelpSupport.findByIdAndUpdate(notificationId, { isVendorRead: true });
+        const del4 = await bankApprovalSchema.findByIdAndUpdate(notificationId, { isApproved: true ,isVendorRead:true});
+
+        if (del1 || del2 || del3 || del4) {
+            res.json({ message: "Notification deleted successfully" });
+        } else {
+            res.status(404).json({ message: "Notification not found" });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to delete notification" });
+    }
+};
 
 
 
@@ -87,8 +134,10 @@ const clearAllAdminNotification = async (req, res) => {
 
 
 module.exports = {
+    getNotificationsByVendorWeb,
     clearAllAdminNotification,
     getNotification,
     updateNotification,
-    getNotificationsByVendor
+    getNotificationsByVendor,
+    deleteNotificationByVendor
 };
