@@ -1,16 +1,36 @@
+const mongoose = require("mongoose");
 const chatboxSchema = require("../../models/chatbox");
 const advNotification = require("../../models/meetingSchema");
 const VendorHelpSupport = require("../../models/userhelp");
 const bankApprovalSchema = require("../../models/bankdetailsSchema");
 const Notification = require("../../models/notificationschema"); // Adjust the path as necessary
+const Vendor = require("../../models/venderSchema");
 
 
 const getNotification = async (req, res) => {
     try {
         const notifications = await advNotification.find({ isRead: false });
-        const helpAndSupports = await VendorHelpSupport.find({ isRead: false });
+        let helpAndSupports = await VendorHelpSupport.find({ isRead: false }).lean();
         const bankApprovalNotification = await bankApprovalSchema.find({ isRead: false });
 
+
+        // Manually populate vendor details
+        if (helpAndSupports.length > 0) {
+            helpAndSupports = await Promise.all(helpAndSupports.map(async (support) => {
+                const vendor = await Vendor.findOne({
+                    $or: [
+                        { vendorId: support.vendorid },
+                        ...(mongoose.Types.ObjectId.isValid(support.vendorid) ? [{ _id: support.vendorid }] : [])
+                    ]
+                }).select("vendorName image");
+
+                return {
+                    ...support,
+                    vendorName: vendor ? vendor.vendorName : "Unknown Vendor",
+                    vendorImage: vendor ? vendor.image : null
+                };
+            }));
+        }
 
 
         res.json({
@@ -84,7 +104,7 @@ const getNotificationsByVendorWeb = async (req, res) => {
 
         const notifications = await Notification.find({ vendorId, isVendorRead: false }).sort({ createdAt: -1 });
         const advNotifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false, isRead: true }).sort({ createdAt: -1 });
-        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false, status: "Completed" }).sort({ createdAt: -1 });
+        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false }).sort({ createdAt: -1 });
         const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isApproved: true, isVendorRead: false }).sort({ createdAt: -1 });
 
 
@@ -113,7 +133,7 @@ const deleteNotificationByVendor = async (req, res) => {
         const del1 = await Notification.findByIdAndDelete(notificationId);
         const del2 = await advNotification.findByIdAndDelete(notificationId);
         const del3 = await VendorHelpSupport.findByIdAndUpdate(notificationId, { isVendorRead: true });
-        const del4 = await bankApprovalSchema.findByIdAndUpdate(notificationId, { isApproved: true ,isVendorRead:true});
+        const del4 = await bankApprovalSchema.findByIdAndUpdate(notificationId, { isApproved: true, isVendorRead: true });
 
         if (del1 || del2 || del3 || del4) {
             res.json({ message: "Notification deleted successfully" });

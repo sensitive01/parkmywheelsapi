@@ -940,21 +940,30 @@ exports.vendorcreateBooking = async (req, res) => {
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
+    console.log("amount",amount)
+    console.log("roundedAmount",roundedAmount)
+    console.log("bookingAmount",bookingAmount)
+    console.log("totalAmount",totalAmount)
+
     // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (userid) {
-      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
-    } else {
       platformFeePercentage = parseFloat(vendorData.customerplatformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     }
     platformFeePercentage = Math.ceil(platformFeePercentage);
+    console.log("platformFeePercentage",platformFeePercentage)
 
     const platformFee = (roundedAmount * platformFeePercentage) / 100;
     releaseFee = platformFee.toFixed(2);
+    console.log("releaseFee",releaseFee)
 
     const receivable = roundedAmount - platformFee;
     receivableAmount = receivable.toFixed(2);
+    console.log("receivableAmount",receivableAmount)
     payableAmount = receivableAmount;
+    console.log("payableAmount",payableAmount)
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -1026,6 +1035,7 @@ exports.vendorcreateBooking = async (req, res) => {
           othersmonthly: parkingCharges.othersmonthly?.toString() || "",
         };
       }
+      console.log("vendorChargesData",vendorChargesData)
     } catch (chargesError) {
       console.error("Error fetching charges for booking:", chargesError);
       // Continue with booking creation even if charges fetch fails
@@ -1073,6 +1083,7 @@ exports.vendorcreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
+    console.log("newBooking",newBooking)
 
     // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
     if ((sts || "").toLowerCase() === "subscription") {
@@ -1121,6 +1132,7 @@ exports.vendorcreateBooking = async (req, res) => {
         });
 
         await bookingTransaction.save();
+        console.log("bookingTransaction",bookingTransaction)
         console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - Subscription) for booking ${newBooking._id}`);
       } catch (transactionErr) {
         console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
@@ -4272,6 +4284,9 @@ exports.renewSubscription = async (req, res) => {
       new_subscription_enddate
     } = req.body;
 
+    console.log("req.body",req.body)
+    console.log(req.params.id)
+
     if (new_total_amount === undefined || new_subscription_enddate === undefined) {
       return res.status(400).json({ error: "New total amount and new end date are required" });
     }
@@ -4290,9 +4305,9 @@ exports.renewSubscription = async (req, res) => {
     // Platform fee calculation: use platformfee if booking.userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (booking.userid) {
-      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    } else {
       platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     }
     // Always round UP the platform fee %
     platformFeePercentage = Math.ceil(platformFeePercentage);

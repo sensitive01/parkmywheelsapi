@@ -1,4 +1,5 @@
 const Chatbox = require("../../../models/chatbox");
+const VendorHelpSupport = require("../../../models/userhelp");
 const PaymentDispute = require("../../../models/paymentDispute");
 const Notification = require("../../../models/notificationschema");
 const userModel = require("../../../models/userModel");
@@ -144,6 +145,26 @@ const sendAdminMessage = async (req, res) => {
     chatbox.lastUpdated = new Date();
     await chatbox.save();
 
+    // Update Notification for Vendor
+    try {
+      await VendorHelpSupport.findByIdAndUpdate(userId, {
+        $set: { isVendorRead: false, isRead: true },
+        $push: {
+          chatbox: {
+            userId: adminId,
+            message: message || (imageUrl ? "Image" : ""),
+            image: imageUrl || null,
+            time: new Date().toLocaleTimeString(),
+            timestamp: new Date()
+          }
+        }
+      });
+      console.log("Updated VendorHelpSupport for notification");
+    } catch (err) {
+      console.error("Error updating VendorHelpSupport notification:", err);
+    }
+
+
     // Check if this is a response to a payment dispute
     // Look for payment dispute tickets for this user
     try {
@@ -155,7 +176,7 @@ const sendAdminMessage = async (req, res) => {
       // If there's a pending dispute and admin is responding, create notification
       if (pendingDisputes.length > 0 && message) {
         const latestDispute = pendingDisputes[0];
-        
+
         // Update dispute with admin response
         latestDispute.adminResponse = message;
         latestDispute.adminId = adminId;
@@ -166,7 +187,7 @@ const sendAdminMessage = async (req, res) => {
 
         // Create notification for customer
         const notificationMessage = `Your "payment dispute" ticket #${latestDispute.ticketId} has been received.`;
-        
+
         // Format notification time
         const now = new Date();
         const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
@@ -178,7 +199,7 @@ const sendAdminMessage = async (req, res) => {
           minute: "2-digit",
           hour12: true,
         });
-        
+
         const notification = new Notification({
           userId: userId,
           title: "Payment Dispute",
@@ -203,7 +224,7 @@ const sendAdminMessage = async (req, res) => {
         try {
           // Find user by userId (uuid field)
           const user = await userModel.findOne({ uuid: userId }, { userfcmTokens: 1 });
-          
+
           if (user && user.userfcmTokens && user.userfcmTokens.length > 0) {
             const fcmPayload = {
               notification: {

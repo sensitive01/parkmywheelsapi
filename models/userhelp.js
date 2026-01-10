@@ -71,6 +71,10 @@ const helpSupportSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isVendorRead: {
+      type: Boolean,
+      default: true,
+    },
     chatbox: [chatboxSchema],
   },
   { timestamps: true }
