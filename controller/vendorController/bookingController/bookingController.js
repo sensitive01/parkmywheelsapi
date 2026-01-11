@@ -940,10 +940,10 @@ exports.vendorcreateBooking = async (req, res) => {
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
-    console.log("amount",amount)
-    console.log("roundedAmount",roundedAmount)
-    console.log("bookingAmount",bookingAmount)
-    console.log("totalAmount",totalAmount)
+    console.log("amount", amount)
+    console.log("roundedAmount", roundedAmount)
+    console.log("bookingAmount", bookingAmount)
+    console.log("totalAmount", totalAmount)
 
     // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
@@ -953,17 +953,17 @@ exports.vendorcreateBooking = async (req, res) => {
       platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     }
     platformFeePercentage = Math.ceil(platformFeePercentage);
-    console.log("platformFeePercentage",platformFeePercentage)
+    console.log("platformFeePercentage", platformFeePercentage)
 
     const platformFee = (roundedAmount * platformFeePercentage) / 100;
     releaseFee = platformFee.toFixed(2);
-    console.log("releaseFee",releaseFee)
+    console.log("releaseFee", releaseFee)
 
     const receivable = roundedAmount - platformFee;
     receivableAmount = receivable.toFixed(2);
-    console.log("receivableAmount",receivableAmount)
+    console.log("receivableAmount", receivableAmount)
     payableAmount = receivableAmount;
-    console.log("payableAmount",payableAmount)
+    console.log("payableAmount", payableAmount)
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -1035,7 +1035,7 @@ exports.vendorcreateBooking = async (req, res) => {
           othersmonthly: parkingCharges.othersmonthly?.toString() || "",
         };
       }
-      console.log("vendorChargesData",vendorChargesData)
+      console.log("vendorChargesData", vendorChargesData)
     } catch (chargesError) {
       console.error("Error fetching charges for booking:", chargesError);
       // Continue with booking creation even if charges fetch fails
@@ -1083,7 +1083,7 @@ exports.vendorcreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    console.log("newBooking",newBooking)
+    console.log("newBooking", newBooking)
 
     // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
     if ((sts || "").toLowerCase() === "subscription") {
@@ -1132,7 +1132,7 @@ exports.vendorcreateBooking = async (req, res) => {
         });
 
         await bookingTransaction.save();
-        console.log("bookingTransaction",bookingTransaction)
+        console.log("bookingTransaction", bookingTransaction)
         console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - Subscription) for booking ${newBooking._id}`);
       } catch (transactionErr) {
         console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
@@ -3870,9 +3870,9 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Platform fee calculation: use platformfee if booking.userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (booking.userid) {
-      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    } else {
       platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     }
     // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
     platformFeePercentage = Math.ceil(platformFeePercentage);
@@ -4284,7 +4284,7 @@ exports.renewSubscription = async (req, res) => {
       new_subscription_enddate
     } = req.body;
 
-    console.log("req.body",req.body)
+    console.log("req.body", req.body)
     console.log(req.params.id)
 
     if (new_total_amount === undefined || new_subscription_enddate === undefined) {
@@ -5114,9 +5114,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Get platform fee percentage for user bookings (customerplatformfee)
-    let platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
-    platformFeePercentage = Math.ceil(platformFeePercentage);
+
 
     // Base filter - fetch from BookingTransaction, no status filter
     let filter = { vendorId };
@@ -5140,10 +5138,8 @@ exports.getReceivableAmountByUser = async (req, res) => {
     }
 
     const bookings = transactions.map((transaction) => {
-      // Recalculate platform fee using customerplatformfee
-      const totalAmount = parseFloat(transaction.totalAmount || "0.00");
-      const platformFee = (totalAmount * platformFeePercentage) / 100;
-      const receivableAmount = totalAmount - platformFee;
+      const platformFee = parseFloat(transaction.platformFee || "0.00");
+      const receivableAmount = parseFloat(transaction.receivableAmount || "0.00");
 
       return {
         invoice: null, // Not stored in BookingTransaction
@@ -5166,9 +5162,9 @@ exports.getReceivableAmountByUser = async (req, res) => {
         vehicleType: transaction.vehicleType || null,
         amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
         handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
-        releasefee: platformFee.toFixed(2), // Recalculated using customerplatformfee
-        recievableamount: receivableAmount.toFixed(2), // Recalculated
-        payableamout: receivableAmount.toFixed(2), // Recalculated
+        releasefee: platformFee.toFixed(2),
+        recievableamount: receivableAmount.toFixed(2),
+        payableamout: receivableAmount.toFixed(2),
         gstamout: transaction.gstAmount || "0.00",
         totalamout: transaction.totalAmount || "0.00",
       };
@@ -5199,9 +5195,7 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Get platform fee percentage for non-user bookings (platformfee)
-    let platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    platformFeePercentage = Math.ceil(platformFeePercentage);
+
 
     // Get all transactions for the vendor where userId is null or not present - no status filter
     const transactions = await BookingTransaction.find({
@@ -5218,10 +5212,8 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     }
 
     const bookings = transactions.map((transaction) => {
-      // Recalculate platform fee using platformfee
-      const totalAmount = parseFloat(transaction.totalAmount || "0.00");
-      const platformFee = (totalAmount * platformFeePercentage) / 100;
-      const receivableAmount = totalAmount - platformFee;
+      const platformFee = parseFloat(transaction.platformFee || "0.00");
+      const receivableAmount = parseFloat(transaction.receivableAmount || "0.00");
 
       return {
         invoiceid: transaction.invoiceId || null,
@@ -5244,9 +5236,9 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
         vehicleType: transaction.vehicleType || null,
         amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
         handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
-        releasefee: platformFee.toFixed(2), // Recalculated using platformfee
-        recievableamount: receivableAmount.toFixed(2), // Recalculated
-        payableamout: receivableAmount.toFixed(2), // Recalculated
+        releasefee: platformFee.toFixed(2),
+        recievableamount: receivableAmount.toFixed(2),
+        payableamout: receivableAmount.toFixed(2),
         gstamout: transaction.gstAmount || "0.00",
         totalamout: transaction.totalAmount || "0.00",
         handlingFee: transaction.handlingFee || "0.00"
