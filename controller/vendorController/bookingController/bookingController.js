@@ -402,9 +402,9 @@ exports.createBooking = async (req, res) => {
     // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
     if (userid) {
-      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
-    } else {
       platformFeePercentage = parseFloat(vendorData.customerplatformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     }
     const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
     const releaseFee = platformFee.toFixed(2);
@@ -1634,7 +1634,7 @@ exports.livecreateBooking = async (req, res) => {
     console.log("Booking data:", req.body);
 
     // Step 1: Check vendor and available slots
-    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1 });
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1 });
     if (!vendorData) return res.status(404).json({ message: "Vendor not found" });
 
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
@@ -1791,10 +1791,41 @@ exports.livecreateBooking = async (req, res) => {
       // Continue with booking creation even if charges fetch fails
     }
 
+    // Fetch GST and Handling Fee
+    const gstFeeData = await Gstfee.findOne({});
+    let gstAmount = 0;
+    let handlingFee = 0;
+    
+    if (gstFeeData) {
+        const gstPercentage = parseFloat(gstFeeData.gst) || 0;
+        gstAmount = (parseFloat(amount) * gstPercentage) / 100;
+        handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
+    }
+
+    const totalAmount = (parseFloat(amount) + gstAmount + handlingFee).toFixed(2);
+
+    // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
+    let platformFeePercentage = 0;
+    if (userid) {
+      platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
+    } else {
+      platformFeePercentage = parseFloat(vendorData.customerplatformfee) || 0;
+    }
+    const platformFee = (parseFloat(totalAmount) * platformFeePercentage) / 100;
+    const releaseFee = platformFee.toFixed(2);
+    const receivableAmount = (parseFloat(totalAmount) - platformFee).toFixed(2);
+    const payableAmount = receivableAmount;
+
     const newBooking = new Booking({
       userid,
       vendorId,
-      amount,
+      amount: parseFloat(amount).toFixed(2),
+      totalamout: totalAmount,
+      gstamout: gstAmount.toFixed(2),
+      handlingfee: handlingFee.toFixed(2),
+      releasefee: releaseFee,
+      recievableamount: receivableAmount,
+      payableamout: payableAmount,
       hour,
       personName,
       vehicleType,
