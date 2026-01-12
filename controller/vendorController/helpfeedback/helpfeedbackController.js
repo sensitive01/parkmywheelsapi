@@ -86,10 +86,11 @@ const sendchat = async (req, res) => {
     console.log("Uploaded files:", req.files);
 
     const { helpRequestId } = req.params;
-    const { vendorid, message } = req.body;
+    // Extract adminid along with vendorid and message
+    const { vendorid, message, adminid } = req.body;
 
-    if (!vendorid ) {
-      return res.status(400).json({ message: "Vendor ID and message are required." });
+    if (!vendorid) {
+      return res.status(400).json({ message: "Vendor ID is required." });
     }
 
     let imageUrl = null;
@@ -103,9 +104,16 @@ const sendchat = async (req, res) => {
       return res.status(404).json({ message: "Help request not found." });
     }
 
+    // Check if the request is coming from the Admin Panel
+    // valid if adminid is present in the body (sent from frontend)
+    const isAdmin = !!adminid;
+
+    console.log(`[sendchat] Admin ID: ${adminid}, Is Admin: ${isAdmin}`);
+
     // Create the chat message object
     const chatMessage = {
-      userId: vendorid,
+      // If it's an admin, use the adminid, otherwise use the vendorid
+      userId: isAdmin ? adminid : vendorid,
       message,
       image: imageUrl,
       time: new Date().toLocaleTimeString(),
@@ -114,6 +122,28 @@ const sendchat = async (req, res) => {
 
     // Push the new message into the chatbox array
     helpRequest.chatbox.push(chatMessage);
+
+    // Update read status based on sender
+    if (isAdmin) {
+      helpRequest.isVendorRead = false; // Vendor hasn't read this new message
+      helpRequest.isRead = true;        // Admin (sender) has read it
+
+      // Re-open if closed
+      if (['Completed', 'Resolved', 'Closed'].includes(helpRequest.status)) {
+        helpRequest.status = 'In Progress';
+      }
+    } else {
+      helpRequest.isRead = false;       // Admin hasn't read this new message
+      helpRequest.isVendorRead = true;  // Vendor (sender) has read it
+
+      // Re-open if closed (Case-insensitive check)
+      const currentStatus = helpRequest.status ? helpRequest.status.toLowerCase() : "";
+      if (['completed', 'resolved', 'closed'].includes(currentStatus)) {
+        console.log(`[sendchat] Re-opening ticket ${helpRequestId} (was ${helpRequest.status})`);
+        helpRequest.status = 'In Progress';
+      }
+    }
+
     await helpRequest.save();
 
     res.status(200).json({ message: "Chat message sent successfully.", data: chatMessage });

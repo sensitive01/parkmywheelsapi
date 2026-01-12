@@ -225,7 +225,7 @@ vendorRoute.post("/vendorlogout", vendorController.vendorLogoutById);
 // Assuming you're using Express router
 vendorRoute.get('/getusernotification/:uuid', bookingController.getNotificationsByUser);
 vendorRoute.put('/notification/:notificationId', bookingController.clearNotificationById);
-vendorRoute.delete('/notifications/vendor/:vendorId', bookingController.clearAllNotificationsByVendor);
+vendorRoute.delete('/notifications/vendor/:vendorId', notificationController.deleteAllNotificationsByVendor);
 vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserNotifications);
 
 vendorRoute.get("/fetchbookid/:id", bookingController.getBookingById);

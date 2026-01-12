@@ -10,8 +10,9 @@ const Vendor = require("../../models/venderSchema");
 const getNotification = async (req, res) => {
     try {
         const notifications = await advNotification.find({ isRead: false });
-        let helpAndSupports = await VendorHelpSupport.find({ isRead: false }).lean();
-        const bankApprovalNotification = await bankApprovalSchema.find({ isRead: false });
+        let helpAndSupports = await VendorHelpSupport.find({ isRead: false }).sort({ updatedAt: -1 }).lean();
+
+        let bankApprovalNotification = await bankApprovalSchema.find({ $or: [{ isRead: false }, { isApproved: false }] }).lean();
 
 
         // Manually populate vendor details
@@ -24,8 +25,36 @@ const getNotification = async (req, res) => {
                     ]
                 }).select("vendorName image");
 
+                // Extract latest message for snippet
+                let latestMsg = support.description;
+                if (support.chatbox && support.chatbox.length > 0) {
+                    const lastChat = support.chatbox[support.chatbox.length - 1];
+                    latestMsg = lastChat.message || "Sent an attachment";
+                }
+
                 return {
                     ...support,
+                    message: latestMsg, // Explicitly send the latest message
+                    title: "Help Request", // Ensure title exists
+                    type: "chat", // Ensure type is chat
+                    vendorName: vendor ? vendor.vendorName : "Unknown Vendor",
+                    vendorImage: vendor ? vendor.image : null
+                };
+            }));
+        }
+
+        // Manually populate vendor details for bankApprovalNotification
+        if (bankApprovalNotification.length > 0) {
+            bankApprovalNotification = await Promise.all(bankApprovalNotification.map(async (approval) => {
+                const vendor = await Vendor.findOne({
+                    $or: [
+                        { vendorId: approval.vendorId },
+                        ...(mongoose.Types.ObjectId.isValid(approval.vendorId) ? [{ _id: approval.vendorId }] : [])
+                    ]
+                }).select("vendorName image");
+
+                return {
+                    ...approval,
                     vendorName: vendor ? vendor.vendorName : "Unknown Vendor",
                     vendorImage: vendor ? vendor.image : null
                 };
@@ -66,9 +95,9 @@ const updateNotification = async (req, res) => {
 const getNotificationsByVendor = async (req, res) => {
     try {
         const { vendorId } = req.params;
-        const notifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false, isRead: true });
-        const helpAndSupports = await chatboxSchema.find({ vendorId: vendorId, isVendorRead: false, isRead: true });
-        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false, isRead: true });
+        const notifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false }).sort({ createdAt: -1 });
+        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
+        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
 
         res.json({
             notifications,
@@ -85,10 +114,18 @@ const getNotificationsByVendor = async (req, res) => {
 };
 
 
+// Backend Controller Update
 const clearAllAdminNotification = async (req, res) => {
     try {
-        await advNotification.updateMany({}, { $set: { isRead: true } });
-        await chatboxSchema.updateMany({}, { $set: { isRead: true } });
+        // 1. Clear General Callbacks
+        await advNotification.updateMany({ isRead: false }, { $set: { isRead: true } });
+
+        // 2. Clear Help & Support (Match this model to your "Get" logic)
+        await VendorHelpSupport.updateMany({ isRead: false }, { $set: { isRead: true } });
+
+        // 3. Clear Bank Approvals
+        await bankApprovalSchema.updateMany({ isRead: false }, { $set: { isRead: true } });
+
         res.json({ message: "All notifications marked as read successfully" });
     } catch (error) {
         console.error(error);
@@ -101,17 +138,24 @@ const clearAllAdminNotification = async (req, res) => {
 const getNotificationsByVendorWeb = async (req, res) => {
     try {
         const { vendorId } = req.params;
+        console.log(`[getNotificationsByVendorWeb] Fetching for VendorID: ${vendorId}`);
 
+        // 1. General Notifications
         const notifications = await Notification.find({ vendorId, isVendorRead: false }).sort({ createdAt: -1 });
-        const advNotifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false, isRead: true }).sort({ createdAt: -1 });
-        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false }).sort({ createdAt: -1 });
-        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isApproved: true, isVendorRead: false }).sort({ createdAt: -1 });
 
+        // 2. Callback (Adv) Notifications
+        const advNotifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false }).sort({ createdAt: -1 });
 
+        // 3. Help & Support
+        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
+        console.log(`[getNotificationsByVendorWeb] Found ${helpAndSupports.length} support tickets.`);
+
+        // 4. Bank Account Notifications
+        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
 
         res.status(200).json({
             success: true,
-            count: notifications.length,
+            count: notifications.length + advNotifications.length + helpAndSupports.length + bankAccountNotifications.length,
             notifications,
             advNotifications,
             helpAndSupports,
@@ -119,6 +163,23 @@ const getNotificationsByVendorWeb = async (req, res) => {
         });
     } catch (error) {
         console.error("Error fetching notifications:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const deleteAllNotificationsByVendor = async (req, res) => {
+    try {
+        const { vendorId } = req.params;
+        console.log(`[deleteAllNotificationsByVendor] Clearing all for VendorID: ${vendorId}`);
+
+        await Notification.updateMany({ vendorId }, { $set: { isVendorRead: true } });
+        await advNotification.updateMany({ vendorId }, { $set: { isVendorRead: true } });
+        await VendorHelpSupport.updateMany({ vendorid: vendorId }, { $set: { isVendorRead: true } });
+        await bankApprovalSchema.updateMany({ vendorId }, { $set: { isVendorRead: true } });
+
+        res.status(200).json({ success: true, message: "All notifications cleared (marked as read)." });
+    } catch (error) {
+        console.error("Error clearing notifications:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -159,5 +220,6 @@ module.exports = {
     getNotification,
     updateNotification,
     getNotificationsByVendor,
-    deleteNotificationByVendor
+    deleteNotificationByVendor,
+    deleteAllNotificationsByVendor
 };

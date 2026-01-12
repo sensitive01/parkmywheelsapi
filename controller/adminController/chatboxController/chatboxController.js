@@ -146,20 +146,58 @@ const sendAdminMessage = async (req, res) => {
     await chatbox.save();
 
     // Update Notification for Vendor
+    // Update Notification for Vendor
+    let updatedSupport = null;
     try {
-      await VendorHelpSupport.findByIdAndUpdate(userId, {
-        $set: { isVendorRead: false, isRead: true },
-        $push: {
-          chatbox: {
-            userId: adminId,
-            message: message || (imageUrl ? "Image" : ""),
-            image: imageUrl || null,
-            time: new Date().toLocaleTimeString(),
-            timestamp: new Date()
-          }
+      // 1. Try treating userId as Ticket ID (_id)
+      // Safely attempt to find by ID
+      try {
+        updatedSupport = await VendorHelpSupport.findById(userId);
+      } catch (e) { /* Ignore cast errors */ }
+
+      // 2. If not found, try treating userId as Vendor ID (vendorid)
+      if (!updatedSupport) {
+        // Priority A: Find LATEST ACTIVE ticket first (Pending or In Progress)
+        // This ensures we reply to the open conversation if one exists
+        updatedSupport = await VendorHelpSupport.findOne({
+          vendorid: userId,
+          status: { $in: ['Pending', 'In Progress', 'Active', 'Open'] }
+        }).sort({ createdAt: -1 });
+
+        // Priority B: If no active ticket, just find ANY latest ticket (likely Closed) to re-open
+        if (!updatedSupport) {
+          console.log(`No active ticket found for vendor ${userId}. Finding latest ticket to re-open.`);
+          updatedSupport = await VendorHelpSupport.findOne({ vendorid: userId }).sort({ createdAt: -1 });
         }
-      });
-      console.log("Updated VendorHelpSupport for notification");
+      }
+
+      if (updatedSupport) {
+        console.log("✅ [Backend] Found Support Ticket:", updatedSupport._id, "Current Status:", updatedSupport.status);
+
+        // Update the ticket
+        updatedSupport.isVendorRead = false;
+        updatedSupport.isRead = true;
+
+        // Re-open if closed
+        if (['Completed', 'Resolved', 'Closed'].includes(updatedSupport.status)) {
+          console.log(`Re-opening ticket ${updatedSupport._id} because Admin replied.`);
+          updatedSupport.status = 'In Progress';
+        }
+
+        updatedSupport.chatbox.push({
+          userId: adminId,
+          message: message || (imageUrl ? "Image" : ""),
+          image: imageUrl || null,
+          time: new Date().toLocaleTimeString(),
+          timestamp: new Date()
+        });
+
+        await updatedSupport.save();
+        console.log("✅ Updated VendorHelpSupport for notification. Ticket ID:", updatedSupport._id);
+      } else {
+        console.warn("⚠️ Failed to find any VendorHelpSupport ticket to update for ID:", userId);
+      }
+
     } catch (err) {
       console.error("Error updating VendorHelpSupport notification:", err);
     }
