@@ -28,8 +28,11 @@ const getNotification = async (req, res) => {
                 // Extract latest message for snippet
                 let latestMsg = support.description;
                 if (support.chatbox && support.chatbox.length > 0) {
-                    const lastChat = support.chatbox[support.chatbox.length - 1];
+                    // Ensure sorting by time to get the actual latest
+                    const sortedChat = support.chatbox.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    const lastChat = sortedChat[sortedChat.length - 1];
                     latestMsg = lastChat.message || "Sent an attachment";
+                    console.log(`[getNotification] Vendor: ${vendor?.vendorName}, LastMsg: ${latestMsg}, ChatCount: ${sortedChat.length}`);
                 }
 
                 return {
