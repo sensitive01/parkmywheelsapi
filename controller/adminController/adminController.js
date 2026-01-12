@@ -919,6 +919,8 @@ const closeChat = async (req, res) => {
     // Find the help request (no need to populate since vendorid is just a string)
     const helpRequest = await VendorHelpSupport.findById(helpRequestId);
 
+    console.log("helpRequest", helpRequest);
+
     if (!helpRequest) {
       return res.status(404).json({ message: "Help request not found." });
     }
