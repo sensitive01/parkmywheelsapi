@@ -2005,7 +2005,22 @@ const getAdminNotifications = async (req, res) => {
 };
 
 
-
+const getAllVendorData = async(req,res)=>{
+  try {
+    const vendors = await vendorModel.find({},{vendorName:1});
+    return res.status(200).json({
+      success: true,
+      data: vendors
+    });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+}
 
 
 
@@ -2019,6 +2034,7 @@ const getAdminNotifications = async (req, res) => {
 
 
 module.exports = {
+  getAllVendorData,
   getFilteredVendorsTransaction,
   getAdminNotifications,
   getMySubscriberListList,

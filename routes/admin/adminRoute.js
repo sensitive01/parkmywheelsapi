@@ -150,7 +150,7 @@ adminRoute.get("/get-admin-notifications", notificationController.getNotificatio
 adminRoute.put("/update-admin-notification/:id", notificationController.updateNotification);
 adminRoute.put("/clear-all-admin-notifications", notificationController.clearAllAdminNotification);
 
-
+adminRoute.get("/fetchallvendors", adminController.getAllVendorData);
 
 
 
