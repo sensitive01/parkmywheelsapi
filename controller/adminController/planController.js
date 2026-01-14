@@ -94,54 +94,49 @@ const getAllPlans = async (req, res) => {
 
 const getUserPlan = async (req, res) => {
   try {
-    console.log("User Role:", req.user?.role);
+    const vendorid = req.params.vendorid || req.query.vendorid;
 
-    // Base filter for enabled user plans
-    const baseQuery = { status: "enable", role: "user" };
+    if (!vendorid) {
+      // If no vendor ID is provided, logic might vary, but based on request
+      // we assume we need a vendor context or just return global plans.
+      // For now, let's keep it consistent: require vendorId if "specific user" logic implies specific vendor context
+      // OR if we just want ALL global user plans:
 
-    let plans = [];
+      const globalQuery = {
+        status: "enable",
+        role: "user",
+        $or: [{ subscriptionGivenTo: { $size: 0 } }]
+      };
 
-    if (req.params.vendorid || req.query.vendorid) {
-      const vendorid = req.params.vendorid || req.query.vendorid;
-
-      console.log(
-        "Fetching vendor-specific + global user plans for:",
-        vendorid
-      );
-
-      // Get vendor details
-      const vendor = await Vendor.findOne({ vendorId: vendorid });
-      if (!vendor) {
-        return res.status(404).json({ message: "Vendor not found" });
-      }
-
-      // Apply trial filter
-      let amountFilter = {};
-      if (vendor.trial === "true") {
-        amountFilter.amount = { $ne: 0 }; // exclude free plans
-      }
-
-      // Vendor-specific plans
-      const vendorPlans = await planModel
-        .find({ ...baseQuery, vendorid, ...amountFilter })
-        .sort({ createdAt: -1 });
-
-      // Global plans (no vendorid field or null)
-      const globalPlans = await planModel
-        .find({
-          ...baseQuery,
-          $or: [{ vendorid: { $exists: false } }, { vendorid: null }],
-          ...amountFilter,
-        })
-        .sort({ createdAt: -1 });
-
-      plans = [...vendorPlans, ...globalPlans];
-    } else {
-      // No vendorid provided → all user plans
-      plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+      const plans = await planModel.find(globalQuery).sort({ createdAt: -1 });
+      return res.status(200).json({
+        message: "Global plans retrieved successfully",
+        plans,
+      });
     }
 
-    console.log("Retrieved Plans:", plans);
+    // Fetch vendor details to check for specific assignment & trial status
+    const vendor = await Vendor.findOne({ vendorId: vendorid });
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Base filter
+    const baseQuery = {
+      status: "enable",
+      role: "user",
+      $or: [
+        { subscriptionGivenTo: { $size: 0 } }, // global plans
+        { subscriptionGivenTo: vendor._id }    // assigned strictly to this vendor
+      ]
+    };
+
+    // Trial condition
+    if (vendor.trial === "true") {
+      baseQuery.amount = { $ne: 0 }; // exclude free plans
+    }
+
+    const plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Plans retrieved successfully",
