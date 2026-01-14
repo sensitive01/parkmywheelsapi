@@ -86,6 +86,7 @@ adminRoute.get("/fetchspace/:spaceid", adminController.fetchspacedatabyuser);
 
 adminRoute.delete("/delete/:id", adminController.deleteKycData);
 adminRoute.get("/fetchallbookingtransactions", adminController.getAllVendorsTransaction);
+adminRoute.get('/getfilteredbookingtransactions', adminController.getFilteredVendorsTransaction);
 
 // adminRoute.get("/get-admin-notifications", adminController.getAdminNotifications);
 

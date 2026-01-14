@@ -907,6 +907,101 @@ const getAllVendorsTransaction = async (req, res) => {
   }
 };
 
+const getFilteredVendorsTransaction = async (req, res) => {
+  try {
+    const { startDate, endDate, vendorId } = req.query;
+    // 1. Filter by Vendor first
+    let vendorQuery = {};
+    if (vendorId && vendorId !== 'all') {
+      // Assuming you are using mongoose
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(vendorId)) {
+        vendorQuery._id = vendorId;
+      }
+    }
+    const vendors = await vendorModel.find(vendorQuery);
+    if (!vendors || vendors.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          grandTotalAmount: 0.00,
+          grandTotalReceivable: 0.00,
+          vendors: []
+        }
+      });
+    }
+    // 2. Prepare Booking Date Filter
+    const bookingQuery = { status: "COMPLETED" };
+
+    // Check if we need to filter by date
+    if (startDate || endDate) {
+      // Assuming 'createdAt' is the field you want to filter by. 
+      // If your date field is named differently (e.g., 'bookingDate'), change 'createdAt' below.
+      bookingQuery.createdAt = {};
+
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0); // Start of the selected day
+        bookingQuery.createdAt.$gte = start;
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // End of the selected day
+        bookingQuery.createdAt.$lte = end;
+      }
+    }
+    // 3. Process each vendor
+    const results = await Promise.all(
+      vendors.map(async (vendor) => {
+        const platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+        const customerPlatformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
+
+        // Find bookings for this specific vendor matching the date query
+        const completedBookings = await Booking.find({
+          ...bookingQuery,
+          vendorId: vendor._id
+        });
+        const totals = completedBookings.reduce((acc, booking) => {
+          const amount = parseFloat(booking.amount) || 0;
+          // Logic from your existing API:
+          // Use platformfee if booking.userid exists, otherwise use customerplatformfee
+          const feePercentage = booking.userid ? platformFeePercentage : customerPlatformFeePercentage;
+          const platformfee = (amount * feePercentage) / 100;
+
+          acc.totalAmount += amount;
+          acc.totalReceivable += (amount - platformfee);
+          return acc;
+        }, { totalAmount: 0, totalReceivable: 0 });
+        return {
+          vendorId: vendor._id,
+          vendorName: vendor.vendorName,
+          platformFeePercentage,
+          totalAmount: totals.totalAmount.toFixed(2),
+          totalReceivable: totals.totalReceivable.toFixed(2),
+          bookingCount: completedBookings.length
+        };
+      })
+    );
+    // 4. Calculate Grand Totals
+    const grandTotals = results.reduce((acc, vendor) => {
+      acc.grandTotalAmount += parseFloat(vendor.totalAmount);
+      acc.grandTotalReceivable += parseFloat(vendor.totalReceivable);
+      return acc;
+    }, { grandTotalAmount: 0, grandTotalReceivable: 0 });
+    res.status(200).json({
+      success: true,
+      data: {
+        grandTotalAmount: grandTotals.grandTotalAmount.toFixed(2),
+        grandTotalReceivable: grandTotals.grandTotalReceivable.toFixed(2),
+        vendors: results
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching filtered summary:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 
 
@@ -1002,23 +1097,23 @@ const closeChat = async (req, res) => {
                   helpRequestId: helpRequest._id.toString(),
                   click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
-                android: { 
-                  notification: { 
-                    sound: "default", 
+                android: {
+                  notification: {
+                    sound: "default",
                     priority: "high",
                     channelId: "default",
                     clickAction: "FLUTTER_NOTIFICATION_CLICK"
                   },
                   priority: "high"
                 },
-                apns: { 
-                  payload: { 
-                    aps: { 
+                apns: {
+                  payload: {
+                    aps: {
                       sound: "default",
                       badge: 0,
                       contentAvailable: true
-                    } 
-                  } 
+                    }
+                  }
                 },
                 token: token
               };
@@ -1031,11 +1126,11 @@ const closeChat = async (req, res) => {
               const errorCode = sendErr?.errorInfo?.code || sendErr?.code || 'unknown';
               const errorMessage = sendErr?.errorInfo?.message || sendErr?.message || sendErr;
               console.error(`[${new Date().toISOString()}] ❌ FCM send error for vendor token ${token.substring(0, 10)}...:`, errorCode, errorMessage);
-              
+
               // Track invalid tokens for removal
-              if (errorCode === "messaging/registration-token-not-registered" || 
-                  errorCode === "messaging/invalid-registration-token" ||
-                  errorCode === "messaging/invalid-argument") {
+              if (errorCode === "messaging/registration-token-not-registered" ||
+                errorCode === "messaging/invalid-registration-token" ||
+                errorCode === "messaging/invalid-argument") {
                 invalidTokens.push(token);
                 console.log(`[${new Date().toISOString()}] 🧹 Marked token as invalid (${errorCode})`);
               }
@@ -1541,8 +1636,17 @@ const UpdateVendorDataByAdmin = async (req, res) => {
 
 const getVendorAndUserData = async (req, res) => {
   try {
-    const vendorData = await vendorModel.find({}, { vendorName: 1 });
-    const userData = await userModel.find({}, { userName: 1 });
+    // "users": Vendors WITH spaceid
+    const userData = await vendorModel.find(
+      { spaceid: { $exists: true, $ne: "" } },
+      { vendorName: 1, spaceid: 1 }
+    );
+
+    // "vendors": Vendors WITHOUT spaceid
+    const vendorData = await vendorModel.find(
+      { $or: [{ spaceid: { $exists: false } }, { spaceid: "" }, { spaceid: null }] },
+      { vendorName: 1 }
+    );
 
     res.status(200).json({
       success: true,
@@ -1550,7 +1654,7 @@ const getVendorAndUserData = async (req, res) => {
       users: userData,
     });
   } catch (err) {
-    console.log("error in getting the user and vendor details", err);
+    console.error("error in getting the user and vendor details", err);
     res.status(500).json({
       success: false,
       message: "Failed to fetch vendor and user details",
@@ -1915,6 +2019,7 @@ const getAdminNotifications = async (req, res) => {
 
 
 module.exports = {
+  getFilteredVendorsTransaction,
   getAdminNotifications,
   getMySubscriberListList,
   getPlanList,
