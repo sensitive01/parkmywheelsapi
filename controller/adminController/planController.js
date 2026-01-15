@@ -96,60 +96,82 @@ const getUserPlan = async (req, res) => {
   try {
     const vendorid = req.params.vendorid || req.query.vendorid;
 
+    /* ---------------------------------------------------
+       CASE 1: NO vendorId → return ALL GLOBAL USER PLANS
+    ---------------------------------------------------- */
     if (!vendorid) {
-      // If no vendor ID is provided, logic might vary, but based on request
-      // we assume we need a vendor context or just return global plans.
-      // For now, let's keep it consistent: require vendorId if "specific user" logic implies specific vendor context
-      // OR if we just want ALL global user plans:
-
       const globalQuery = {
         status: "enable",
         role: "user",
-        $or: [{ subscriptionGivenTo: { $size: 0 } }]
+        $or: [
+          { subscriptionGivenTo: { $exists: false } },
+          { subscriptionGivenTo: null },
+          { subscriptionGivenTo: { $size: 0 } }
+        ]
       };
 
-      const plans = await planModel.find(globalQuery).sort({ createdAt: -1 });
+      const plans = await planModel
+        .find(globalQuery)
+        .sort({ createdAt: -1 });
+
       return res.status(200).json({
         message: "Global plans retrieved successfully",
-        plans,
+        plans
       });
     }
 
-    // Fetch vendor details to check for specific assignment & trial status
+    /* ---------------------------------------------------
+       CASE 2: vendorId PROVIDED
+    ---------------------------------------------------- */
+
+    // Fetch vendor details
     const vendor = await Vendor.findOne({ vendorId: vendorid });
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    // Base filter
+    /* ---------------------------------------------------
+       BASE QUERY (GLOBAL + VENDOR-SPECIFIC PLANS)
+    ---------------------------------------------------- */
     const baseQuery = {
       status: "enable",
       role: "user",
       $or: [
-        { subscriptionGivenTo: { $size: 0 } }, // global plans
-        { subscriptionGivenTo: vendor._id }    // assigned strictly to this vendor
+        // GLOBAL plans
+        { subscriptionGivenTo: { $exists: false } },
+        { subscriptionGivenTo: null },
+        { subscriptionGivenTo: { $size: 0 } },
+
+        // VENDOR-SPECIFIC plans
+        { subscriptionGivenTo: { $in: [vendor._id] } }
       ]
     };
 
-    // Trial condition
-    if (vendor.trial === "true") {
-      baseQuery.amount = { $ne: 0 }; // exclude free plans
+    /* ---------------------------------------------------
+       TRIAL CONDITION → EXCLUDE FREE PLANS
+    ---------------------------------------------------- */
+    if (String(vendor.trial) === "true") {
+      baseQuery.amount = { $ne: 0 };
     }
 
-    const plans = await planModel.find(baseQuery).sort({ createdAt: -1 });
+    const plans = await planModel
+      .find(baseQuery)
+      .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Plans retrieved successfully",
-      plans,
+      plans
     });
+
   } catch (err) {
-    console.error("Error in retrieving plans", err);
-    res.status(500).json({
+    console.error("Error in retrieving plans:", err);
+    return res.status(500).json({
       message: "Error in retrieving plans",
-      error: err.message,
+      error: err.message
     });
   }
 };
+
 
 const getvendorplan = async (req, res) => {
   try {
