@@ -915,16 +915,6 @@ exports.vendorcreateBooking = async (req, res) => {
       return res.status(400).json({ message: "No available slots for Others" });
     }
 
-    // Check for existing booking with same vehicle and date
-    if (vehicleNumber && parkingDate) {
-      const bookingCheck = await checkExistingBooking(vehicleNumber, parkingDate, vendorId, sts);
-      if (bookingCheck.exists) {
-        return res.status(400).json({
-          message: bookingCheck.message,
-          error: "DUPLICATE_BOOKING"
-        });
-      }
-    }
 
     // ✅ Initialize booking financials
     let bookingAmount = 0;
@@ -1795,11 +1785,11 @@ exports.livecreateBooking = async (req, res) => {
     const gstFeeData = await Gstfee.findOne({});
     let gstAmount = 0;
     let handlingFee = 0;
-    
+
     if (gstFeeData) {
-        const gstPercentage = parseFloat(gstFeeData.gst) || 0;
-        gstAmount = (parseFloat(amount) * gstPercentage) / 100;
-        handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
+      const gstPercentage = parseFloat(gstFeeData.gst) || 0;
+      gstAmount = (parseFloat(amount) * gstPercentage) / 100;
+      handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
     }
 
     const totalAmount = (parseFloat(amount) + gstAmount + handlingFee).toFixed(2);
