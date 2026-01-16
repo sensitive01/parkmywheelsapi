@@ -27,11 +27,11 @@ const userSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      default:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ_4p5Rgu7HT7jtL6eMhar_c47tv4YEJAgKw&s"
+      default: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ_4p5Rgu7HT7jtL6eMhar_c47tv4YEJAgKw&s"
     },
     vehicleNo: {
       type: String,
-      default:""
+      default: ""
     },
 
     role: {
@@ -47,9 +47,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "0",
     },
-        otp: { type: String },
+    otp: { type: String },
     otpExpiresAt: { type: Date },
-     userfcmTokens: { type: [String], default: [] },
+    userfcmTokens: { type: [String], default: [] },
     walletstatus: {
       type: String,
       default: "Active",

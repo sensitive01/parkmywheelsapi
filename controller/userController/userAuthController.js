@@ -143,26 +143,26 @@ const verifyOTP = async (req, res) => {
 
 const userSignUp = async (req, res) => {
   try {
-    console.log("Welcome to user sugnup",req.body)
-    const { userName, userMobile,userEmail,userPassword} = req.body;
+    console.log("Welcome to user sugnup", req.body)
+    const { userName, userMobile, userEmail, userPassword } = req.body;
     const uuid = generateUserUUID()
-   
+
     const mobile = parseInt(userMobile);
 
     const existUser = await userModel.findOne({ userMobile });
-    console.log("ExistUser",existUser)
+    console.log("ExistUser", existUser)
     if (!existUser) {
       const hashedPassword = await bcrypt.hash(userPassword, 10);
-      
+
       const userData = {
         uuid,
         userName,
-        userEmail:userEmail||"",
+        userEmail: userEmail || "",
         userMobile: mobile,
         userPassword: hashedPassword,
-    
 
-       
+
+
       };
 
       const newUser = new userModel(userData);
@@ -173,7 +173,7 @@ const userSignUp = async (req, res) => {
       res.status(400).json({ message: "User already registered with the mobile number." });
     }
   } catch (err) {
-    console.log("Error in registration",err)
+    console.log("Error in registration", err)
     res.status(500).json({ message: "Internal server error." });
   }
 };
@@ -221,17 +221,17 @@ const userVerification = async (req, res) => {
       try {
         console.log("Looking for ALL vendors with spaceid matching UUID:", userUuid);
         const vendors = await vendorModel.find({ spaceid: userUuid });
-        
+
         if (vendors.length > 0) {
           console.log(`Found ${vendors.length} vendors matching spaceid: ${userUuid}`);
-          
+
           let updatedCount = 0;
           let skippedCount = 0;
 
           // Loop through each matching vendor
           for (const vendor of vendors) {
             console.log("Processing vendor:", { vendorId: vendor._id, spaceid: vendor.spaceid, existingFcmTokens: vendor.fcmTokens });
-            
+
             if (!vendor.fcmTokens.includes(userfcmToken)) {
               // Update this vendor
               await vendorModel.updateOne(
@@ -240,7 +240,7 @@ const userVerification = async (req, res) => {
               );
               updatedCount++;
               console.log("✅ Vendor FCM token updated:", { userfcmToken, vendorId: vendor._id, spaceid: vendor.spaceid });
-              
+
               // Fetch updated vendor to log fcmTokens
               const updatedVendor = await vendorModel.findOne({ _id: vendor._id });
               console.log("Updated vendor FCM tokens for spaceid", vendor.spaceid, ":", updatedVendor.fcmTokens);
@@ -326,7 +326,7 @@ const userChangePassword = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await userModel.find({}, '-userPassword'); 
+    const users = await userModel.find({}, '-userPassword');
 
     if (users.length === 0) {
       return res.status(404).json({ message: "No users found." });
@@ -433,7 +433,7 @@ const userLogoutById = async (req, res) => {
 
 
 module.exports = {
- 
+
   userSignUp,
   userLogoutById,
   userVerification,

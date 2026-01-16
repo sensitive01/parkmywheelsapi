@@ -15,6 +15,14 @@ const addNewVehicle = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
+    if (!vehicleNo) {
+      return res.status(400).json({ message: "Vehicle number is mandatory" });
+    }
+
+    if (vehicleNo.length <= 8) {
+      return res.status(400).json({ message: "Vehicle number should be more than 8 digits" });
+    }
+
     const imageUrl = req.files?.image
       ? await uploadImage(req.files.image[0].buffer, "vehicles")
       : null;
@@ -49,7 +57,7 @@ const getUserDataHome = async (req, res) => {
   try {
     console.log("Welcome to get data in home");
 
-    const { id } = req.query; 
+    const { id } = req.query;
 
     if (!id) {
       return res.status(400).json({
@@ -83,7 +91,7 @@ const getUserData = async (req, res) => {
   try {
     console.log("Welcome to getting the user data", req.query);
 
-    const { id } = req.query; 
+    const { id } = req.query;
 
     if (!id) {
       return res.status(400).json({
@@ -263,7 +271,7 @@ const bookParkingSlot = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-   
+
     const [day, month, year] = bookingDate.split("-");
     const formattedDate = new Date(`${year}-${month}-${day}`);
 
@@ -275,7 +283,7 @@ const bookParkingSlot = async (req, res) => {
       place,
       vehicleNumber,
       time,
-      bookingDate: formattedDate, 
+      bookingDate: formattedDate,
       userId: id,
       vendorId,
     });
@@ -300,7 +308,7 @@ const getBookingDetails = async (req, res) => {
     if (bookingData) {
       res.status(200).json({ success: true, bookingData });
     } else {
-      res.status(404).json({ success: false, message: "No bookings found for this user",bookingData });
+      res.status(404).json({ success: false, message: "No bookings found for this user", bookingData });
     }
   } catch (err) {
     console.log("Error in get user booking data", err);
@@ -498,9 +506,9 @@ module.exports = {
   getVendorDetails,
   getBookingDetails,
   fetchWallet,
-    addFavoriteVendor, 
+  addFavoriteVendor,
   removeFavoriteVendor,// Ensure this is exported
   getFavoriteVendors,
   deleteUserVehicle,
-getVendors,
+  getVendors,
 };
