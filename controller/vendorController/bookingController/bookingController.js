@@ -1139,7 +1139,7 @@ exports.vendorcreateBooking = async (req, res) => {
       const vendorSubscriptionNotification = {
         notification: {
           title: "Subscription Booking Started",
-          body: `${personName}'s subscription booking has started.`,
+          body: personName ? `${personName}'s subscription booking has started.` : "Subscription booking has started.",
         },
         android: {
           notification: {

@@ -19,8 +19,13 @@ const addNewVehicle = async (req, res) => {
       return res.status(400).json({ message: "Vehicle number is mandatory" });
     }
 
-    if (vehicleNo.length <= 8) {
-      return res.status(400).json({ message: "Vehicle number should be more than 8 digits" });
+    if (vehicleNo.length < 8) {
+      return res.status(400).json({ message: "Vehicle number should be 8 digits or more" });
+    }
+
+    const existingVehicle = await vehicleModel.findOne({ vehicleNo });
+    if (existingVehicle) {
+      return res.status(400).json({ message: "A Vehicle with this vehicle number already exists" });
     }
 
     const imageUrl = req.files?.image
