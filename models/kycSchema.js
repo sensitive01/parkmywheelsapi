@@ -34,6 +34,14 @@ const kycDetailsSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  isVendorRead:{
+    type: Boolean,
+    default: false
+  },
+  isAdminRead:{
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('KycDetails', kycDetailsSchema);

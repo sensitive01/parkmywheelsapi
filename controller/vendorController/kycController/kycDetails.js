@@ -32,6 +32,7 @@ const createKycData = async (req, res) => {
       addressProofNumber,
       addressProofImage: addressProofImage,
       status,
+      isAdminRead:false
     });
 
     await kycDetails.save();
@@ -55,7 +56,7 @@ const updateKycData = async (req, res) => {
     console.log("Request Body:", req.body);
     console.log("Request Files:", req.files);
 
-    const updateData = { idProof, idProofNumber, addressProof, addressProofNumber, status };
+    const updateData = { idProof, idProofNumber, addressProof, addressProofNumber, status:"Pending",isAdminRead:false};
 
     if (req.files && req.files.idProofImage) {
       updateData.idProofImage = await uploadImage(req.files.idProofImage[0].buffer, "kyc/idProofs");

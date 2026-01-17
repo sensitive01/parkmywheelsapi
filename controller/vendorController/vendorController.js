@@ -1373,16 +1373,76 @@ const updateValidity = async (req, res) => {
     const vendorId = req.params.id;
     const { day } = req.body;
 
+    console.log(`UpdateValidity Request - Vendor: ${vendorId}, Days to add: ${day}`);
+    
 
-    const vendor = await vendorModel.findByIdAndUpdate(
-      vendorId,
-      { subscriptionleft: day },
-      { new: true }
-    );
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    // 1. Determine "Today" (Server Local Time)
+    const today = new Date();
+
+    // 2. Determine Base Date (Start from existing if valid & future, else start from Today)
+    let endDate = today;
+
+    // Log stored date for debug
+    console.log(`Stored Subscription End Date: ${vendor.subscriptionenddate}`);
+
+    if (vendor.subscriptionenddate) {
+      const storedEndDate = new Date(vendor.subscriptionenddate);
+      // Check if valid date
+      if (!isNaN(storedEndDate.getTime())) {
+        // Compare timestamps to see if storedEndDate is in the future relative to now
+        if (storedEndDate > today) {
+          endDate = storedEndDate;
+          console.log(`Using Stored End Date as Base: ${endDate}`);
+        } else {
+          console.log(`Stored Date is expired. Using Today as Base: ${endDate}`);
+        }
+      }
+    }
+
+    // 3. Add Days
+    const daysToAdd = parseInt(day, 10) || 0;
+    endDate.setDate(endDate.getDate() + daysToAdd);
+
+    console.log(`Calculated New End Date (Date Object): ${endDate}`);
+
+    // 4. Format to YYYY-MM-DD using Local Time components (Avoid UTC shift)
+    const year = endDate.getFullYear();
+    const month = String(endDate.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+    const dayStr = String(endDate.getDate()).padStart(2, "0");
+    const newSubscriptionEndDate = `${year}-${month}-${dayStr}`;
+
+    console.log(`Final Formatted End Date: ${newSubscriptionEndDate}`);
+
+    // 5. Calculate Days Left
+    // Re-calculate based on the pure date difference at midnight to avoid time skew
+    // Reset today and target to midnight for accurate day diff
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    const targetMidnight = new Date(endDate);
+    targetMidnight.setHours(0, 0, 0, 0);
+
+    const diffTime = targetMidnight - todayMidnight;
+    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    console.log(`Days Left: ${daysLeft}`);
+
+    // Update vendor
+    vendor.subscriptionenddate = newSubscriptionEndDate;
+    vendor.subscriptionleft = daysLeft > 0 ? daysLeft : 0;
+    vendor.subscription = "true";
+
+    await vendor.save();
 
     res.status(200).json({
       success: true,
@@ -1392,7 +1452,7 @@ const updateValidity = async (req, res) => {
         vendorId: vendor.vendorId,
         vendorName: vendor.vendorName,
         subscriptionleft: vendor.subscriptionleft,
-
+        subscriptionenddate: vendor.subscriptionenddate,
       },
     });
   } catch (err) {

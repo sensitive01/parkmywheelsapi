@@ -5,6 +5,7 @@ const VendorHelpSupport = require("../../models/userhelp");
 const bankApprovalSchema = require("../../models/bankdetailsSchema");
 const Notification = require("../../models/notificationschema"); // Adjust the path as necessary
 const Vendor = require("../../models/venderSchema");
+const kycSchema = require("../../models/kycSchema");
 
 
 const getNotification = async (req, res) => {
@@ -13,6 +14,8 @@ const getNotification = async (req, res) => {
         let helpAndSupports = await VendorHelpSupport.find({ isRead: false }).sort({ updatedAt: -1 }).lean();
 
         let bankApprovalNotification = await bankApprovalSchema.find({ $or: [{ isRead: false }, { isApproved: false }] }).lean();
+
+        let kycNotification = await kycSchema.find({ $or: [{ isAdminRead: false }, { isApproved: false }] }).lean();
 
 
         // Manually populate vendor details
@@ -64,14 +67,34 @@ const getNotification = async (req, res) => {
             }));
         }
 
+        // Manually populate vendor details for kycNotification
+        if (kycNotification.length > 0) {
+            kycNotification = await Promise.all(kycNotification.map(async (kyc) => {
+                const vendor = await Vendor.findOne({
+                    $or: [
+                        { vendorId: kyc.vendorId },
+                        ...(mongoose.Types.ObjectId.isValid(kyc.vendorId) ? [{ _id: kyc.vendorId }] : [])
+                    ]
+                }).select("vendorName image");
+
+                return {
+                    ...kyc,
+                    vendorName: vendor ? vendor.vendorName : "Unknown Vendor",
+                    vendorImage: vendor ? vendor.image : null
+                };
+            }));
+        }
+
 
         res.json({
             data: notifications,
             helpAndSupports,
             bankApprovalNotification,
+            kycNotification,
             notificationCount: notifications.length,
             helpAndSupportCount: helpAndSupports.length,
-            bankApprovalNotificationCount: bankApprovalNotification.length
+            bankApprovalNotificationCount: bankApprovalNotification.length,
+            kycNotificationCount: kycNotification.length
         });
     } catch (error) {
         console.error(error);
@@ -86,8 +109,9 @@ const updateNotification = async (req, res) => {
         const notification = await advNotification.findByIdAndUpdate(id, { isRead: true });
         const helpAndSupport = await VendorHelpSupport.findByIdAndUpdate(id, { isRead: true });
         const bankApprovalNotification = await bankApprovalSchema.findByIdAndUpdate(id, { isRead: true });
+        const kycNotification = await kycSchema.findByIdAndUpdate(id, { isAdminRead: true, isVendorRead: false });
 
-        res.json({ notification, helpAndSupport, bankApprovalNotification });
+        res.json({ notification, helpAndSupport, bankApprovalNotification, kycNotification });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to update notification" });
@@ -156,13 +180,20 @@ const getNotificationsByVendorWeb = async (req, res) => {
         // 4. Bank Account Notifications
         const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
 
+        // 5. KYC Notifications
+        const kycNotifications = await kycSchema.find({
+            vendorId: vendorId,
+            $or: [{ isVendorRead: false }, { status: "Rejected" }]
+        }).sort({ updatedAt: -1 });
+
         res.status(200).json({
             success: true,
-            count: notifications.length + advNotifications.length + helpAndSupports.length + bankAccountNotifications.length,
+            count: notifications.length + advNotifications.length + helpAndSupports.length + bankAccountNotifications.length + kycNotifications.length,
             notifications,
             advNotifications,
             helpAndSupports,
             bankAccountNotifications,
+            kycNotifications
         });
     } catch (error) {
         console.error("Error fetching notifications:", error);
@@ -198,8 +229,9 @@ const deleteNotificationByVendor = async (req, res) => {
         const del2 = await advNotification.findByIdAndDelete(notificationId);
         const del3 = await VendorHelpSupport.findByIdAndUpdate(notificationId, { isVendorRead: true });
         const del4 = await bankApprovalSchema.findByIdAndUpdate(notificationId, { isApproved: true, isVendorRead: true });
+        const del5 = await kycSchema.findByIdAndUpdate(notificationId, { isVendorRead: true });
 
-        if (del1 || del2 || del3 || del4) {
+        if (del1 || del2 || del3 || del4 || del5) {
             res.json({ message: "Notification deleted successfully" });
         } else {
             res.status(404).json({ message: "Notification not found" });
