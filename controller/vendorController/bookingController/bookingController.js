@@ -4323,76 +4323,72 @@ exports.renewSubscription = async (req, res) => {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Platform fee calculation: use platformfee if booking.userid exists, otherwise use customerplatformfee
+    // Platform fee calculation
     let platformFeePercentage = 0;
     if (booking.userid) {
       platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
     } else {
       platformFeePercentage = parseFloat(vendor.platformfee) || 0;
     }
-    // Always round UP the platform fee %
+
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
     // ✅ Round inputs
-    const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0); // base subscription
+    const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0);
     const roundedTotalAdditional = total_additional !== undefined
       ? Math.ceil(parseFloat(total_additional) || 0)
       : 0;
-    const roundedGstAmount = gst_amount !== undefined ? Math.ceil(parseFloat(gst_amount) || 0) : 0;
-    const roundedHandlingFee = handling_fee !== undefined ? Math.ceil(parseFloat(handling_fee) || 0) : 0;
 
-    // ✅ amount = only new subscription cost
-    booking.amount = (
-      parseFloat(booking.amount || 0) + roundedNewTotal
-    ).toFixed(2);
+    const roundedGstAmount = gst_amount !== undefined
+      ? Math.ceil(parseFloat(gst_amount) || 0)
+      : 0;
 
-    // ✅ totalamout = base + additional charges
-    booking.totalamout = (
-      parseFloat(booking.totalamout || 0) + roundedNewTotal + roundedTotalAdditional
-    ).toFixed(2);
+    const roundedHandlingFee = handling_fee !== undefined
+      ? Math.ceil(parseFloat(handling_fee) || 0)
+      : 0;
 
-    // ✅ Always update subscription end date
+    // ==============================
+    // ✅ SINGLE TIME UPDATE LOGIC
+    // ==============================
+
+    // Only current renewal base amount
+    booking.amount = roundedNewTotal.toFixed(2);
+
+    // Only current renewal total (base + additional)
+    booking.totalamout = (roundedNewTotal + roundedTotalAdditional).toFixed(2);
+
+    // Update subscription end date
     booking.subsctiptionenddate = new_subscription_enddate;
 
-    // ✅ Accumulate GST & handling
-    booking.gstamout = (
-      parseFloat(booking.gstamout || 0) + roundedGstAmount
-    ).toFixed(2);
+    // Only current GST & handling (NOT accumulated)
+    booking.gstamout = roundedGstAmount.toFixed(2);
+    booking.handlingfee = roundedHandlingFee.toFixed(2);
 
-    booking.handlingfee = (
-      parseFloat(booking.handlingfee || 0) + roundedHandlingFee
-    ).toFixed(2);
-
-    // ✅ Platform fee based only on additional
+    // Platform fee based only on additional
     const platformfee = (roundedTotalAdditional * platformFeePercentage) / 100;
-    booking.releasefee = (
-      parseFloat(booking.releasefee || 0) + platformfee
-    ).toFixed(2);
+    booking.releasefee = platformfee.toFixed(2);
 
-    // ✅ Receivable = total_additional - platform fee
+    // Receivable = additional - platform fee
     const additionalReceivable = roundedTotalAdditional - platformfee;
-    booking.recievableamount = (
-      parseFloat(booking.recievableamount || 0) + additionalReceivable
-    ).toFixed(2);
 
-    // ✅ Payable = receivable
-    booking.payableamout = booking.recievableamount;
+    booking.recievableamount = additionalReceivable.toFixed(2);
 
-    // (Optional tracking for audits/debugging)
+    // Payable = receivable
+    booking.payableamout = additionalReceivable.toFixed(2);
+
+    // Tracking fields
     booking.lastRenewTotal = roundedNewTotal;
     booking.lastAdditional = roundedTotalAdditional;
 
     const updatedBooking = await booking.save();
 
-    // Create BookingTransaction record for renewal
+    // Create BookingTransaction record
     try {
-      // Get India date & time for renewal transaction
       const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
       const [datePart, timePart] = nowInIndia.split(", ");
       const [day, month, year] = datePart.split("/");
       const renewalDate = `${day}-${month}-${year}`;
 
-      // Format time as "HH:MM AM/PM"
       const parts = timePart.split(" ");
       const ampm = parts[parts.length - 1];
       const timeOnly = parts.slice(0, -1).join(" ");
@@ -4410,57 +4406,57 @@ exports.renewSubscription = async (req, res) => {
         vehicleType: updatedBooking.vehicleType,
         personName: updatedBooking.personName,
         mobileNumber: updatedBooking.mobileNumber,
-        // Transaction details - renewal amounts
-        bookingAmount: roundedNewTotal.toFixed(2), // New subscription amount
+
+        bookingAmount: roundedNewTotal.toFixed(2),
         gstAmount: roundedGstAmount.toFixed(2),
         handlingFee: roundedHandlingFee.toFixed(2),
         totalAmount: (roundedNewTotal + roundedTotalAdditional).toFixed(2),
         platformFee: platformfee.toFixed(2),
         receivableAmount: additionalReceivable.toFixed(2),
         payableAmount: additionalReceivable.toFixed(2),
-        // Charges details
+
         charges: updatedBooking.charges,
         vendorCharges: updatedBooking.vendorCharges,
         allCharges: updatedBooking.allCharges || [],
-        // Booking details
+
         bookingDate: updatedBooking.bookingDate,
         parkingDate: updatedBooking.parkingDate,
         exitDate: updatedBooking.exitvehicledate || null,
         bookingTime: updatedBooking.bookingTime,
         parkingTime: updatedBooking.parkingTime,
         exitTime: updatedBooking.exitvehicletime || null,
-        // Booking type
+
         bookingType: updatedBooking.bookType,
         subscriptionType: updatedBooking.subsctiptiontype,
-        subscriptionEndDate: updatedBooking.subsctiptionenddate, // Updated end date
-        sts: updatedBooking.sts || null, // Store sts from booking
-        // Transaction date - renewal date
+        subscriptionEndDate: updatedBooking.subsctiptionenddate,
+        sts: updatedBooking.sts || null,
+
         transactionDateString: renewalDate,
         status: 'active',
         invoiceId: updatedBooking.invoiceid,
-        completedAt: null, // Renewal is not a completion
+        completedAt: null,
         settlemtstatus: 'pending'
       });
 
       await bookingTransaction.save();
-      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created for subscription renewal - booking ${updatedBooking._id}`);
+      console.log("✅ BookingTransaction created for renewal");
+
     } catch (transactionErr) {
-      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction for renewal:`, transactionErr);
-      // Don't fail the request if transaction creation fails, but log it
+      console.error("❌ Error creating BookingTransaction:", transactionErr);
     }
 
-    // Send Invoice Ready Notification after monthly renewal
+    // Send Invoice Notification
     try {
       await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
     } catch (invoiceErr) {
-      console.error(`[${new Date().toISOString()}] ❌ Error sending invoice notification after renewal:`, invoiceErr);
+      console.error("❌ Error sending invoice notification:", invoiceErr);
     }
 
     res.status(200).json({
       message: "Subscription renewed successfully",
       booking: {
-        amount: updatedBooking.amount,             // ✅ only base
-        totalamout: updatedBooking.totalamout,     // ✅ base + additional
+        amount: updatedBooking.amount,
+        totalamout: updatedBooking.totalamout,
         gstamout: updatedBooking.gstamout,
         handlingfee: updatedBooking.handlingfee,
         releasefee: updatedBooking.releasefee,
@@ -4471,6 +4467,7 @@ exports.renewSubscription = async (req, res) => {
         lastAdditional: updatedBooking.lastAdditional,
       },
     });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
