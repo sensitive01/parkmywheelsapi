@@ -228,7 +228,7 @@ vendorRoute.put('/notification/:notificationId', bookingController.clearNotifica
 vendorRoute.delete('/notifications/vendor/:vendorId', notificationController.deleteAllNotificationsByVendor);
 vendorRoute.delete('/clearusernotifications/:uuid', bookingController.clearUserNotifications);
 
-vendorRoute.get("/fetchbookid/:id", bookingController.getBookingById);
+vendorRoute.get("/fetchbookid/:id", bookingController.getBookingByIds);
 
 vendorRoute.post("/addfeestructure", gstcontroler.addGstFee);
 vendorRoute.get("/getgstfee", gstcontroler.getAllGstFees);

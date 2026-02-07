@@ -5096,7 +5096,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-exports.getBookingById = async (req, res) => {
+exports.getBookingByIds = async (req, res) => {
   try {
     const bookingId = req.params.id;
 
