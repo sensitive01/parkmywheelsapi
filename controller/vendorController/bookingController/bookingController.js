@@ -3724,6 +3724,7 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
 exports.getBookingById = async (req, res) => {
   try {
     const bookingId = req.params.id;
+    console.log("This is bookingId",bookingId)
 
     // Validate ObjectId format
     if (!bookingId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -3732,6 +3733,7 @@ exports.getBookingById = async (req, res) => {
 
     // Try to find by BookingTransaction._id first
     let transaction = await BookingTransaction.findById(bookingId);
+    console.log("transaction", transaction);
 
     // If not found by _id, try finding by bookingId (Booking._id)
     if (!transaction) {
@@ -4295,6 +4297,185 @@ exports.exitvendorsub = async (req, res) => {
 
 
 // Suggested backend endpoint for renewal (add this to your Node.js exports)
+// exports.renewSubscription = async (req, res) => {
+//   try {
+//     const {
+//       gst_amount,
+//       handling_fee,
+//       total_additional,
+//       new_total_amount,
+//       new_subscription_enddate
+//     } = req.body;
+
+//     console.log("req.body", req.body)
+//     console.log(req.params.id)
+
+//     if (new_total_amount === undefined || new_subscription_enddate === undefined) {
+//       return res.status(400).json({ error: "New total amount and new end date are required" });
+//     }
+
+//     const booking = await Booking.findById(req.params.id);
+//     if (!booking) {
+//       return res.status(404).json({ error: "Booking not found" });
+//     }
+
+//     // Fetch vendor details
+//     const vendor = await vendorModel.findById(booking.vendorId);
+//     if (!vendor) {
+//       return res.status(404).json({ error: "Vendor not found" });
+//     }
+
+//     // Platform fee calculation
+//     let platformFeePercentage = 0;
+//     if (booking.userid) {
+//       platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
+//     } else {
+//       platformFeePercentage = parseFloat(vendor.platformfee) || 0;
+//     }
+
+//     platformFeePercentage = Math.ceil(platformFeePercentage);
+
+//     // ✅ Round inputs
+//     const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0);
+//     const roundedTotalAdditional = total_additional !== undefined
+//       ? Math.ceil(parseFloat(total_additional) || 0)
+//       : 0;
+
+//     const roundedGstAmount = gst_amount !== undefined
+//       ? Math.ceil(parseFloat(gst_amount) || 0)
+//       : 0;
+
+//     const roundedHandlingFee = handling_fee !== undefined
+//       ? Math.ceil(parseFloat(handling_fee) || 0)
+//       : 0;
+
+//     // ==============================
+//     // ✅ SINGLE TIME UPDATE LOGIC
+//     // ==============================
+
+//     // Only current renewal base amount
+//     booking.amount = roundedNewTotal.toFixed(2);
+
+//     // Only current renewal total (base + additional)
+//     booking.totalamout = (roundedNewTotal + roundedTotalAdditional).toFixed(2);
+
+//     // Update subscription end date
+//     booking.subsctiptionenddate = new_subscription_enddate;
+
+//     // Only current GST & handling (NOT accumulated)
+//     booking.gstamout = roundedGstAmount.toFixed(2);
+//     booking.handlingfee = roundedHandlingFee.toFixed(2);
+
+//     // Platform fee based only on additional
+//     const platformfee = (roundedTotalAdditional * platformFeePercentage) / 100;
+//     booking.releasefee = platformfee.toFixed(2);
+
+//     // Receivable = additional - platform fee
+//     const additionalReceivable = roundedTotalAdditional - platformfee;
+
+//     booking.recievableamount = additionalReceivable.toFixed(2);
+
+//     // Payable = receivable
+//     booking.payableamout = additionalReceivable.toFixed(2);
+
+//     // Tracking fields
+//     booking.lastRenewTotal = roundedNewTotal;
+//     booking.lastAdditional = roundedTotalAdditional;
+
+//     const updatedBooking = await booking.save();
+
+//     // Create BookingTransaction record
+//     try {
+//       const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+//       const [datePart, timePart] = nowInIndia.split(", ");
+//       const [day, month, year] = datePart.split("/");
+//       const renewalDate = `${day}-${month}-${year}`;
+
+//       const parts = timePart.split(" ");
+//       const ampm = parts[parts.length - 1];
+//       const timeOnly = parts.slice(0, -1).join(" ");
+//       const timeComponents = timeOnly.split(":");
+//       const hours = timeComponents[0];
+//       const minutes = timeComponents[1];
+//       const renewalTime = `${hours}:${minutes} ${ampm}`;
+
+//       const bookingTransaction = new BookingTransaction({
+//         bookingId: updatedBooking._id,
+//         vendorId: updatedBooking.vendorId,
+//         vendorName: updatedBooking.vendorName,
+//         userId: updatedBooking.userid,
+//         vehicleNumber: updatedBooking.vehicleNumber,
+//         vehicleType: updatedBooking.vehicleType,
+//         personName: updatedBooking.personName,
+//         mobileNumber: updatedBooking.mobileNumber,
+
+//         bookingAmount: roundedNewTotal.toFixed(2),
+//         gstAmount: roundedGstAmount.toFixed(2),
+//         handlingFee: roundedHandlingFee.toFixed(2),
+//         totalAmount: (roundedNewTotal + roundedTotalAdditional).toFixed(2),
+//         platformFee: platformfee.toFixed(2),
+//         receivableAmount: additionalReceivable.toFixed(2),
+//         payableAmount: additionalReceivable.toFixed(2),
+
+//         charges: updatedBooking.charges,
+//         vendorCharges: updatedBooking.vendorCharges,
+//         allCharges: updatedBooking.allCharges || [],
+
+//         bookingDate: updatedBooking.bookingDate,
+//         parkingDate: updatedBooking.parkingDate,
+//         exitDate: updatedBooking.exitvehicledate || null,
+//         bookingTime: updatedBooking.bookingTime,
+//         parkingTime: updatedBooking.parkingTime,
+//         exitTime: updatedBooking.exitvehicletime || null,
+
+//         bookingType: updatedBooking.bookType,
+//         subscriptionType: updatedBooking.subsctiptiontype,
+//         subscriptionEndDate: updatedBooking.subsctiptionenddate,
+//         sts: updatedBooking.sts || null,
+
+//         transactionDateString: renewalDate,
+//         status: 'active',
+//         invoiceId: updatedBooking.invoiceid,
+//         completedAt: null,
+//         settlemtstatus: 'pending'
+//       });
+
+//       await bookingTransaction.save();
+//       console.log("✅ BookingTransaction created for renewal");
+
+//     } catch (transactionErr) {
+//       console.error("❌ Error creating BookingTransaction:", transactionErr);
+//     }
+
+//     // Send Invoice Notification
+//     try {
+//       await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
+//     } catch (invoiceErr) {
+//       console.error("❌ Error sending invoice notification:", invoiceErr);
+//     }
+
+//     res.status(200).json({
+//       message: "Subscription renewed successfully",
+//       booking: {
+//         amount: updatedBooking.amount,
+//         totalamout: updatedBooking.totalamout,
+//         gstamout: updatedBooking.gstamout,
+//         handlingfee: updatedBooking.handlingfee,
+//         releasefee: updatedBooking.releasefee,
+//         recievableamount: updatedBooking.recievableamount,
+//         payableamout: updatedBooking.payableamout,
+//         subscriptionenddate: updatedBooking.subsctiptionenddate,
+//         lastRenewTotal: updatedBooking.lastRenewTotal,
+//         lastAdditional: updatedBooking.lastAdditional,
+//       },
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+
 exports.renewSubscription = async (req, res) => {
   try {
     const {
@@ -4305,11 +4486,13 @@ exports.renewSubscription = async (req, res) => {
       new_subscription_enddate
     } = req.body;
 
-    console.log("req.body", req.body)
-    console.log(req.params.id)
-
-    if (new_total_amount === undefined || new_subscription_enddate === undefined) {
-      return res.status(400).json({ error: "New total amount and new end date are required" });
+    if (
+      new_total_amount === undefined ||
+      new_subscription_enddate === undefined
+    ) {
+      return res.status(400).json({
+        error: "New total amount and new end date are required"
+      });
     }
 
     const booking = await Booking.findById(req.params.id);
@@ -4317,141 +4500,142 @@ exports.renewSubscription = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Fetch vendor details
+    if (booking.sts !== "Subscription") {
+      return res.status(400).json({ error: "Not a subscription booking" });
+    }
+
     const vendor = await vendorModel.findById(booking.vendorId);
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Platform fee calculation
-    let platformFeePercentage = 0;
-    if (booking.userid) {
-      platformFeePercentage = parseFloat(vendor.customerplatformfee) || 0;
-    } else {
-      platformFeePercentage = parseFloat(vendor.platformfee) || 0;
-    }
+    // ==============================
+    // Platform Fee %
+    // ==============================
+    let platformFeePercentage = booking.userid
+      ? parseFloat(vendor.customerplatformfee) || 0
+      : parseFloat(vendor.platformfee) || 0;
 
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
-    // ✅ Round inputs
+    // ==============================
+    // Round Inputs
+    // ==============================
     const roundedNewTotal = Math.ceil(parseFloat(new_total_amount) || 0);
-    const roundedTotalAdditional = total_additional !== undefined
-      ? Math.ceil(parseFloat(total_additional) || 0)
-      : 0;
-
-    const roundedGstAmount = gst_amount !== undefined
-      ? Math.ceil(parseFloat(gst_amount) || 0)
-      : 0;
-
-    const roundedHandlingFee = handling_fee !== undefined
-      ? Math.ceil(parseFloat(handling_fee) || 0)
-      : 0;
+    const roundedAdditional = Math.ceil(parseFloat(total_additional) || 0);
+    const roundedGst = Math.ceil(parseFloat(gst_amount) || 0);
+    const roundedHandling = Math.ceil(parseFloat(handling_fee) || 0);
 
     // ==============================
-    // ✅ SINGLE TIME UPDATE LOGIC
+    // OLD VALUES
     // ==============================
+    const oldAmount = parseFloat(booking.amount) || 0;
+    const oldGst = parseFloat(booking.gstamout) || 0;
+    const oldHandling = parseFloat(booking.handlingfee) || 0;
+    const oldReleaseFee = parseFloat(booking.releasefee) || 0;
+    const oldReceivable = parseFloat(booking.recievableamount) || 0;
+    const oldPayable = parseFloat(booking.payableamout) || 0;
 
-    // Only current renewal base amount
-    booking.amount = roundedNewTotal.toFixed(2);
+    // ==============================
+    // Platform Fee (ONLY on additional)
+    // ==============================
+    const platformFee =
+      (roundedAdditional * platformFeePercentage) / 100;
 
-    // Only current renewal total (base + additional)
-    booking.totalamout = (roundedNewTotal + roundedTotalAdditional).toFixed(2);
+    const additionalReceivable =
+      roundedAdditional - platformFee;
 
-    // Update subscription end date
+    // ==============================
+    // ✅ ACCUMULATIVE FIELDS
+    // ==============================
+    booking.amount = (oldAmount + roundedNewTotal).toFixed(2);
+    booking.gstamout = (oldGst + roundedGst).toFixed(2);
+    booking.handlingfee = (oldHandling + roundedHandling).toFixed(2);
+    booking.releasefee = (oldReleaseFee + platformFee).toFixed(2);
+    booking.recievableamount = (
+      oldReceivable + additionalReceivable
+    ).toFixed(2);
+    booking.payableamout = (
+      oldPayable + additionalReceivable
+    ).toFixed(2);
+
+    // ==============================
+    // ❌ TOTAL AMOUNT — UNCHANGED LOGIC
+    // (renewal-only, NOT accumulated)
+    // ==============================
+    booking.totalamout = (
+      roundedNewTotal + roundedAdditional
+    ).toFixed(2);
+
+    // Update end date
     booking.subsctiptionenddate = new_subscription_enddate;
 
-    // Only current GST & handling (NOT accumulated)
-    booking.gstamout = roundedGstAmount.toFixed(2);
-    booking.handlingfee = roundedHandlingFee.toFixed(2);
-
-    // Platform fee based only on additional
-    const platformfee = (roundedTotalAdditional * platformFeePercentage) / 100;
-    booking.releasefee = platformfee.toFixed(2);
-
-    // Receivable = additional - platform fee
-    const additionalReceivable = roundedTotalAdditional - platformfee;
-
-    booking.recievableamount = additionalReceivable.toFixed(2);
-
-    // Payable = receivable
-    booking.payableamout = additionalReceivable.toFixed(2);
-
-    // Tracking fields
+    // Tracking
     booking.lastRenewTotal = roundedNewTotal;
-    booking.lastAdditional = roundedTotalAdditional;
+    booking.lastAdditional = roundedAdditional;
 
     const updatedBooking = await booking.save();
 
-    // Create BookingTransaction record
+    // ==============================
+    // Booking Transaction (Audit-safe)
+    // ==============================
     try {
-      const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+      const nowInIndia = new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata"
+      });
+
       const [datePart, timePart] = nowInIndia.split(", ");
       const [day, month, year] = datePart.split("/");
-      const renewalDate = `${day}-${month}-${year}`;
+      const transactionDate = `${day}-${month}-${year}`;
 
-      const parts = timePart.split(" ");
-      const ampm = parts[parts.length - 1];
-      const timeOnly = parts.slice(0, -1).join(" ");
-      const timeComponents = timeOnly.split(":");
-      const hours = timeComponents[0];
-      const minutes = timeComponents[1];
-      const renewalTime = `${hours}:${minutes} ${ampm}`;
+      const [time, ampm] = timePart.split(" ");
+      const [hh, mm] = time.split(":");
+      const transactionTime = `${hh}:${mm} ${ampm}`;
 
       const bookingTransaction = new BookingTransaction({
         bookingId: updatedBooking._id,
         vendorId: updatedBooking.vendorId,
         vendorName: updatedBooking.vendorName,
         userId: updatedBooking.userid,
+
         vehicleNumber: updatedBooking.vehicleNumber,
         vehicleType: updatedBooking.vehicleType,
-        personName: updatedBooking.personName,
-        mobileNumber: updatedBooking.mobileNumber,
 
         bookingAmount: roundedNewTotal.toFixed(2),
-        gstAmount: roundedGstAmount.toFixed(2),
-        handlingFee: roundedHandlingFee.toFixed(2),
-        totalAmount: (roundedNewTotal + roundedTotalAdditional).toFixed(2),
-        platformFee: platformfee.toFixed(2),
+        gstAmount: roundedGst.toFixed(2),
+        handlingFee: roundedHandling.toFixed(2),
+        totalAmount: (
+          roundedNewTotal + roundedAdditional
+        ).toFixed(2),
+
+        platformFee: platformFee.toFixed(2),
         receivableAmount: additionalReceivable.toFixed(2),
         payableAmount: additionalReceivable.toFixed(2),
 
-        charges: updatedBooking.charges,
-        vendorCharges: updatedBooking.vendorCharges,
-        allCharges: updatedBooking.allCharges || [],
-
         bookingDate: updatedBooking.bookingDate,
         parkingDate: updatedBooking.parkingDate,
-        exitDate: updatedBooking.exitvehicledate || null,
         bookingTime: updatedBooking.bookingTime,
         parkingTime: updatedBooking.parkingTime,
-        exitTime: updatedBooking.exitvehicletime || null,
 
         bookingType: updatedBooking.bookType,
         subscriptionType: updatedBooking.subsctiptiontype,
         subscriptionEndDate: updatedBooking.subsctiptionenddate,
-        sts: updatedBooking.sts || null,
+        sts: updatedBooking.sts,
 
-        transactionDateString: renewalDate,
-        status: 'active',
+        transactionDateString: transactionDate,
+        status: "active",
         invoiceId: updatedBooking.invoiceid,
-        completedAt: null,
-        settlemtstatus: 'pending'
+        settlemtstatus: "pending"
       });
 
       await bookingTransaction.save();
-      console.log("✅ BookingTransaction created for renewal");
-
-    } catch (transactionErr) {
-      console.error("❌ Error creating BookingTransaction:", transactionErr);
+    } catch (err) {
+      console.error("❌ BookingTransaction error:", err);
     }
 
-    // Send Invoice Notification
-    try {
-      await sendInvoiceReadyNotification(updatedBooking, updatedBooking._id);
-    } catch (invoiceErr) {
-      console.error("❌ Error sending invoice notification:", invoiceErr);
-    }
-
+    // ==============================
+    // RESPONSE
+    // ==============================
     res.status(200).json({
       message: "Subscription renewed successfully",
       booking: {
@@ -4462,17 +4646,14 @@ exports.renewSubscription = async (req, res) => {
         releasefee: updatedBooking.releasefee,
         recievableamount: updatedBooking.recievableamount,
         payableamout: updatedBooking.payableamout,
-        subscriptionenddate: updatedBooking.subsctiptionenddate,
-        lastRenewTotal: updatedBooking.lastRenewTotal,
-        lastAdditional: updatedBooking.lastAdditional,
-      },
+        subscriptionenddate: updatedBooking.subsctiptionenddate
+      }
     });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 
 
