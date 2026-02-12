@@ -3724,7 +3724,7 @@ exports.withoutsubgetBookingsByuserid = async (req, res) => {
 exports.getBookingById = async (req, res) => {
   try {
     const bookingId = req.params.id;
-    console.log("This is bookingId",bookingId)
+    console.log("This is bookingId", bookingId)
 
     // Validate ObjectId format
     if (!bookingId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -4486,7 +4486,7 @@ exports.renewSubscription = async (req, res) => {
       new_subscription_enddate
     } = req.body;
 
-    console.log("in app req.body check",req.body)
+    console.log("in app req.body check", req.body);
 
     if (
       new_total_amount === undefined ||
@@ -4537,6 +4537,7 @@ exports.renewSubscription = async (req, res) => {
     const oldReleaseFee = parseFloat(booking.releasefee) || 0;
     const oldReceivable = parseFloat(booking.recievableamount) || 0;
     const oldPayable = parseFloat(booking.payableamout) || 0;
+    const oldTotalAmount = parseFloat(booking.totalamout) || 0;
 
     // ==============================
     // Platform Fee (ONLY on additional)
@@ -4562,11 +4563,10 @@ exports.renewSubscription = async (req, res) => {
     ).toFixed(2);
 
     // ==============================
-    // ❌ TOTAL AMOUNT — UNCHANGED LOGIC
-    // (renewal-only, NOT accumulated)
+    // ✅ TOTAL AMOUNT — NOW ACCUMULATIVE
     // ==============================
     booking.totalamout = (
-      roundedNewTotal + roundedAdditional
+      oldTotalAmount + roundedNewTotal
     ).toFixed(2);
 
     // Update end date
@@ -4589,10 +4589,6 @@ exports.renewSubscription = async (req, res) => {
       const [datePart, timePart] = nowInIndia.split(", ");
       const [day, month, year] = datePart.split("/");
       const transactionDate = `${day}-${month}-${year}`;
-
-      const [time, ampm] = timePart.split(" ");
-      const [hh, mm] = time.split(":");
-      const transactionTime = `${hh}:${mm} ${ampm}`;
 
       const bookingTransaction = new BookingTransaction({
         bookingId: updatedBooking._id,
@@ -4656,6 +4652,7 @@ exports.renewSubscription = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 
 
