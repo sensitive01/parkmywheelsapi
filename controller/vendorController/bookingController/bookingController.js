@@ -4486,6 +4486,8 @@ exports.renewSubscription = async (req, res) => {
       new_subscription_enddate
     } = req.body;
 
+    console.log("in app req.body check",req.body)
+
     if (
       new_total_amount === undefined ||
       new_subscription_enddate === undefined
