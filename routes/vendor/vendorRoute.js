@@ -24,6 +24,13 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const orderController = require("../../controller/vendorController/orderController");
 const notificationController = require("../../controller/adminController/notificationController")
+const scannerController = require("../../controller/userController/scanner/scannerController")
+
+
+
+
+vendorRoute.post('/requestVehicleReturn', scannerController.requestVehicleReturn);
+
 
 
 

@@ -10,7 +10,7 @@ const Booking = require("./models/bookingSchema");
 const userModel = require("./models/userModel");
 const Notification = require("./models/notificationschema");
 const Vendor = require("./models/venderSchema");
-const Version = require("./models/versionSchema"); // <-- create this schema
+const Version = require("./models/versionSchema");
 
 // Configuration and Routes
 const { PORT } = require("./config/variables.js");
