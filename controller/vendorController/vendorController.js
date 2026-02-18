@@ -515,26 +515,54 @@ const vendorLogin = async (req, res) => {
   try {
     const { mobile, password, fcmToken } = req.body;
 
+    // 1️⃣ Validate required fields
     if (!mobile || !password) {
-      return res
-        .status(400)
-        .json({ message: "Mobile number and password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number and password are required",
+      });
     }
 
-    const vendor = await vendorModel.findOne({ 'contacts.mobile': mobile });
+    // 2️⃣ Find vendor by mobile number
+    const vendor = await vendorModel.findOne({
+      "contacts.mobile": mobile,
+    });
+
     if (!vendor) {
-      return res.status(404).json({ message: "Vendor not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Vendor not found",
+      });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, vendor.password);
+    // 3️⃣ Check password
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      vendor.password
+    );
+
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Incorrect password" });
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect password",
+      });
     }
-    if (fcmToken && !vendor.fcmTokens.includes(fcmToken)) {
-      vendor.fcmTokens.push(fcmToken); // Add the new FCM token if it doesn't exist
-      await vendor.save();
+
+    // 4️⃣ Save FCM token if provided (optional)
+    if (fcmToken) {
+      if (!vendor.fcmTokens) {
+        vendor.fcmTokens = [];
+      }
+
+      if (!vendor.fcmTokens.includes(fcmToken)) {
+        vendor.fcmTokens.push(fcmToken);
+        await vendor.save();
+      }
     }
+
+    // 5️⃣ Successful login response
     return res.status(200).json({
+      success: true,
       message: "Login successful",
       vendorId: vendor._id,
       vendorName: vendor.vendorName,
@@ -544,11 +572,15 @@ const vendorLogin = async (req, res) => {
       address: vendor.address,
       newuser: vendor.newuser,
     });
-  } catch (err) {
-    console.error("Error in vendor login", err);
-    return res.status(500).json({ message: "Internal server error" });
+  } catch (error) {
+    console.error("Error in vendor login:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
+
 const updateVendor = async (req, res) => {
   try {
     const { vendorId } = req.body; // Assuming vendorId is sent in the request body
