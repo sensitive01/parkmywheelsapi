@@ -1,9 +1,10 @@
 const admin = require('../../../config/firebaseAdmin');
 const vendorModel = require('../../../models/venderSchema');
+const Booking = require('../../../models/bookingSchema');
 
 const requestVehicleReturn = async (req, res) => {
     try {
-        const { vendorId, vehicleNumber, bookingId, requestTime } = req.body;
+        let { vendorId, vehicleNumber, bookingId, requestTime } = req.body;
 
         console.log("Return Request data:", req.body);
 
@@ -13,6 +14,34 @@ const requestVehicleReturn = async (req, res) => {
                 success: false,
                 message: 'Missing required fields: vendorId or vehicleNumber'
             });
+        }
+
+        // 1.5️⃣ Lookup Booking/Vehicle if needed (Partial Match Support)
+        if (vendorId && vehicleNumber) {
+            try {
+                // Trim and prepare regex for "ends with" matching (case-insensitive)
+                const normalizedInput = String(vehicleNumber).trim();
+                const escapedInput = normalizedInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(escapedInput + "$", "i");
+
+                // Find the most recent PARKED booking matching the vehicle number pattern
+                const booking = await Booking.findOne({
+                    vendorId: vendorId,
+                    vehicleNumber: { $regex: regex },
+                    status: { $regex: /^(parked)$/i }
+                }).sort({ createdAt: -1 });
+
+                if (booking) {
+                    console.log(`Matched vehicle "${vehicleNumber}" to booking "${booking.vehicleNumber}" (${booking._id})`);
+                    // Update to full vehicle number and bookingId from database
+                    vehicleNumber = booking.vehicleNumber;
+                    if (!bookingId) bookingId = booking._id.toString();
+                } else {
+                    console.log(`No active PARKED booking found matching "${vehicleNumber}" for vendor ${vendorId}`);
+                }
+            } catch (err) {
+                console.error("Error looking up booking details:", err);
+            }
         }
 
         // 2️⃣ Fetch Vendor
@@ -37,10 +66,22 @@ const requestVehicleReturn = async (req, res) => {
         }
 
         // 3️⃣ Notification Payload
+        let notificationBody = `Customer is requesting return of vehicle ${vehicleNumber}.`;
+
+        // Check for Valet Token format (Token-VehicleNumber, e.g., "2-7895")
+        if (vehicleNumber && vehicleNumber.includes('-')) {
+            const parts = vehicleNumber.split('-');
+            if (parts.length === 2) {
+                const token = parts[0];
+                const vNum = parts[1];
+                notificationBody = `Get my vehicle ${vNum}\nValet token ${token}`;
+            }
+        }
+
         const notificationMessage = {
             notification: {
                 title: 'Vehicle Return Requested',
-                body: `Customer is requesting return of vehicle ${vehicleNumber}.`,
+                body: notificationBody,
             },
             data: {
                 type: 'RETURN_REQUEST',
@@ -70,7 +111,7 @@ const requestVehicleReturn = async (req, res) => {
                 vendorId: vendorId,
                 bookingId: bookingId,
                 title: 'Vehicle Return Requested',
-                message: `Customer is requesting return of vehicle ${vehicleNumber}.`,
+                message: notificationBody,
                 vehicleNumber: vehicleNumber,
                 createdAt: new Date(),
                 read: false,
