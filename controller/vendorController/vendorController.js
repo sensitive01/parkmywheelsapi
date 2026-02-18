@@ -513,28 +513,82 @@ const addExtraDaysToSubscription = async (req, res) => {
 
 const vendorLogin = async (req, res) => {
   try {
+    console.log("🔹 Vendor Login API hit");
+    console.log("➡️ Request body:", req.body);
+
     const { mobile, password, fcmToken } = req.body;
 
+    // 1️⃣ Validate required fields
     if (!mobile || !password) {
-      return res
-        .status(400)
-        .json({ message: "Mobile number and password are required" });
+      console.log("❌ Missing mobile or password");
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number and password are required",
+      });
     }
 
-    const vendor = await vendorModel.findOne({ 'contacts.mobile': mobile });
+    console.log("✅ Mobile & password received:", mobile);
+
+    // 2️⃣ Find vendor by mobile number
+    console.log("🔍 Searching vendor with mobile:", mobile);
+
+    const vendor = await vendorModel.findOne({
+      "contacts.mobile": mobile,
+    });
+
     if (!vendor) {
-      return res.status(404).json({ message: "Vendor not found" });
+      console.log("❌ Vendor not found for mobile:", mobile);
+      return res.status(404).json({
+        success: false,
+        message: "Vendor not found",
+      });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, vendor.password);
+    console.log("✅ Vendor found:", vendor._id);
+
+    // 3️⃣ Check password
+    console.log("🔐 Checking password...");
+
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      vendor.password
+    );
+
+    console.log("🔐 Password match result:", isPasswordValid);
+
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Incorrect password" });
+      console.log("❌ Incorrect password for vendor:", vendor._id);
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect password",
+      });
     }
-    if (fcmToken && !vendor.fcmTokens.includes(fcmToken)) {
-      vendor.fcmTokens.push(fcmToken); // Add the new FCM token if it doesn't exist
-      await vendor.save();
+
+    // 4️⃣ Save FCM token if provided (optional)
+    if (fcmToken) {
+      console.log("📱 FCM token received:", fcmToken);
+
+      if (!vendor.fcmTokens) {
+        console.log("ℹ️ fcmTokens array not found, initializing");
+        vendor.fcmTokens = [];
+      }
+
+      if (!vendor.fcmTokens.includes(fcmToken)) {
+        console.log("➕ Adding new FCM token");
+        vendor.fcmTokens.push(fcmToken);
+        await vendor.save();
+      } else {
+        console.log("ℹ️ FCM token already exists");
+      }
+    } else {
+      console.log("ℹ️ No FCM token provided");
     }
+
+    // 5️⃣ Successful login response
+    console.log("✅ Login successful for vendor:", vendor._id);
+
     return res.status(200).json({
+      success: true,
       message: "Login successful",
       vendorId: vendor._id,
       vendorName: vendor.vendorName,
@@ -544,11 +598,16 @@ const vendorLogin = async (req, res) => {
       address: vendor.address,
       newuser: vendor.newuser,
     });
-  } catch (err) {
-    console.error("Error in vendor login", err);
-    return res.status(500).json({ message: "Internal server error" });
+  } catch (error) {
+    console.error("🔥 Error in vendor login:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
+
+
 const updateVendor = async (req, res) => {
   try {
     const { vendorId } = req.body; // Assuming vendorId is sent in the request body
