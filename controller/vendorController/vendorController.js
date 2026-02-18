@@ -1604,6 +1604,72 @@ const sendNewLocationNotificationToAllUsers = async (vendor) => {
     console.error("Error sending new location notifications to all users:", error);
   }
 };
+
+// Get toggle states for a vendor
+const getToggleStates = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    return res.status(200).json({
+      bookEnabled: vendor.bookEnabled ?? false,
+      printEnabled: vendor.printEnabled ?? false,
+      exitEnabled: vendor.exitEnabled ?? false,
+    });
+  } catch (error) {
+    console.error("Error fetching toggle states:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Update toggle states for a vendor
+const updateToggleStates = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { bookEnabled, printEnabled, exitEnabled } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Update toggle states
+    if (bookEnabled !== undefined) {
+      vendor.bookEnabled = bookEnabled;
+    }
+    if (printEnabled !== undefined) {
+      vendor.printEnabled = printEnabled;
+    }
+    if (exitEnabled !== undefined) {
+      vendor.exitEnabled = exitEnabled;
+    }
+
+    await vendor.save();
+
+    return res.status(200).json({
+      message: "Toggle states updated successfully",
+      bookEnabled: vendor.bookEnabled,
+      printEnabled: vendor.printEnabled,
+      exitEnabled: vendor.exitEnabled,
+    });
+  } catch (error) {
+    console.error("Error updating toggle states:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   updateValidity,
   vendoridlogin,
@@ -1640,4 +1706,6 @@ module.exports = {
   updateVendorStatus,
   updateVendor,
   addExtraDaysToSubscription,
+  getToggleStates,
+  updateToggleStates,
 };
