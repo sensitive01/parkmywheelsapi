@@ -8,7 +8,6 @@ const requestVehicleReturn = async (req, res) => {
 
         console.log("Return Request data:", req.body);
 
-        // 1️⃣ Validation
         if (!vendorId || !vehicleNumber) {
             return res.status(400).json({
                 success: false,
@@ -16,35 +15,65 @@ const requestVehicleReturn = async (req, res) => {
             });
         }
 
-        // 1.5️⃣ Lookup Booking/Vehicle if needed (Partial Match Support)
         if (vendorId && vehicleNumber) {
             try {
-                // Trim and prepare regex for "ends with" matching (case-insensitive)
                 const normalizedInput = String(vehicleNumber).trim();
-                const escapedInput = normalizedInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(escapedInput + "$", "i");
+                const cleanInput = normalizedInput.replace(/\s+/g, '');
+                const escapedInput = cleanInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-                // Find the most recent PARKED booking matching the vehicle number pattern
-                const booking = await Booking.findOne({
-                    vendorId: vendorId,
-                    vehicleNumber: { $regex: regex },
-                    status: { $regex: /^(parked)$/i }
-                }).sort({ createdAt: -1 });
+                let query = { vendorId: vendorId, status: { $regex: /^parked/i } };
 
+                if (cleanInput.includes('-')) {
+                    query.vehicleNumber = { $regex: new RegExp(`^${escapedInput}$`, 'i') };
+                } else {
+                    query.vehicleNumber = { $regex: new RegExp(`${escapedInput}$`, 'i') };
+                }
+
+                const booking = await Booking.findOne(query).sort({ createdAt: -1 });
+
+                let isValid = true;
                 if (booking) {
+                    const bookingVehicle = booking.vehicleNumber.replace(/\s+/g, '');
+
+                    if (bookingVehicle.includes('-')) {
+                        if (cleanInput.includes('-')) {
+                            if (bookingVehicle.toLowerCase() !== cleanInput.toLowerCase()) {
+                                isValid = false;
+                            }
+                        } else {
+                            if (!bookingVehicle.toLowerCase().endsWith(cleanInput.toLowerCase())) {
+                                isValid = false;
+                            }
+                        }
+                    } else { // Booking vehicle does not have a token (no hyphen)
+                        if (cleanInput.includes('-')) { // Input has a token, but booking doesn't
+                            isValid = false;
+                        } else { // Both input and booking vehicle don't have tokens
+                            if (bookingVehicle.toLowerCase() !== cleanInput.toLowerCase()) {
+                                isValid = false;
+                            }
+                        }
+                    }
+                } else {
+                    isValid = false;
+                }
+
+                if (isValid && booking) {
                     console.log(`Matched vehicle "${vehicleNumber}" to booking "${booking.vehicleNumber}" (${booking._id})`);
-                    // Update to full vehicle number and bookingId from database
                     vehicleNumber = booking.vehicleNumber;
                     if (!bookingId) bookingId = booking._id.toString();
                 } else {
                     console.log(`No active PARKED booking found matching "${vehicleNumber}" for vendor ${vendorId}`);
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Vehicle not found or not currently parked.'
+                    });
                 }
             } catch (err) {
                 console.error("Error looking up booking details:", err);
             }
         }
 
-        // 2️⃣ Fetch Vendor
         const vendorData = await vendorModel.findOne(
             { _id: vendorId },
             { fcmTokens: 1 }
@@ -65,10 +94,8 @@ const requestVehicleReturn = async (req, res) => {
             });
         }
 
-        // 3️⃣ Notification Payload
         let notificationBody = `Customer is requesting return of vehicle ${vehicleNumber}.`;
 
-        // Check for Valet Token format (Token-VehicleNumber, e.g., "2-7895")
         if (vehicleNumber && vehicleNumber.includes('-')) {
             const parts = vehicleNumber.split('-');
             if (parts.length === 2) {
@@ -103,7 +130,6 @@ const requestVehicleReturn = async (req, res) => {
             }
         };
 
-        // 4️⃣ Save Notification in DB
         try {
             const Notification = require('../../../models/notificationschema');
 
@@ -125,7 +151,6 @@ const requestVehicleReturn = async (req, res) => {
             console.error("Error saving notification to DB:", dbError);
         }
 
-        // 5️⃣ Send Push (Using send() like createBooking)
         let failedTokens = [];
 
         for (const token of vendorData.fcmTokens) {
@@ -140,7 +165,6 @@ const requestVehicleReturn = async (req, res) => {
             }
         }
 
-        // 6️⃣ Remove Invalid Tokens
         if (failedTokens.length > 0) {
             await vendorModel.updateOne(
                 { _id: vendorId },
