@@ -102,6 +102,10 @@ vendorRoute.get('/fetchenable/:vendorId', chargesController.getEnabledVehicles);
 
 // Update carenable flag
 vendorRoute.put('/updateenable/:vendorId', chargesController.updateEnabledVehicles);
+
+// Toggle states endpoints
+vendorRoute.get('/get-toggle-states/:vendorId', vendorController.getToggleStates);
+vendorRoute.put('/update-toggle-states/:vendorId', vendorController.updateToggleStates);
 vendorRoute.put('/updatebottom/:vendorId', chargesController.updatelistv);
 
 
