@@ -74,6 +74,10 @@ contacts: [
     }],
         otp: { type: String },
     otpExpiresAt: { type: Date },
+    // Toggle states for Book, Print, and Exit
+    bookEnabled: { type: Boolean, default: false },
+    printEnabled: { type: Boolean, default: false },
+    exitEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
