@@ -28,7 +28,15 @@ dbConnect();
 
 // Middleware
 app.use(cookieParser());
-app.use(express.json());
+// Skip JSON parsing for multipart (e.g. machinecreatebooking with vehicle images)
+// so multer can read the raw body; body-parser consumes the stream and breaks multer
+app.use((req, res, next) => {
+  const ct = (req.headers["content-type"] || "").toLowerCase();
+  if (ct.includes("multipart/form-data")) {
+    return next();
+  }
+  express.json()(req, res, next);
+});
 
 // CORS Configuration
 const allowedOrigins = [
