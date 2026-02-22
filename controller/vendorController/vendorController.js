@@ -1682,6 +1682,7 @@ const getToggleStates = async (req, res) => {
       bookEnabled: vendor.bookEnabled ?? false,
       printEnabled: vendor.printEnabled ?? false,
       exitEnabled: vendor.exitEnabled ?? false,
+      vehicleUploadEnabled: vendor.vehicleUploadEnabled ?? false,
     });
   } catch (error) {
     console.error("Error fetching toggle states:", error);
@@ -1693,7 +1694,7 @@ const getToggleStates = async (req, res) => {
 const updateToggleStates = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { bookEnabled, printEnabled, exitEnabled } = req.body;
+    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -1714,6 +1715,9 @@ const updateToggleStates = async (req, res) => {
     if (exitEnabled !== undefined) {
       vendor.exitEnabled = exitEnabled;
     }
+    if (vehicleUploadEnabled !== undefined) {
+      vendor.vehicleUploadEnabled = vehicleUploadEnabled;
+    }
 
     await vendor.save();
 
@@ -1722,6 +1726,7 @@ const updateToggleStates = async (req, res) => {
       bookEnabled: vendor.bookEnabled,
       printEnabled: vendor.printEnabled,
       exitEnabled: vendor.exitEnabled,
+      vehicleUploadEnabled: vendor.vehicleUploadEnabled,
     });
   } catch (error) {
     console.error("Error updating toggle states:", error);
