@@ -139,6 +139,8 @@ type: String,
     parkedTime: { type: String, },
     exitvehicledate: { type: String },  
     exitvehicletime: { type: String },
+    // Vehicle images (optional) - URLs from Cloudinary
+    vehicleImages: [{ type: String }],
     // Feedback fields stored in booking
     feedback: {
       rating: { type: Number, default: 0 }, // Star rating (0 means not rated yet)
