@@ -74,10 +74,11 @@ contacts: [
     }],
         otp: { type: String },
     otpExpiresAt: { type: Date },
-    // Toggle states for Book, Print, and Exit
+    // Toggle states for Book, Print, Exit, and Vehicle Upload
     bookEnabled: { type: Boolean, default: false },
     printEnabled: { type: Boolean, default: false },
     exitEnabled: { type: Boolean, default: false },
+    vehicleUploadEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
