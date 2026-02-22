@@ -63,9 +63,18 @@ vendorRoute.post("/createbooking", bookingController.createBooking);
 vendorRoute.post("/vendorcreatebooking", bookingController.vendorcreateBooking);
 vendorRoute.post("/livebooking", bookingController.livecreateBooking);
 vendorRoute.post("/machinecreatebooking", (req, res, next) => {
-  const contentType = req.headers["content-type"] || "";
+  const contentType = (req.headers["content-type"] || "").toLowerCase();
   if (contentType.includes("multipart/form-data")) {
-    return upload.fields([{ name: "vehicleImages", maxCount: 10 }])(req, res, next);
+    return upload.fields([{ name: "vehicleImages", maxCount: 10 }])(req, res, (err) => {
+      if (err) {
+        console.error("Multer error for machinecreatebooking:", err);
+        return res.status(400).json({
+          message: "File upload error",
+          error: err.code === "LIMIT_FILE_SIZE" ? "File too large" : err.message || "Invalid file upload"
+        });
+      }
+      next();
+    });
   }
   next();
 }, bookingController.machinecreatebooking);
