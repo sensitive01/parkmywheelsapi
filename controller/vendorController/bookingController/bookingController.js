@@ -352,7 +352,7 @@ exports.createBooking = async (req, res) => {
     };
 
     const aggregationResult = await Booking.aggregate([
-      { $match: { vendorId: vendorId, status: "PENDING" } },
+      { $match: { vendorId: vendorId, status: { $in: ["PENDING", "PARKED", "Parked", "APPROVED", "Approved"] } } },
       { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
     ]);
 
@@ -835,6 +835,9 @@ async function sendSMS(to, text, dltContentId) {
 
 exports.machinecreatebooking = async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({ message: "Invalid request body. Send JSON or multipart form-data." });
+    }
     const {
       userid,
       vendorId,
@@ -889,7 +892,7 @@ exports.machinecreatebooking = async (req, res) => {
     };
 
     const aggregationResult = await Booking.aggregate([
-      { $match: { vendorId: vendorId, status: "PENDING" } },
+      { $match: { vendorId: vendorId, status: { $in: ["PENDING", "PARKED", "Parked", "APPROVED", "Approved"] } } },
       { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
     ]);
 
@@ -1032,15 +1035,22 @@ exports.machinecreatebooking = async (req, res) => {
     }
 
     // Upload vehicle images to Cloudinary (from multipart)
+    // Normalize: multer may return single file as object or array depending on version
     let vehicleImageUrls = [];
-    if (req.files && req.files.vehicleImages && Array.isArray(req.files.vehicleImages)) {
+    const vehicleImageFiles = req.files?.vehicleImages
+      ? (Array.isArray(req.files.vehicleImages) ? req.files.vehicleImages : [req.files.vehicleImages])
+      : [];
+    if (vehicleImageFiles.length > 0) {
       try {
-        for (const file of req.files.vehicleImages) {
-          const url = await uploadImage(file.buffer, "bookings/vehicle-images");
-          vehicleImageUrls.push(url);
+        for (const file of vehicleImageFiles) {
+          if (file && file.buffer) {
+            const url = await uploadImage(file.buffer, "bookings/vehicle-images");
+            vehicleImageUrls.push(url);
+          }
         }
       } catch (uploadErr) {
         console.error("Error uploading vehicle images:", uploadErr);
+        // Continue with booking - images are optional, don't fail the whole request
       }
     }
 
@@ -1626,7 +1636,7 @@ exports.vendorcreateBooking = async (req, res) => {
     };
 
     const aggregationResult = await Booking.aggregate([
-      { $match: { vendorId: vendorId, status: "PENDING" } },
+      { $match: { vendorId: vendorId, status: { $in: ["PENDING", "PARKED", "Parked", "APPROVED", "Approved"] } } },
       { $group: { _id: "$vehicleType", count: { $sum: 1 } } },
     ]);
 
@@ -1769,15 +1779,22 @@ exports.vendorcreateBooking = async (req, res) => {
     }
 
     // Upload vehicle images to Cloudinary (from multipart)
+    // Normalize: multer may return single file as object or array depending on version
     let vehicleImageUrls = [];
-    if (req.files && req.files.vehicleImages && Array.isArray(req.files.vehicleImages)) {
+    const vehicleImageFiles = req.files?.vehicleImages
+      ? (Array.isArray(req.files.vehicleImages) ? req.files.vehicleImages : [req.files.vehicleImages])
+      : [];
+    if (vehicleImageFiles.length > 0) {
       try {
-        for (const file of req.files.vehicleImages) {
-          const url = await uploadImage(file.buffer, "bookings/vehicle-images");
-          vehicleImageUrls.push(url);
+        for (const file of vehicleImageFiles) {
+          if (file && file.buffer) {
+            const url = await uploadImage(file.buffer, "bookings/vehicle-images");
+            vehicleImageUrls.push(url);
+          }
         }
       } catch (uploadErr) {
         console.error("Error uploading vehicle images:", uploadErr);
+        // Continue with booking - images are optional, don't fail the whole request
       }
     }
 
