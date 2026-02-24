@@ -1099,59 +1099,57 @@ exports.machinecreatebooking = async (req, res) => {
     await newBooking.save();
     console.log("newBooking", newBooking)
 
-    // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
-      try {
-        const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
+    // Create BookingTransaction record at booking creation time for ALL booking types (Instant, Schedule, Subscription)
+    try {
+      const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
 
-        const bookingTransaction = new BookingTransaction({
-          bookingId: newBooking._id,
-          vendorId: newBooking.vendorId,
-          vendorName: newBooking.vendorName,
-          userId: newBooking.userid,
-          vehicleNumber: newBooking.vehicleNumber,
-          vehicleType: newBooking.vehicleType,
-          personName: newBooking.personName,
-          mobileNumber: newBooking.mobileNumber,
-          // Transaction details
-          bookingAmount: newBooking.amount,
-          gstAmount: newBooking.gstamout,
-          handlingFee: newBooking.handlingfee,
-          totalAmount: newBooking.totalamout,
-          platformFee: newBooking.releasefee,
-          receivableAmount: newBooking.recievableamount,
-          payableAmount: newBooking.payableamout,
-          // Charges details
-          charges: newBooking.charges,
-          vendorCharges: newBooking.vendorCharges,
-          allCharges: newBooking.allCharges || [],
-          // Booking details
-          bookingDate: newBooking.bookingDate,
-          parkingDate: newBooking.parkingDate,
-          exitDate: newBooking.exitvehicledate || null,
-          bookingTime: newBooking.bookingTime,
-          parkingTime: newBooking.parkingTime,
-          exitTime: newBooking.exitvehicletime || null,
-          // Booking type
-          bookingType: newBooking.bookType,
-          subscriptionType: newBooking.subsctiptiontype,
-          subscriptionEndDate: newBooking.subsctiptionenddate,
-          sts: newBooking.sts || null, // Store sts from booking
-          // Transaction date
-          transactionDateString: transactionDateString,
-          status: 'active',
-          invoiceId: newBooking.invoiceid,
-          completedAt: null, // Not completed yet at booking creation
-          settlemtstatus: 'pending'
-        });
+      const bookingTransaction = new BookingTransaction({
+        bookingId: newBooking._id,
+        vendorId: newBooking.vendorId,
+        vendorName: newBooking.vendorName,
+        userId: newBooking.userid,
+        vehicleNumber: newBooking.vehicleNumber,
+        vehicleType: newBooking.vehicleType,
+        personName: newBooking.personName,
+        mobileNumber: newBooking.mobileNumber,
+        // Transaction details
+        bookingAmount: newBooking.amount,
+        gstAmount: newBooking.gstamout,
+        handlingFee: newBooking.handlingfee,
+        totalAmount: newBooking.totalamout,
+        platformFee: newBooking.releasefee,
+        receivableAmount: newBooking.recievableamount,
+        payableAmount: newBooking.payableamout,
+        // Charges details
+        charges: newBooking.charges,
+        vendorCharges: newBooking.vendorCharges,
+        allCharges: newBooking.allCharges || [],
+        // Booking details
+        bookingDate: newBooking.bookingDate,
+        parkingDate: newBooking.parkingDate,
+        exitDate: newBooking.exitvehicledate || null,
+        bookingTime: newBooking.bookingTime,
+        parkingTime: newBooking.parkingTime,
+        exitTime: newBooking.exitvehicletime || null,
+        // Booking type
+        bookingType: newBooking.bookType,
+        subscriptionType: newBooking.subsctiptiontype,
+        subscriptionEndDate: newBooking.subsctiptionenddate,
+        sts: newBooking.sts || null, // Store sts from booking (Instant, Schedule, Subscription)
+        // Transaction date
+        transactionDateString: transactionDateString,
+        status: 'active',
+        invoiceId: newBooking.invoiceid,
+        completedAt: null, // Not completed yet at booking creation
+        settlemtstatus: 'pending'
+      });
 
-        await bookingTransaction.save();
-        console.log("bookingTransaction", bookingTransaction)
-        console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - Subscription) for booking ${newBooking._id}`);
-      } catch (transactionErr) {
-        console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
-        // Don't fail the request if transaction creation fails, but log it
-      }
+      await bookingTransaction.save();
+      console.log("bookingTransaction", bookingTransaction)
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - ${(sts || "").toLowerCase()}) for booking ${newBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
     }
 
     // Feedback is now stored directly in the booking document (initialized with default values)
@@ -1843,59 +1841,57 @@ exports.vendorcreateBooking = async (req, res) => {
     await newBooking.save();
     console.log("newBooking", newBooking)
 
-    // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
-      try {
-        const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
+    // Create BookingTransaction record at booking creation time for ALL booking types (Instant, Schedule, Subscription)
+    try {
+      const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
 
-        const bookingTransaction = new BookingTransaction({
-          bookingId: newBooking._id,
-          vendorId: newBooking.vendorId,
-          vendorName: newBooking.vendorName,
-          userId: newBooking.userid,
-          vehicleNumber: newBooking.vehicleNumber,
-          vehicleType: newBooking.vehicleType,
-          personName: newBooking.personName,
-          mobileNumber: newBooking.mobileNumber,
-          // Transaction details
-          bookingAmount: newBooking.amount,
-          gstAmount: newBooking.gstamout,
-          handlingFee: newBooking.handlingfee,
-          totalAmount: newBooking.totalamout,
-          platformFee: newBooking.releasefee,
-          receivableAmount: newBooking.recievableamount,
-          payableAmount: newBooking.payableamout,
-          // Charges details
-          charges: newBooking.charges,
-          vendorCharges: newBooking.vendorCharges,
-          allCharges: newBooking.allCharges || [],
-          // Booking details
-          bookingDate: newBooking.bookingDate,
-          parkingDate: newBooking.parkingDate,
-          exitDate: newBooking.exitvehicledate || null,
-          bookingTime: newBooking.bookingTime,
-          parkingTime: newBooking.parkingTime,
-          exitTime: newBooking.exitvehicletime || null,
-          // Booking type
-          bookingType: newBooking.bookType,
-          subscriptionType: newBooking.subsctiptiontype,
-          subscriptionEndDate: newBooking.subsctiptionenddate,
-          sts: newBooking.sts || null, // Store sts from booking
-          // Transaction date
-          transactionDateString: transactionDateString,
-          status: 'active',
-          invoiceId: newBooking.invoiceid,
-          completedAt: null, // Not completed yet at booking creation
-          settlemtstatus: 'pending'
-        });
+      const bookingTransaction = new BookingTransaction({
+        bookingId: newBooking._id,
+        vendorId: newBooking.vendorId,
+        vendorName: newBooking.vendorName,
+        userId: newBooking.userid,
+        vehicleNumber: newBooking.vehicleNumber,
+        vehicleType: newBooking.vehicleType,
+        personName: newBooking.personName,
+        mobileNumber: newBooking.mobileNumber,
+        // Transaction details
+        bookingAmount: newBooking.amount,
+        gstAmount: newBooking.gstamout,
+        handlingFee: newBooking.handlingfee,
+        totalAmount: newBooking.totalamout,
+        platformFee: newBooking.releasefee,
+        receivableAmount: newBooking.recievableamount,
+        payableAmount: newBooking.payableamout,
+        // Charges details
+        charges: newBooking.charges,
+        vendorCharges: newBooking.vendorCharges,
+        allCharges: newBooking.allCharges || [],
+        // Booking details
+        bookingDate: newBooking.bookingDate,
+        parkingDate: newBooking.parkingDate,
+        exitDate: newBooking.exitvehicledate || null,
+        bookingTime: newBooking.bookingTime,
+        parkingTime: newBooking.parkingTime,
+        exitTime: newBooking.exitvehicletime || null,
+        // Booking type
+        bookingType: newBooking.bookType,
+        subscriptionType: newBooking.subsctiptiontype,
+        subscriptionEndDate: newBooking.subsctiptionenddate,
+        sts: newBooking.sts || null, // Store sts from booking (Instant, Schedule, Subscription)
+        // Transaction date
+        transactionDateString: transactionDateString,
+        status: 'active',
+        invoiceId: newBooking.invoiceid,
+        completedAt: null, // Not completed yet at booking creation
+        settlemtstatus: 'pending'
+      });
 
-        await bookingTransaction.save();
-        console.log("bookingTransaction", bookingTransaction)
-        console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - Subscription) for booking ${newBooking._id}`);
-      } catch (transactionErr) {
-        console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
-        // Don't fail the request if transaction creation fails, but log it
-      }
+      await bookingTransaction.save();
+      console.log("bookingTransaction", bookingTransaction)
+      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - ${(sts || "").toLowerCase()}) for booking ${newBooking._id}`);
+    } catch (transactionErr) {
+      console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
+      // Don't fail the request if transaction creation fails, but log it
     }
 
     // Feedback is now stored directly in the booking document (initialized with default values)
