@@ -162,44 +162,126 @@ const clearAllAdminNotification = async (req, res) => {
 
 
 
+// const getNotificationsByVendorWeb = async (req, res) => {
+//     try {
+//         const { vendorId } = req.params;
+//         console.log(`[getNotificationsByVendorWeb] Fetching for VendorID: ${vendorId}`);
+
+//         // 1. General Notifications
+//         const notifications = await Notification.find({ vendorId, isVendorRead: false }).sort({ createdAt: -1 });
+
+//         // 2. Callback (Adv) Notifications
+//         const advNotifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false }).sort({ createdAt: -1 });
+
+//         // 3. Help & Support
+//         const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
+//         console.log(`[getNotificationsByVendorWeb] Found ${helpAndSupports.length} support tickets.`);
+
+//         // 4. Bank Account Notifications
+//         const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
+
+//         // 5. KYC Notifications
+//         const kycNotifications = await kycSchema.find({
+//             vendorId: vendorId,
+//             $or: [{ isVendorRead: false }, { status: "Rejected" }]
+//         }).sort({ updatedAt: -1 });
+
+//         res.status(200).json({
+//             success: true,
+//             count: notifications.length + advNotifications.length + helpAndSupports.length + bankAccountNotifications.length + kycNotifications.length,
+//             notifications,
+//             advNotifications,
+//             helpAndSupports,
+//             bankAccountNotifications,
+//             kycNotifications
+//         });
+//     } catch (error) {
+//         console.error("Error fetching notifications:", error);
+//         res.status(500).json({ success: false, message: error.message });
+//     }
+// };
+
+
+
+
 const getNotificationsByVendorWeb = async (req, res) => {
     try {
         const { vendorId } = req.params;
         console.log(`[getNotificationsByVendorWeb] Fetching for VendorID: ${vendorId}`);
 
+        // Date formatter function
+        const formatDateTime = (date) => {
+            if (!date) return null;
+
+            const d = new Date(date);
+
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+
+            let hours = d.getHours();
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+
+            return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+        };
+
+        const formatList = (list, dateField) =>
+            list.map(item => ({
+                ...item._doc,
+                [dateField]: formatDateTime(item[dateField])
+            }));
+
         // 1. General Notifications
-        const notifications = await Notification.find({ vendorId, isVendorRead: false }).sort({ createdAt: -1 });
+        const notifications = await Notification.find({ vendorId, isVendorRead: false })
+            .sort({ createdAt: -1 });
 
         // 2. Callback (Adv) Notifications
-        const advNotifications = await advNotification.find({ vendorId: vendorId, isVendorRead: false }).sort({ createdAt: -1 });
+        const advNotifications = await advNotification.find({ vendorId, isVendorRead: false })
+            .sort({ createdAt: -1 });
 
         // 3. Help & Support
-        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
-        console.log(`[getNotificationsByVendorWeb] Found ${helpAndSupports.length} support tickets.`);
+        const helpAndSupports = await VendorHelpSupport.find({ vendorid: vendorId, isVendorRead: false })
+            .sort({ updatedAt: -1 });
 
         // 4. Bank Account Notifications
-        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId: vendorId, isVendorRead: false }).sort({ updatedAt: -1 });
+        const bankAccountNotifications = await bankApprovalSchema.find({ vendorId, isVendorRead: false })
+            .sort({ updatedAt: -1 });
 
         // 5. KYC Notifications
         const kycNotifications = await kycSchema.find({
-            vendorId: vendorId,
+            vendorId,
             $or: [{ isVendorRead: false }, { status: "Rejected" }]
         }).sort({ updatedAt: -1 });
 
         res.status(200).json({
             success: true,
-            count: notifications.length + advNotifications.length + helpAndSupports.length + bankAccountNotifications.length + kycNotifications.length,
-            notifications,
-            advNotifications,
-            helpAndSupports,
-            bankAccountNotifications,
-            kycNotifications
+            count:
+                notifications.length +
+                advNotifications.length +
+                helpAndSupports.length +
+                bankAccountNotifications.length +
+                kycNotifications.length,
+
+            notifications: formatList(notifications, "createdAt"),
+            advNotifications: formatList(advNotifications, "createdAt"),
+            helpAndSupports: formatList(helpAndSupports, "updatedAt"),
+            bankAccountNotifications: formatList(bankAccountNotifications, "updatedAt"),
+            kycNotifications: formatList(kycNotifications, "updatedAt")
         });
+
     } catch (error) {
         console.error("Error fetching notifications:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+
+
+
 
 const deleteAllNotificationsByVendor = async (req, res) => {
     try {
