@@ -36,7 +36,7 @@ vendorRoute.post('/requestVehicleReturn', scannerController.requestVehicleReturn
 
 
 
-vendorRoute.get("/fetchnotification/:vendorId", notificationController.getNotificationsByVendor);
+vendorRoute.get("/fetchnotification/:vendorId", notificationController.getNotificationsByVendorWeb);
 
 
 vendorRoute.get("/fetchnotification-in-web/:vendorId", notificationController.getNotificationsByVendorWeb);
