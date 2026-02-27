@@ -5776,6 +5776,8 @@ exports.clearAllNotificationsByVendor = async (req, res) => {
 };
 exports.clearUserNotifications = async (req, res) => {
   try {
+
+    console.log("this is clear notification from the app")
     const { uuid } = req.params;
 
     // Validate UUID
