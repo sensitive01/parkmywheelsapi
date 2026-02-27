@@ -35,10 +35,11 @@ vendorRoute.post('/requestVehicleReturn', scannerController.requestVehicleReturn
 
 
 
+//app notification --jay
+// vendorRoute.get("/fetchnotification/:vendorId", bookingController.getNotificationsByVendor);
 
-vendorRoute.get("/fetchnotification/:vendorId", bookingController.getNotificationsByVendor);
-
-
+//app and web notification--aswin
+vendorRoute.get("/fetchnotification/:vendorId", notificationController.getNotificationsByVendorWeb);
 vendorRoute.get("/fetchnotification-in-web/:vendorId", notificationController.getNotificationsByVendorWeb);
 
 
