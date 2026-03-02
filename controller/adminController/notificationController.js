@@ -208,7 +208,7 @@ const getNotificationsByVendorWeb = async (req, res) => {
         const { vendorId } = req.params;
         console.log(`[getNotificationsByVendorWeb] Fetching for VendorID: ${vendorId}`);
 
-        // ✅ IST Date Formatter
+        // ✅ IST Date Formatter (Updated as per your requirement)
         const formatDateTimeIST = (date) => {
             if (!date) return null;
 
@@ -216,25 +216,32 @@ const getNotificationsByVendorWeb = async (req, res) => {
                 new Date(date).toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
             );
 
-            const day = String(istDate.getDate()).padStart(2, "0");
-            const month = String(istDate.getMonth() + 1).padStart(2, "0");
+            const day = istDate.getDate();              // no leading zero
+            const month = istDate.getMonth() + 1;      // no leading zero
             const year = istDate.getFullYear();
 
             let hours = istDate.getHours();
             const minutes = String(istDate.getMinutes()).padStart(2, "0");
+            const seconds = String(istDate.getSeconds()).padStart(2, "0");
 
-            const ampm = hours >= 12 ? "PM" : "AM";
+            const ampm = hours >= 12 ? "pm" : "am";    // small letters
             hours = hours % 12;
             hours = hours ? hours : 12;
 
-            return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+            return `${day}-${month}-${year} ${hours}:${minutes}:${seconds} ${ampm}`;
         };
 
+        // ✅ Override BOTH createdAt & notificationdtime
         const formatList = (list, field = "createdAt") =>
-            list.map(item => ({
-                ...item._doc,
-                [field]: formatDateTimeIST(item[field])
-            }));
+            list.map(item => {
+                const formattedTime = formatDateTimeIST(item[field]);
+
+                return {
+                    ...item._doc,
+                    createdAt: formattedTime,
+                    notificationdtime: formattedTime // 🔥 force app to use same format
+                };
+            });
 
         // 1️⃣ General Notifications
         const notifications = await Notification.find({

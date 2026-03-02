@@ -50,3 +50,27 @@ exports.getBookingsBySettlementId = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+exports.deleteSettlement = async (req, res) => {
+  try {
+    const { settlementid } = req.params;
+
+    if (!settlementid) {
+      return res.status(400).json({ success: false, message: "Settlement ID is required" });
+    }
+
+    const settlement = await Settlement.findOneAndDelete({ _id:settlementid });
+
+    if (!settlement) {
+      return res.status(404).json({ success: false, message: "Settlement not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Settlement deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting settlement:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};

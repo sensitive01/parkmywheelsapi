@@ -265,6 +265,11 @@ vendorRoute.put('/updatebookingcont/:vendorId', bookingController.updateVendorBo
 vendorRoute.delete("/delte/:vendorId", vendorController.deleteBookingsByVendorId);
 vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlementsByVendorId);
 vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsBySettlementId);
+
+
+vendorRoute.delete('/deletesettlement/:settlementid', settlementcontroller.deleteSettlement);
+
+
 vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCharges);
 
 vendorRoute.get('/get-my-notification/:vendorId', notificationController.getNotificationsByVendor);
