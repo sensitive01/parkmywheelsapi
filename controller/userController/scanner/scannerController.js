@@ -94,14 +94,22 @@ const requestVehicleReturn = async (req, res) => {
             });
         }
 
+        // --- UPDATED NOTIFICATION BODY LOGIC ---
         let notificationBody = `Customer is requesting return of vehicle ${vehicleNumber}.`;
 
         if (vehicleNumber && vehicleNumber.includes('-')) {
             const parts = vehicleNumber.split('-');
             if (parts.length === 2) {
+                // Format: VALET-VEHICLE
                 const token = parts[0];
                 const vNum = parts[1];
                 notificationBody = `Get my vehicle ${vNum}\nValet token ${token}`;
+            } else if (parts.length >= 3) {
+                // Format: VALET-VEHICLE-LOCATION
+                const token = parts[0];
+                const vNum = parts[1];
+                const location = parts.slice(2).join('-'); // Join back if location had hyphens
+                notificationBody = `Get my vehicle ${vNum}\nValet token ${token}\nParked at ${location}`;
             }
         }
 
