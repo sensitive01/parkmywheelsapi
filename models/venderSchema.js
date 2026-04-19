@@ -79,6 +79,7 @@ contacts: [
     printEnabled: { type: Boolean, default: false },
     exitEnabled: { type: Boolean, default: false },
     vehicleUploadEnabled: { type: Boolean, default: false },
+    valetEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
