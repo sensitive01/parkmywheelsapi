@@ -36,6 +36,14 @@ const bookingSchema = new mongoose.Schema(
     mobileNumber: {
       type: String
     },
+    paymentType: {
+      type: String,
+      default: "",
+    },
+    paymentMode: {
+      type: String,
+      default: "",
+    },
     carType: {
       type: String,
     },
