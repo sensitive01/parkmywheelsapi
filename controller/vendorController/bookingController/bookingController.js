@@ -469,6 +469,18 @@ exports.createBooking = async (req, res) => {
           carmonthly: chargeAmounts.carmonthly,
           bikemonthly: chargeAmounts.bikemonthly,
           othersmonthly: chargeAmounts.othersmonthly,
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
 
         vendorChargesData = {
@@ -487,6 +499,18 @@ exports.createBooking = async (req, res) => {
           carmonthly: parkingCharges.carmonthly?.toString() || "",
           bikemonthly: parkingCharges.bikemonthly?.toString() || "",
           othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
       }
     } catch (chargesError) {
@@ -1008,6 +1032,18 @@ exports.machinecreatebooking = async (req, res) => {
           carmonthly: chargeAmounts.carmonthly,
           bikemonthly: chargeAmounts.bikemonthly,
           othersmonthly: chargeAmounts.othersmonthly,
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
 
         vendorChargesData = {
@@ -1026,6 +1062,18 @@ exports.machinecreatebooking = async (req, res) => {
           carmonthly: parkingCharges.carmonthly?.toString() || "",
           bikemonthly: parkingCharges.bikemonthly?.toString() || "",
           othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
       }
       console.log("vendorChargesData", vendorChargesData)
@@ -1750,6 +1798,18 @@ exports.vendorcreateBooking = async (req, res) => {
           carmonthly: chargeAmounts.carmonthly,
           bikemonthly: chargeAmounts.bikemonthly,
           othersmonthly: chargeAmounts.othersmonthly,
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
 
         vendorChargesData = {
@@ -1768,6 +1828,18 @@ exports.vendorcreateBooking = async (req, res) => {
           carmonthly: parkingCharges.carmonthly?.toString() || "",
           bikemonthly: parkingCharges.bikemonthly?.toString() || "",
           othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
       }
       console.log("vendorChargesData", vendorChargesData)
@@ -2520,6 +2592,18 @@ exports.livecreateBooking = async (req, res) => {
           carmonthly: chargeAmounts.carmonthly,
           bikemonthly: chargeAmounts.bikemonthly,
           othersmonthly: chargeAmounts.othersmonthly,
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
 
         vendorChargesData = {
@@ -2538,6 +2622,18 @@ exports.livecreateBooking = async (req, res) => {
           carmonthly: parkingCharges.carmonthly?.toString() || "",
           bikemonthly: parkingCharges.bikemonthly?.toString() || "",
           othersmonthly: parkingCharges.othersmonthly?.toString() || "",
+          carweekly: parkingCharges.carweekly?.toString() || "",
+          bikeweekly: parkingCharges.bikeweekly?.toString() || "",
+          othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car12h: parkingCharges.car12h?.toString() || "",
+          bike12h: parkingCharges.bike12h?.toString() || "",
+          others12h: parkingCharges.others12h?.toString() || "",
+          car48h: parkingCharges.car48h?.toString() || "",
+          bike48h: parkingCharges.bike48h?.toString() || "",
+          others48h: parkingCharges.others48h?.toString() || "",
+          car72h: parkingCharges.car72h?.toString() || "",
+          bike72h: parkingCharges.bike72h?.toString() || "",
+          others72h: parkingCharges.others72h?.toString() || "",
         };
       }
     } catch (chargesError) {
