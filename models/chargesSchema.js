@@ -20,8 +20,18 @@ const parkingCharges = new mongoose.Schema({
   carmonthly:{type: String,},
   bikemonthly:{type: String,},  
   othersmonthly:{type: String,},
-
-  
+  carweekly:{type: String,},
+  bikeweekly:{type: String,},
+  othersweekly:{type: String,},
+  car12h:{type: String,},
+  bike12h:{type: String,},
+  others12h:{type: String,},
+  car48h:{type: String,},
+  bike48h:{type: String,},
+  others48h:{type: String,},
+  car72h:{type: String,},
+  bike72h:{type: String,},
+  others72h:{type: String,},
 });
 
 const vendorchargeSchema = new mongoose.Schema({
@@ -42,6 +52,18 @@ const vendorchargeSchema = new mongoose.Schema({
   carmonthly:{type: String,},
   bikemonthly:{type: String,},  
   othersmonthly:{type: String,},
+  carweekly:{type: String,},
+  bikeweekly:{type: String,},
+  othersweekly:{type: String,},
+  car12h:{type: String,},
+  bike12h:{type: String,},
+  others12h:{type: String,},
+  car48h:{type: String,},
+  bike48h:{type: String,},
+  others48h:{type: String,},
+  car72h:{type: String,},
+  bike72h:{type: String,},
+  others72h:{type: String,},
 });
 
 module.exports = mongoose.model("Parkingcharges", vendorchargeSchema);
