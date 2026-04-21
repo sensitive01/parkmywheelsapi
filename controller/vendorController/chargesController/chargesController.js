@@ -1445,27 +1445,18 @@ const bulkAddVendorAmount = async (req, res) => {
   }
 };
 
-module.exports = {
-  parkingCharges,
-  updateExtraParkingDataCar,
-  updateExtraParkingDataBike,
-  updateExtraParkingDataOthers,
-  getFullDayModes,
-  getChargesbyId,
-  fetchC,
-  getChargesByCategoryAndType,
-  Explorecharge,
-  updateEnabledVehicles,
-  getEnabledVehicles,
-  updatelistv,
-  fetchbookmonth,
-  fetchbookamout,
-  tested,
-  fetchexit,
-  fetchtestAmount,
-  fetchVendorsWithCategorizedCharges,
-  bulkAddVendorAmount
-};
+const fetchVendorsWithCategorizedCharges = async (req, res) => {
+  try {
+    const vendors = await vendorModel.find();
+    if (!vendors) {
+      return res.status(404).json({ success: false, message: "No vendors found" });
+    }
+
+    const chargeMap = {
+      A: "carTemporary",
+      B: "carSchedule",
+      C: "carFullDay",
+      D: "carMonthly",
       E: "bikeInstant",
       F: "bikeSchedule",
       G: "bikeFullDay",
@@ -1517,4 +1508,27 @@ module.exports = {
     });
   }
 };
-module.exports = {fetchVendorsWithCategorizedCharges,fetchtestAmount,tested,updatelistv,getEnabledVehicles,updateEnabledVehicles,getFullDayModes,updateExtraParkingDataCar,updateExtraParkingDataOthers,updateExtraParkingDataBike, parkingCharges,fetchbookmonth, getChargesbyId, getChargesByCategoryAndType,fetchexit,fetchbookamout, fetchC, transformCharges,Explorecharge};
+
+module.exports = {
+  parkingCharges,
+  updateExtraParkingDataCar,
+  updateExtraParkingDataBike,
+  updateExtraParkingDataOthers,
+  getFullDayModes,
+  getChargesbyId,
+  fetchC,
+  transformCharges,
+  booktransformCharges,
+  getChargesByCategoryAndType,
+  Explorecharge,
+  updateEnabledVehicles,
+  getEnabledVehicles,
+  updatelistv,
+  fetchbookmonth,
+  fetchbookamout,
+  tested,
+  fetchexit,
+  fetchtestAmount,
+  fetchVendorsWithCategorizedCharges,
+  bulkAddVendorAmount
+};
