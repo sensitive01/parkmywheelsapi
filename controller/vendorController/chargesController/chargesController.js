@@ -195,6 +195,18 @@ const updateEnabledVehicles = async (req, res) => {
       carMonthly,
       bikeMonthly,
       othersMonthly,
+      carWeekly,
+      bikeWeekly,
+      othersWeekly,
+      car12h,
+      bike12h,
+      others12h,
+      car48h,
+      bike48h,
+      others48h,
+      car72h,
+      bike72h,
+      others72h,
     } = req.body;
 
     if (
@@ -210,7 +222,19 @@ const updateEnabledVehicles = async (req, res) => {
       othersFullDay === undefined ||
       carMonthly === undefined ||
       bikeMonthly === undefined ||
-      othersMonthly === undefined
+      othersMonthly === undefined ||
+      carWeekly === undefined ||
+      bikeWeekly === undefined ||
+      othersWeekly === undefined ||
+      car12h === undefined ||
+      bike12h === undefined ||
+      others12h === undefined ||
+      car48h === undefined ||
+      bike48h === undefined ||
+      others48h === undefined ||
+      car72h === undefined ||
+      bike72h === undefined ||
+      others72h === undefined
     ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -234,6 +258,22 @@ const updateEnabledVehicles = async (req, res) => {
           carmonthly: carMonthly.toString(),
           bikemonthly: bikeMonthly.toString(),
           othersmonthly: othersMonthly.toString(),
+
+          carweekly: carWeekly.toString(),
+          bikeweekly: bikeWeekly.toString(),
+          othersweekly: othersWeekly.toString(),
+
+          car12h: car12h.toString(),
+          bike12h: bike12h.toString(),
+          others12h: others12h.toString(),
+
+          car48h: car48h.toString(),
+          bike48h: bike48h.toString(),
+          others48h: others48h.toString(),
+
+          car72h: car72h.toString(),
+          bike72h: bike72h.toString(),
+          others72h: others72h.toString(),
         },
       },
       { new: true }
@@ -266,6 +306,18 @@ const updatelistv = async (req, res) => {
       carMonthly,
       bikeMonthly,
       othersMonthly,
+      carWeekly,
+      bikeWeekly,
+      othersWeekly,
+      car12h,
+      bike12h,
+      others12h,
+      car48h,
+      bike48h,
+      others48h,
+      car72h,
+      bike72h,
+      others72h,
     } = req.body;
 
     // Check required fields
@@ -279,7 +331,19 @@ const updatelistv = async (req, res) => {
       othersFullDay === undefined ||
       carMonthly === undefined ||
       bikeMonthly === undefined ||
-      othersMonthly === undefined // 🔥 Removed trailing ||
+      othersMonthly === undefined ||
+      carWeekly === undefined ||
+      bikeWeekly === undefined ||
+      othersWeekly === undefined ||
+      car12h === undefined ||
+      bike12h === undefined ||
+      others12h === undefined ||
+      car48h === undefined ||
+      bike48h === undefined ||
+      others48h === undefined ||
+      car72h === undefined ||
+      bike72h === undefined ||
+      others72h === undefined
     ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -294,9 +358,21 @@ const updatelistv = async (req, res) => {
           carFullDay: carFullDay.toString(),
           bikeFullDay: bikeFullDay.toString(),
           othersFullDay: othersFullDay.toString(),
-          carMonthly: carMonthly.toString(),
-          bikeMonthly: bikeMonthly.toString(),
-          othersMonthly: othersMonthly.toString(),
+          carmonthly: carMonthly.toString(),
+          bikemonthly: bikeMonthly.toString(),
+          othersmonthly: othersMonthly.toString(),
+          carweekly: carWeekly.toString(),
+          bikeweekly: bikeWeekly.toString(),
+          othersweekly: othersWeekly.toString(),
+          car12h: car12h.toString(),
+          bike12h: bike12h.toString(),
+          others12h: others12h.toString(),
+          car48h: car48h.toString(),
+          bike48h: bike48h.toString(),
+          others48h: others48h.toString(),
+          car72h: car72h.toString(),
+          bike72h: bike72h.toString(),
+          others72h: others72h.toString(),
         },
       },
       { new: true }
@@ -346,6 +422,18 @@ const getEnabledVehicles = async (req, res) => {
       carMonthly: vendorData.carmonthly === "true",
       bikeMonthly: vendorData.bikemonthly === "true",
       othersMonthly: vendorData.othersmonthly === "true",
+      carWeekly: vendorData.carweekly === "true",
+      bikeWeekly: vendorData.bikeweekly === "true",
+      othersWeekly: vendorData.othersweekly === "true",
+      car12h: vendorData.car12h === "true",
+      bike12h: vendorData.bike12h === "true",
+      others12h: vendorData.others12h === "true",
+      car48h: vendorData.car48h === "true",
+      bike48h: vendorData.bike48h === "true",
+      others48h: vendorData.others48h === "true",
+      car72h: vendorData.car72h === "true",
+      bike72h: vendorData.bike72h === "true",
+      others72h: vendorData.others72h === "true",
     });
   } catch (error) {
     console.error("Error fetching enabled vehicles:", error);
@@ -1255,42 +1343,74 @@ function extractHoursFromAdditional(type) {
   return match ? parseInt(match[1]) : 1;
 }
 
-module.exports = { fetchtestAmount };
+const bulkAddVendorAmount = async (req, res) => {
+  const { vendorId, incrementAmount } = req.body;
 
+  if (!vendorId || incrementAmount === undefined) {
+    return res.status(400).json({ message: "Vendor ID and increment amount are required" });
+  }
 
-// Include the helper functions: getFullDayTypeForVehicle, parseDateTime, calculateHourly, calculateFullDay
-// (These remain unchanged from your original code)
-
-function formatDate(date) {
-  return `${date.getDate().toString().padStart(2, '0')}-${
-    (date.getMonth() + 1).toString().padStart(2, '0')}-${
-    date.getFullYear()}`;
-}
-
-function formatTime(date) {
-  let hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const period = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${period}`;
-}
-
-const fetchVendorsWithCategorizedCharges = async (req, res) => {
   try {
-    const vendors = await vendorModel.find({ status: 'approved', visibility: true }, { password: 0 });
-
-    if (!vendors || vendors.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No approved and visible vendors found",
-      });
+    const increment = parseFloat(incrementAmount);
+    if (isNaN(increment)) {
+      return res.status(400).json({ message: "Invalid increment amount" });
     }
 
-    const chargeMap = {
-      A: "carInstant",
-      B: "carSchedule",
-      C: "carFullDay",
-      D: "carMonthly",
+    const parkingCharges = await Parking.findOne({ vendorid: vendorId });
+    if (!parkingCharges) {
+      return res.status(404).json({ message: "Vendor charges not found" });
+    }
+
+    // Update individual charges
+    parkingCharges.charges.forEach(charge => {
+      const currentAmount = parseFloat(charge.amount || 0);
+      charge.amount = (currentAmount + increment).toString();
+    });
+
+    // Update full day fields
+    if (parkingCharges.fulldaycar) {
+      parkingCharges.fulldaycar = (parseFloat(parkingCharges.fulldaycar) + increment).toString();
+    }
+    if (parkingCharges.fulldaybike) {
+      parkingCharges.fulldaybike = (parseFloat(parkingCharges.fulldaybike) + increment).toString();
+    }
+    if (parkingCharges.fulldayothers) {
+      parkingCharges.fulldayothers = (parseFloat(parkingCharges.fulldayothers) + increment).toString();
+    }
+
+    await parkingCharges.save();
+
+    res.status(200).json({
+      message: `Successfully added ${increment} to all charges for vendor ${vendorId}`,
+      data: parkingCharges
+    });
+  } catch (error) {
+    console.error("Error in bulkAddVendorAmount:", error);
+    res.status(500).json({ message: "Error performing bulk update", error: error.message });
+  }
+};
+
+module.exports = {
+  parkingCharges,
+  updateExtraParkingDataCar,
+  updateExtraParkingDataBike,
+  updateExtraParkingDataOthers,
+  getFullDayModes,
+  getChargesbyId,
+  fetchC,
+  getChargesByCategoryAndType,
+  Explorecharge,
+  updateEnabledVehicles,
+  getEnabledVehicles,
+  updatelistv,
+  fetchbookmonth,
+  fetchbookamout,
+  tested,
+  fetchexit,
+  fetchtestAmount,
+  fetchVendorsWithCategorizedCharges,
+  bulkAddVendorAmount
+};
       E: "bikeInstant",
       F: "bikeSchedule",
       G: "bikeFullDay",
