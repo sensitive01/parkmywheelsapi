@@ -595,9 +595,9 @@ const fetchexit = async (req, res) => {
   const vehicleType = req.params.vehicleType;
 
   const chargeConfig = {
-    Car: { chargeIds: ["A", "B", "C", "D"], fullDayChargeField: 'fulldaycar' },
-    Bike: { chargeIds: ["E", "F", "G", "H"], fullDayChargeField: 'fulldaybike' },
-    Others: { chargeIds: ["I", "J", "K", "L"], fullDayChargeField: 'fulldayothers' },
+    Car: { chargeIds: ["A", "B", "C", "D", "M", "N", "O", "P"], fullDayChargeField: 'fulldaycar' },
+    Bike: { chargeIds: ["E", "F", "G", "H", "Q", "R", "S", "T"], fullDayChargeField: 'fulldaybike' },
+    Others: { chargeIds: ["I", "J", "K", "L", "U", "V", "W", "X"], fullDayChargeField: 'fulldayothers' },
   };
 
   const config = chargeConfig[vehicleType];
@@ -648,6 +648,18 @@ const transformCharges = (charges) => {
       case 'J':
       case 'K':
       case 'L':
+      case 'M':
+      case 'N':
+      case 'O':
+      case 'P':
+      case 'Q':
+      case 'R':
+      case 'S':
+      case 'T':
+      case 'U':
+      case 'V':
+      case 'W':
+      case 'X':
         return {
           type: charge.type,
           amount: charge.amount,
@@ -708,13 +720,13 @@ const fetchbookamout = async (req, res) => {
   let chargeIds;
   switch (vehicleType) {
     case 'Car':
-      chargeIds = ["A", "B", "C" ];
+      chargeIds = ["A", "B", "C", "M", "N", "O", "P"];
       break;
     case 'Bike':
-      chargeIds = ["E", "F", "G"];
+      chargeIds = ["E", "F", "G", "Q", "R", "S", "T"];
       break;
     case 'Others':
-      chargeIds = ["I", "J", "K"];
+      chargeIds = ["I", "J", "K", "U", "V", "W", "X"];
       break;
     default:
       return res.status(400).json({ message: "Invalid vehicle type." });
@@ -771,6 +783,18 @@ const booktransformCharges = (charges) => {
       case 'I':
       case 'J':
       case 'K':
+      case 'M':
+      case 'N':
+      case 'O':
+      case 'P':
+      case 'Q':
+      case 'R':
+      case 'S':
+      case 'T':
+      case 'U':
+      case 'V':
+      case 'W':
+      case 'X':
         // Create a transformed charge object
         transformedCharge = {
           type: charge.type,
@@ -1043,19 +1067,46 @@ function calculateHourly(charges, durationHours) {
   return amount;
 }
 
-// ✅ Full day calculation using booking.allCharges
-function calculateFullDayFromBooking(chargesData, startDate, endDate, bookType, vehicleType) {
+// ✅ Generic duration-based calculation using booking.allCharges
+function calculateDurationBasedAmount(chargesData, durationHours, bookType, vehicleType) {
   const typeKey = bookType.toLowerCase();
+  
+  // Map booking types to durations in hours
+  const durationMap = {
+    'weekly': 24 * 7,
+    '12 hours': 12,
+    '48 hours': 48,
+    '72 hours': 72,
+    '24 hours': 24,
+    'full day': 24 // Fallback/Compatibility
+  };
 
-  // Find the charge by exact type match in booking.allCharges
-  const fullDayCharge = chargesData.charges.find(c => 
-    c.type && c.type.toLowerCase() === 'full day' &&
+  const periodHours = durationMap[typeKey] || 24;
+  
+  // Find the charge matching the bookType in booking.allCharges
+  const charge = chargesData.charges.find(c => 
+    c.type && c.type.toLowerCase() === typeKey &&
     c.category && c.category.toLowerCase() === vehicleType.toLowerCase()
   );
 
-  if (!fullDayCharge) {
-    throw new Error(`Full day charge not found for vehicle type: ${vehicleType}`);
+  if (!charge) {
+    // If exact type match fails, try searching by common full day names if it's a 24h search
+    if (periodHours === 24) {
+       const fallbackCharge = chargesData.charges.find(c => 
+         (c.type?.toLowerCase() === 'full day' || c.type?.toLowerCase() === '24 hours') &&
+         c.category?.toLowerCase() === vehicleType.toLowerCase()
+       );
+       if (fallbackCharge) return Math.ceil(durationHours / 24) * parseFloat(fallbackCharge.amount);
+    }
+    throw new Error(`Charge for type "${bookType}" and vehicle ${vehicleType} not found in booking.allCharges`);
   }
+
+  const periods = Math.max(1, Math.ceil(durationHours / periodHours));
+  return periods * parseFloat(charge.amount);
+}
+
+// ✅ Full day calculation using booking.allCharges
+function calculateFullDayFromBooking(chargesData, startDate, endDate, bookType, vehicleType) {
 
   let days = 1;
 
@@ -1224,8 +1275,12 @@ const fetchtestAmount = async (req, res) => {
 
     // Step 7: Calculate amount
     let amount = 0;
-    if (booking.bookType.toLowerCase() === 'hourly') {
+    const bookTypeLower = booking.bookType.toLowerCase();
+    
+    if (bookTypeLower === 'hourly') {
       amount = calculateHourlyFromBooking(chargesData, durationHours, booking.vehicleType);
+    } else if (['weekly', '12 hours', '48 hours', '72 hours', '24 hours'].includes(bookTypeLower)) {
+      amount = calculateDurationBasedAmount(chargesData, durationHours, booking.bookType, booking.vehicleType);
     } else {
       // Full-day calculation using booking data
       const fullDayType = getFullDayTypeFromBooking(booking, booking.vehicleType);
