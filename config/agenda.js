@@ -13,6 +13,9 @@ const dbConnect = require("./dbConnect");
 
 dbConnect();
 
+/** Bookings whose `sts` is subscription-like (legacy + granular weekly/monthly). */
+const SUBSCRIPTION_STS_REGEX = /^(subscription|weekly|monthly)$/i;
+
 // ------------------------------------------------------------------
 // Reusable date parser: normalize input formats to Luxon DateTime in IST at start of day
 // ------------------------------------------------------------------
@@ -262,7 +265,7 @@ const completeExpiredSubscriptions = async () => {
     console.log(`[${new Date().toISOString()}] Running complete expired subscriptions check`);
 
     const candidates = await Booking.find({
-      sts: { $regex: /^subscription$/i },
+      sts: { $regex: SUBSCRIPTION_STS_REGEX },
       subsctiptionenddate: { $exists: true, $ne: null, $ne: "" },
       status: { $ne: "COMPLETED" }, // Only process non-completed bookings
     });
@@ -454,7 +457,7 @@ const triggerSevenDaySubscriptionReminders = async () => {
 
     // Find subscription bookings
     const subscriptionCandidates = await Booking.find({
-      sts: { $regex: /^subscription$/i },
+      sts: { $regex: SUBSCRIPTION_STS_REGEX },
       subsctiptionenddate: { $exists: true, $ne: null, $ne: "" },
     });
 
@@ -738,7 +741,7 @@ const triggerFiveDaySubscriptionReminders = async () => {
     // Find subscription bookings (try multiple field variations)
     const subscriptionCandidates = await Booking.find({
       $or: [
-        { sts: { $regex: /^subscription$/i } },
+        { sts: { $regex: SUBSCRIPTION_STS_REGEX } },
         { bookingType: { $regex: /^subscription$/i } },
         { status: { $regex: /^subscription$/i } }
       ],
@@ -1392,7 +1395,7 @@ const getSubscriptionReport = async () => {
 
     // Find all subscription bookings
     const subscriptionBookings = await Booking.find({
-      sts: { $regex: /^subscription$/i },
+      sts: { $regex: SUBSCRIPTION_STS_REGEX },
       subsctiptionenddate: { $exists: true, $ne: null, $ne: "" },
     });
 
