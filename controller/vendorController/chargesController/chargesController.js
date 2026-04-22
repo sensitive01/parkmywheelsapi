@@ -1215,34 +1215,20 @@ const fetchtestAmount = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
-    // Step 2: Check if allCharges exists
-    if (!booking.allCharges || !Array.isArray(booking.allCharges) || booking.allCharges.length === 0) {
-      return res.status(400).json({ error: 'No charges found in booking. Charges may not have been saved at booking time.' });
-    }
-
-    // Step 3: Fetch vendor by vendorId to get spaceid
+    // Vendor lookup (spaceid) — used for all responses
     const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
-    
     let spaceid = null;
     let spacearea = null;
-    
-    // Step 4: If vendor exists and has spaceid, get spaceid and spacearea
     if (vendor && vendor.spaceid) {
       spaceid = vendor.spaceid;
       console.log('📍 Spaceid found:', spaceid);
-      
-      const vendorBySpaceId = await vendorModel.findOne({ 
-        spaceid: vendor.spaceid 
-      });
-      
+      const vendorBySpaceId = await vendorModel.findOne({ spaceid: vendor.spaceid });
       if (vendorBySpaceId) {
-        // Use address as spacearea (or you can add spacearea field to schema)
         spacearea = vendorBySpaceId.address || vendorBySpaceId.landMark || null;
         console.log('📍 Spacearea found:', spacearea);
       }
     }
 
-    // Step 5: Parse DateTime
     const parkedDateTimeLuxon = DateTime.fromFormat(
       `${booking.parkedDate} ${booking.parkedTime}`,
       'dd-MM-yyyy hh:mm a',
@@ -1264,6 +1250,25 @@ const fetchtestAmount = async (req, res) => {
     const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
     console.log('🧮 Duration (hours):', durationHours);
+
+    // Fixed-duration pass (sts e.g. 12hr, 24hr): same base parking fee as at booking — no increase after window
+    const stsTrim = (booking.sts || '').toString().trim();
+    if (/^\d+hr$/i.test(stsTrim)) {
+      const fixedAmt = parseFloat(booking.amount) || 0;
+      console.log(`📌 Fixed pass ${stsTrim}: payableAmount = booking.amount (${fixedAmt})`);
+      return res.json({
+        success: true,
+        payableAmount: fixedAmt.toFixed(2),
+        durationHours,
+        spaceid: spaceid || null,
+        spacearea: spacearea || null,
+      });
+    }
+
+    if (!booking.allCharges || !Array.isArray(booking.allCharges) || booking.allCharges.length === 0) {
+      return res.status(400).json({ error: 'No charges found in booking. Charges may not have been saved at booking time.' });
+    }
+
     console.log('✅ Charges from booking.allCharges:', JSON.stringify(booking.allCharges, null, 2));
 
     // Step 6: Use charges from booking.allCharges instead of fetching from database
