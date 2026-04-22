@@ -151,6 +151,12 @@ const normalizeVehicleNumber = (vehicleNumber) => {
   return vehicleNumber.toString().replace(/\s+/g, '').toUpperCase().trim();
 };
 
+/** True when `sts` is a subscription (legacy value or granular weekly/monthly). */
+const isSubscriptionSts = (sts) => {
+  const s = (sts || "").toLowerCase();
+  return s === "subscription" || s === "weekly" || s === "monthly";
+};
+
 // Check for existing bookings with same vehicle number and date (across all vendors)
 const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, currentSts) => {
   try {
@@ -186,7 +192,7 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
     const parkedBookings = vehicleBookings.filter(booking => {
       const status = (booking.status || "").toLowerCase();
       const isParked = status === "parked";
-      const isSubscription = ((booking.sts || "").toLowerCase() === "subscription");
+      const isSubscription = isSubscriptionSts(booking.sts);
       return isParked && !isSubscription; // Only non-subscription parked bookings
     });
 
@@ -218,8 +224,8 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
         // First check: If existing booking has status PENDING, APPROVED, or PARKED, block it
         if (existingStatus === "pending" || existingStatus === "approved" || existingStatus === "parked") {
           // Check subscription logic - only allow if at least one booking is subscription
-          const existingIsSubscription = (existingBooking.sts || "").toLowerCase() === "subscription";
-          const newIsSubscription = (currentSts || "").toLowerCase() === "subscription";
+          const existingIsSubscription = isSubscriptionSts(existingBooking.sts);
+          const newIsSubscription = isSubscriptionSts(currentSts);
 
           // If neither is subscription, block the booking
           if (!existingIsSubscription && !newIsSubscription) {
@@ -337,7 +343,7 @@ exports.createBooking = async (req, res) => {
     }
 
     // Check if subscription booking with spaceid - skip notifications if true
-    const isSubscriptionWithSpaceid = (sts || "").toLowerCase() === "subscription" && vendorData.spaceid;
+    const isSubscriptionWithSpaceid = isSubscriptionSts(sts) && vendorData.spaceid;
 
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
       const type = entry.type.trim();
@@ -415,10 +421,14 @@ exports.createBooking = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     let subscriptionEndDate = null;
-    if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
-      const date = parseDDMMYYYY(parkingDate); // ✅ safe parser
-      date.setDate(date.getDate() + 30);
-      subscriptionEndDate = date.toISOString().split("T")[0];
+    if (isSubscriptionSts(sts) && parkingDate) {
+      const date = parseDDMMYYYY(parkingDate);
+      if (date && !isNaN(date.getTime())) {
+        const sl = (sts || "").toLowerCase();
+        const addDays = sl === "weekly" ? 7 : 30;
+        date.setDate(date.getDate() + addDays);
+        subscriptionEndDate = date.toISOString().split("T")[0];
+      }
     }
 
     // Fetch charges based on vendorId at booking time
@@ -564,7 +574,7 @@ exports.createBooking = async (req, res) => {
     await newBooking.save();
 
     // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       try {
         const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
 
@@ -739,7 +749,7 @@ exports.createBooking = async (req, res) => {
       }
 
       // Send GST Invoice Ready Notification for subscription bookings
-      if ((sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
+      if (isSubscriptionSts(sts) && !isSubscriptionWithSpaceid) {
         try {
           await sendInvoiceReadyNotification(newBooking, newBooking._id);
         } catch (invoiceErr) {
@@ -789,7 +799,7 @@ exports.createBooking = async (req, res) => {
       }
 
       // --- Subscription SMS Handling ---
-      if (mobileNumber && (sts || "").toLowerCase() === "subscription" && !isSubscriptionWithSpaceid) {
+      if (mobileNumber && isSubscriptionSts(sts) && !isSubscriptionWithSpaceid) {
         let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
         if (cleanedMobile.length === 10) {
           cleanedMobile = "91" + cleanedMobile;
@@ -1208,7 +1218,7 @@ exports.machinecreatebooking = async (req, res) => {
     // No need to create separate feedback entry
 
     // ✅ Send notifications for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       // Vendor notification for subscription start
       const vendorSubscriptionNotification = {
         notification: {
@@ -1443,7 +1453,7 @@ exports.machinecreatebooking = async (req, res) => {
     }
 
     // Send GST Invoice Ready Notification for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       try {
         await sendInvoiceReadyNotification(newBooking, newBooking._id);
       } catch (invoiceErr) {
@@ -1509,7 +1519,7 @@ exports.machinecreatebooking = async (req, res) => {
       }
 
       // --- Subscription SMS Handling ---
-      if ((sts || "").toLowerCase() === "subscription") {
+      if (isSubscriptionSts(sts)) {
         // 1️⃣ First subscription SMS - REMOVED as requested
         // let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
         // let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
@@ -1978,7 +1988,7 @@ exports.vendorcreateBooking = async (req, res) => {
     // No need to create separate feedback entry
 
     // ✅ Send notifications for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       // Vendor notification for subscription start
       const vendorSubscriptionNotification = {
         notification: {
@@ -2213,7 +2223,7 @@ exports.vendorcreateBooking = async (req, res) => {
     }
 
     // Send GST Invoice Ready Notification for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       try {
         await sendInvoiceReadyNotification(newBooking, newBooking._id);
       } catch (invoiceErr) {
@@ -2279,7 +2289,7 @@ exports.vendorcreateBooking = async (req, res) => {
       }
 
       // --- Subscription SMS Handling ---
-      if ((sts || "").toLowerCase() === "subscription") {
+      if (isSubscriptionSts(sts)) {
         // 1️⃣ First subscription SMS - REMOVED as requested
         // let smsText1 = `Dear ${personName}, ${hour || "30 days"} Parking subscription for ${vehicleNumber} from ${parkingDate} to ${subsctiptionenddate || ""} at ${vendorName} is confirmed. Fees paid: ${amount}. View invoice on ParkMyWheels app.`;
         // let dltTemplateId1 = process.env.VISPL_TEMPLATE_ID_SUBSCRIPTION || "YOUR_SUBSCRIPTION_TEMPLATE_ID";
@@ -2546,10 +2556,14 @@ exports.livecreateBooking = async (req, res) => {
 
     // Calculate subscription end date for subscriptions
     let subscriptionEndDate = null;
-    if ((sts || "").toLowerCase() === "subscription" && parkingDate) {
-      const date = new Date(parkingDate);
-      date.setDate(date.getDate() + 30);
-      subscriptionEndDate = date.toISOString().split("T")[0];
+    if (isSubscriptionSts(sts) && parkingDate) {
+      const date = parseDDMMYYYY(parkingDate) || new Date(parkingDate);
+      if (date && !isNaN(date.getTime())) {
+        const sl = (sts || "").toLowerCase();
+        const addDays = sl === "weekly" ? 7 : 30;
+        date.setDate(date.getDate() + addDays);
+        subscriptionEndDate = date.toISOString().split("T")[0];
+      }
     }
 
     // Fetch charges based on vendorId at booking time
@@ -2719,7 +2733,7 @@ exports.livecreateBooking = async (req, res) => {
     await newBooking.save();
 
     // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       try {
         const transactionDateString = formatToDDMMYYYY(bookingDate || parkingDate);
 
@@ -2892,7 +2906,7 @@ exports.livecreateBooking = async (req, res) => {
     }
 
     // Send GST Invoice Ready Notification for subscription bookings
-    if ((sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(sts)) {
       try {
         await sendInvoiceReadyNotification(newBooking, newBooking._id);
       } catch (invoiceErr) {
@@ -2969,7 +2983,7 @@ exports.livecreateBooking = async (req, res) => {
     }
 
     // Step 7: Send SMS for subscription bookings
-    if (mobileNumber && (sts || "").toLowerCase() === "subscription") {
+    if (mobileNumber && isSubscriptionSts(sts)) {
       let cleanedMobile = mobileNumber.replace(/[^0-9]/g, "");
       if (cleanedMobile.length === 10) {
         cleanedMobile = "91" + cleanedMobile;
@@ -3975,7 +3989,7 @@ exports.allowParking = async (req, res) => {
     }
 
     // Send subscription notifications if booking is subscription with spaceid
-    if ((booking.sts || "").toLowerCase() === "subscription") {
+    if (isSubscriptionSts(booking.sts)) {
       try {
         // Check if vendor has spaceid
         const vendorIdToFind = booking.vendorId._id || booking.vendorId;
@@ -5370,7 +5384,7 @@ exports.renewSubscription = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    if (booking.sts !== "Subscription") {
+    if (!isSubscriptionSts(booking.sts)) {
       return res.status(400).json({ error: "Not a subscription booking" });
     }
 
