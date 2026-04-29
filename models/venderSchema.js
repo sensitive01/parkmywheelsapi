@@ -4,6 +4,7 @@ const vendorSchema = new mongoose.Schema(
   {
 vendorName: { type: String, },
 spaceid: { type: String },
+upiId: { type: String, default: "", trim: true },
 contacts: [
   {
     name: { type: String, },
