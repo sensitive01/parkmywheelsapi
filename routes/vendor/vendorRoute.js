@@ -25,6 +25,7 @@ const upload = multer({ storage: storage });
 const orderController = require("../../controller/vendorController/orderController");
 const notificationController = require("../../controller/adminController/notificationController")
 const scannerController = require("../../controller/userController/scanner/scannerController")
+const reportController = require("../../controller/vendorController/reportController/reportController")
 
 
 
@@ -264,6 +265,9 @@ vendorRoute.post('/create-order', orderController.createOrder);
 vendorRoute.get('/fetchvendorbookingrelease/:vendorId', bookingController.getVendorcBookingDetails);
 vendorRoute.put('/updatebookingcont/:vendorId', bookingController.updateVendorBookingsSettlement);
 vendorRoute.delete("/delte/:vendorId", vendorController.deleteBookingsByVendorId);
+vendorRoute.post("/savereport", reportController.saveReport);
+vendorRoute.get("/getreports/:vendorId", reportController.getReportsByVendor);
+
 vendorRoute.get('/fetchsettlement/:vendorId', settlementcontroller.getSettlementsByVendorId);
 vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsBySettlementId);
 
