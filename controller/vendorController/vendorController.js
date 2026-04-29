@@ -839,7 +839,7 @@ const fetchAllVendorData = async (req, res) => {
 const updateVendorData = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries } = req.body;
+    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries, upiId } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -858,6 +858,7 @@ const updateVendorData = async (req, res) => {
       landMark: landmark || existingVendor.landMark,
       contacts: Array.isArray(contacts) ? contacts : existingVendor.contacts,
       parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+      upiId: typeof upiId === "string" ? upiId : existingVendor.upiId,
     };
 
     let uploadedImageUrl;
