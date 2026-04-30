@@ -198,6 +198,9 @@ const updateEnabledVehicles = async (req, res) => {
       carWeekly,
       bikeWeekly,
       othersWeekly,
+      car15Day,
+      bike15Day,
+      others15Day,
       car12h,
       bike12h,
       others12h,
@@ -226,6 +229,9 @@ const updateEnabledVehicles = async (req, res) => {
       carWeekly === undefined ||
       bikeWeekly === undefined ||
       othersWeekly === undefined ||
+      car15Day === undefined ||
+      bike15Day === undefined ||
+      others15Day === undefined ||
       car12h === undefined ||
       bike12h === undefined ||
       others12h === undefined ||
@@ -262,6 +268,10 @@ const updateEnabledVehicles = async (req, res) => {
           carweekly: carWeekly.toString(),
           bikeweekly: bikeWeekly.toString(),
           othersweekly: othersWeekly.toString(),
+
+          car15day: car15Day.toString(),
+          bike15day: bike15Day.toString(),
+          others15day: others15Day.toString(),
 
           car12h: car12h.toString(),
           bike12h: bike12h.toString(),
@@ -309,6 +319,9 @@ const updatelistv = async (req, res) => {
       carWeekly,
       bikeWeekly,
       othersWeekly,
+      car15Day,
+      bike15Day,
+      others15Day,
       car12h,
       bike12h,
       others12h,
@@ -335,6 +348,9 @@ const updatelistv = async (req, res) => {
       carWeekly === undefined ||
       bikeWeekly === undefined ||
       othersWeekly === undefined ||
+      car15Day === undefined ||
+      bike15Day === undefined ||
+      others15Day === undefined ||
       car12h === undefined ||
       bike12h === undefined ||
       others12h === undefined ||
@@ -364,6 +380,9 @@ const updatelistv = async (req, res) => {
           carweekly: carWeekly.toString(),
           bikeweekly: bikeWeekly.toString(),
           othersweekly: othersWeekly.toString(),
+          car15day: car15Day.toString(),
+          bike15day: bike15Day.toString(),
+          others15day: others15Day.toString(),
           car12h: car12h.toString(),
           bike12h: bike12h.toString(),
           others12h: others12h.toString(),
@@ -425,6 +444,9 @@ const getEnabledVehicles = async (req, res) => {
       carWeekly: vendorData.carweekly === "true",
       bikeWeekly: vendorData.bikeweekly === "true",
       othersWeekly: vendorData.othersweekly === "true",
+      car15Day: vendorData.car15day === "true",
+      bike15Day: vendorData.bike15day === "true",
+      others15Day: vendorData.others15day === "true",
       car12h: vendorData.car12h === "true",
       bike12h: vendorData.bike12h === "true",
       others12h: vendorData.others12h === "true",

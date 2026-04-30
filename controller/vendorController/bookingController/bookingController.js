@@ -154,7 +154,7 @@ const normalizeVehicleNumber = (vehicleNumber) => {
 /** True when `sts` is a subscription (legacy value or granular weekly/monthly). */
 const isSubscriptionSts = (sts) => {
   const s = (sts || "").toLowerCase();
-  return s === "subscription" || s === "weekly" || s === "monthly";
+  return s === "subscription" || s === "weekly" || s === "15day" || s === "monthly";
 };
 
 // Check for existing bookings with same vehicle number and date (across all vendors)
@@ -200,7 +200,7 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
       const parkedBooking = parkedBookings[0];
       const vendorName = parkedBooking.vendorName || 'the vendor';
       const parkingDate = parkedBooking.parkingDate || 'a previous date';
-      console.log(`🚫 Vehicle is already PARKED: Original="${parkedBooking.vehicleNumber}", Normalized="${normalizedVehicleNumber}", Status="${parkedBooking.status}", Date="${parkingDate}", Vendor="${vendorName}"`);
+      // (debug log removed)
       return {
         exists: true,
         message: `This vehicle is already parked on ${parkingDate} with ${vendorName}. Please exit the vehicle first before creating a new booking.`
@@ -219,7 +219,7 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
         const existingStatus = (existingBooking.status || "").toLowerCase();
         const vendorName = existingBooking.vendorName || 'the vendor';
 
-        console.log(`🔍 Duplicate booking found: Original="${existingBooking.vehicleNumber}", Normalized="${normalizedVehicleNumber}", Status="${existingBooking.status}", Date="${existingBooking.parkingDate}", Vendor="${vendorName}"`);
+        // (debug log removed)
 
         // First check: If existing booking has status PENDING, APPROVED, or PARKED, block it
         if (existingStatus === "pending" || existingStatus === "approved" || existingStatus === "parked") {
@@ -229,7 +229,7 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
 
           // If neither is subscription, block the booking
           if (!existingIsSubscription && !newIsSubscription) {
-            console.log(`🚫 Blocking duplicate booking: Vehicle="${vehicleNumber}" (normalized: "${normalizedVehicleNumber}"), Date="${parkingDate}", Existing Status="${existingBooking.status}", Vendor="${vendorName}"`);
+            // (debug log removed)
 
             // Generate status-specific error messages
             let errorMessage = '';
@@ -330,7 +330,7 @@ exports.createBooking = async (req, res) => {
       invoice,
     } = req.body;
 
-    console.log("Booking data:", req.body);
+    // (debug log removed)
 
     // Check available slots
     const vendorData = await vendorModel.findOne(
@@ -425,7 +425,7 @@ exports.createBooking = async (req, res) => {
       const date = parseDDMMYYYY(parkingDate);
       if (date && !isNaN(date.getTime())) {
         const sl = (sts || "").toLowerCase();
-        const addDays = sl === "weekly" ? 7 : 30;
+        const addDays = sl === "weekly" ? 7 : sl === "15day" ? 15 : 30;
         date.setDate(date.getDate() + addDays);
         subscriptionEndDate = date.toISOString().split("T")[0];
       }
@@ -482,6 +482,9 @@ exports.createBooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -512,6 +515,9 @@ exports.createBooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -620,7 +626,7 @@ exports.createBooking = async (req, res) => {
         });
 
         await bookingTransaction.save();
-        console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (Subscription) for booking ${newBooking._id}`);
+        // (debug log removed)
       } catch (transactionErr) {
         console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation:`, transactionErr);
         // Don't fail the request if transaction creation fails, but log it
@@ -708,7 +714,7 @@ exports.createBooking = async (req, res) => {
             status,
           });
           await firstTimeNotification.save();
-          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+          // (debug log removed)
 
           // Send FCM notification for first-time booking
           const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
@@ -861,7 +867,7 @@ async function sendSMS(to, text, dltContentId) {
       headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
     });
 
-    console.log("📬 SMS API Response:", smsResponse.data);
+    // (debug log removed)
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
@@ -903,7 +909,7 @@ exports.machinecreatebooking = async (req, res) => {
       bookType,
     } = req.body;
 
-    console.log("Booking data:", req.body);
+    // (debug log removed)
 
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
@@ -969,10 +975,7 @@ exports.machinecreatebooking = async (req, res) => {
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
-    console.log("amount", amount)
-    console.log("roundedAmount", roundedAmount)
-    console.log("bookingAmount", bookingAmount)
-    console.log("totalAmount", totalAmount)
+    // (debug logs removed)
 
     // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
@@ -982,17 +985,17 @@ exports.machinecreatebooking = async (req, res) => {
       platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     }
     platformFeePercentage = Math.ceil(platformFeePercentage);
-    console.log("platformFeePercentage", platformFeePercentage)
+    // (debug log removed)
 
     const platformFee = (roundedAmount * platformFeePercentage) / 100;
     releaseFee = platformFee.toFixed(2);
-    console.log("releaseFee", releaseFee)
+    // (debug log removed)
 
     const receivable = roundedAmount - platformFee;
     receivableAmount = receivable.toFixed(2);
-    console.log("receivableAmount", receivableAmount)
+    // (debug log removed)
     payableAmount = receivableAmount;
-    console.log("payableAmount", payableAmount)
+    // (debug log removed)
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -1047,6 +1050,9 @@ exports.machinecreatebooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -1077,6 +1083,9 @@ exports.machinecreatebooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -1088,7 +1097,7 @@ exports.machinecreatebooking = async (req, res) => {
           others72h: parkingCharges.others72h?.toString() || "",
         };
       }
-      console.log("vendorChargesData", vendorChargesData)
+      // (debug log removed)
     } catch (chargesError) {
       console.error("Error fetching charges for booking:", chargesError);
       // Continue with booking creation even if charges fetch fails
@@ -1159,7 +1168,7 @@ exports.machinecreatebooking = async (req, res) => {
     });
 
     await newBooking.save();
-    console.log("newBooking", newBooking)
+    // (debug log removed)
 
     // Create BookingTransaction record at booking creation time for ALL booking types (Instant, Schedule, Subscription)
     try {
@@ -1207,8 +1216,7 @@ exports.machinecreatebooking = async (req, res) => {
       });
 
       await bookingTransaction.save();
-      console.log("bookingTransaction", bookingTransaction)
-      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - ${(sts || "").toLowerCase()}) for booking ${newBooking._id}`);
+      // (debug logs removed)
     } catch (transactionErr) {
       console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
       // Don't fail the request if transaction creation fails, but log it
@@ -1248,7 +1256,7 @@ exports.machinecreatebooking = async (req, res) => {
           try {
             const message = { ...vendorSubscriptionNotification, token };
             const response = await admin.messaging().send(message);
-            console.log(`Vendor subscription notification sent to token: ${token}`, response);
+            // (debug log removed)
           } catch (error) {
             console.error(`Error sending vendor subscription notification to token: ${token}`, error);
             if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -1264,10 +1272,10 @@ exports.machinecreatebooking = async (req, res) => {
             { _id: vendorId },
             { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
           );
-          console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
+          // (debug log removed)
         }
       } else {
-        console.warn("No FCM tokens available for this vendor for subscription notification.");
+        // (debug log removed)
       }
 
       // Customer notification for subscription start
@@ -1314,7 +1322,7 @@ exports.machinecreatebooking = async (req, res) => {
             try {
               const message = { ...userSubscriptionNotification, token };
               const response = await admin.messaging().send(message);
-              console.log(`User subscription notification sent to token: ${token}`, response);
+              // (debug log removed)
             } catch (error) {
               console.error(`Error sending user subscription notification to token: ${token}`, error);
               if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -1349,13 +1357,13 @@ exports.machinecreatebooking = async (req, res) => {
             }
 
             await Promise.all(userUpdatePromises);
-            console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No FCM tokens found for matched users with mobile: ${mobileNumber} or vehicle: ${vehicleNumber}`);
+          // (debug log removed)
         }
       } else {
-        console.warn(`No matching user found for mobile: ${mobileNumber} or vehicle: ${vehicleNumber}`);
+        // (debug log removed)
       }
     }
 
@@ -1411,7 +1419,7 @@ exports.machinecreatebooking = async (req, res) => {
             status: status,
           });
           await firstTimeNotification.save();
-          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+          // (debug log removed)
 
           // Send FCM notification for first-time booking
           const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
@@ -1489,7 +1497,7 @@ exports.machinecreatebooking = async (req, res) => {
         try {
           const message = { ...vendorNotificationMessage, token };
           const response = await admin.messaging().send(message);
-          console.log(`Vendor notification sent to token: ${token}`, response);
+          // (debug log removed)
         } catch (error) {
           console.error(`Error sending vendor notification to token: ${token}`, error);
           if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -1505,10 +1513,10 @@ exports.machinecreatebooking = async (req, res) => {
           { _id: vendorId },
           { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
         );
-        console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
+        // (debug log removed)
       }
     } else {
-      console.warn("No FCM tokens available for this vendor.");
+      // (debug log removed)
     }
 
     if (mobileNumber) {
@@ -1572,7 +1580,7 @@ exports.machinecreatebooking = async (req, res) => {
             try {
               const message = { ...userNotificationMessage, token };
               const response = await admin.messaging().send(message);
-              console.log(`User notification sent to token: ${token}`, response);
+              // (debug log removed)
             } catch (error) {
               console.error(`Error sending user notification to token: ${token}`, error);
               if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -1607,13 +1615,13 @@ exports.machinecreatebooking = async (req, res) => {
             }
 
             await Promise.all(userUpdatePromises);
-            console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+          // (debug log removed)
         }
       } else {
-        console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+        // (debug log removed)
       }
     }
 
@@ -1673,7 +1681,7 @@ exports.vendorcreateBooking = async (req, res) => {
       bookType,
     } = req.body;
 
-    console.log("Booking data:", req.body);
+    // (debug log removed)
 
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
@@ -1739,10 +1747,7 @@ exports.vendorcreateBooking = async (req, res) => {
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
-    console.log("amount", amount)
-    console.log("roundedAmount", roundedAmount)
-    console.log("bookingAmount", bookingAmount)
-    console.log("totalAmount", totalAmount)
+    // (debug logs removed)
 
     // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
@@ -1752,17 +1757,17 @@ exports.vendorcreateBooking = async (req, res) => {
       platformFeePercentage = parseFloat(vendorData.platformfee) || 0;
     }
     platformFeePercentage = Math.ceil(platformFeePercentage);
-    console.log("platformFeePercentage", platformFeePercentage)
+    // (debug log removed)
 
     const platformFee = (roundedAmount * platformFeePercentage) / 100;
     releaseFee = platformFee.toFixed(2);
-    console.log("releaseFee", releaseFee)
+    // (debug log removed)
 
     const receivable = roundedAmount - platformFee;
     receivableAmount = receivable.toFixed(2);
-    console.log("receivableAmount", receivableAmount)
+    // (debug log removed)
     payableAmount = receivableAmount;
-    console.log("payableAmount", payableAmount)
+    // (debug log removed)
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -1817,6 +1822,9 @@ exports.vendorcreateBooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -1847,6 +1855,9 @@ exports.vendorcreateBooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -1858,7 +1869,7 @@ exports.vendorcreateBooking = async (req, res) => {
           others72h: parkingCharges.others72h?.toString() || "",
         };
       }
-      console.log("vendorChargesData", vendorChargesData)
+      // (debug log removed)
     } catch (chargesError) {
       console.error("Error fetching charges for booking:", chargesError);
       // Continue with booking creation even if charges fetch fails
@@ -1929,7 +1940,7 @@ exports.vendorcreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    console.log("newBooking", newBooking)
+    // (debug log removed)
 
     // Create BookingTransaction record at booking creation time for ALL booking types (Instant, Schedule, Subscription)
     try {
@@ -1977,8 +1988,7 @@ exports.vendorcreateBooking = async (req, res) => {
       });
 
       await bookingTransaction.save();
-      console.log("bookingTransaction", bookingTransaction)
-      console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (vendor - ${(sts || "").toLowerCase()}) for booking ${newBooking._id}`);
+      // (debug logs removed)
     } catch (transactionErr) {
       console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (vendor):`, transactionErr);
       // Don't fail the request if transaction creation fails, but log it
@@ -2018,7 +2028,7 @@ exports.vendorcreateBooking = async (req, res) => {
           try {
             const message = { ...vendorSubscriptionNotification, token };
             const response = await admin.messaging().send(message);
-            console.log(`Vendor subscription notification sent to token: ${token}`, response);
+            // (debug log removed)
           } catch (error) {
             console.error(`Error sending vendor subscription notification to token: ${token}`, error);
             if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -2034,10 +2044,10 @@ exports.vendorcreateBooking = async (req, res) => {
             { _id: vendorId },
             { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
           );
-          console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
+          // (debug log removed)
         }
       } else {
-        console.warn("No FCM tokens available for this vendor for subscription notification.");
+        // (debug log removed)
       }
 
       // Customer notification for subscription start
@@ -2084,7 +2094,7 @@ exports.vendorcreateBooking = async (req, res) => {
             try {
               const message = { ...userSubscriptionNotification, token };
               const response = await admin.messaging().send(message);
-              console.log(`User subscription notification sent to token: ${token}`, response);
+              // (debug log removed)
             } catch (error) {
               console.error(`Error sending user subscription notification to token: ${token}`, error);
               if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -2119,13 +2129,13 @@ exports.vendorcreateBooking = async (req, res) => {
             }
 
             await Promise.all(userUpdatePromises);
-            console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No FCM tokens found for matched users with mobile: ${mobileNumber} or vehicle: ${vehicleNumber}`);
+          // (debug log removed)
         }
       } else {
-        console.warn(`No matching user found for mobile: ${mobileNumber} or vehicle: ${vehicleNumber}`);
+        // (debug log removed)
       }
     }
 
@@ -2181,7 +2191,7 @@ exports.vendorcreateBooking = async (req, res) => {
             status: status,
           });
           await firstTimeNotification.save();
-          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+          // (debug log removed)
 
           // Send FCM notification for first-time booking
           const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
@@ -2259,7 +2269,7 @@ exports.vendorcreateBooking = async (req, res) => {
         try {
           const message = { ...vendorNotificationMessage, token };
           const response = await admin.messaging().send(message);
-          console.log(`Vendor notification sent to token: ${token}`, response);
+          // (debug log removed)
         } catch (error) {
           console.error(`Error sending vendor notification to token: ${token}`, error);
           if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -2275,10 +2285,10 @@ exports.vendorcreateBooking = async (req, res) => {
           { _id: vendorId },
           { $pull: { fcmTokens: { $in: vendorInvalidTokens } } }
         );
-        console.log("Removed invalid vendor FCM tokens:", vendorInvalidTokens);
+        // (debug log removed)
       }
     } else {
-      console.warn("No FCM tokens available for this vendor.");
+      // (debug log removed)
     }
 
     if (mobileNumber) {
@@ -2342,7 +2352,7 @@ exports.vendorcreateBooking = async (req, res) => {
             try {
               const message = { ...userNotificationMessage, token };
               const response = await admin.messaging().send(message);
-              console.log(`User notification sent to token: ${token}`, response);
+              // (debug log removed)
             } catch (error) {
               console.error(`Error sending user notification to token: ${token}`, error);
               if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -2377,13 +2387,13 @@ exports.vendorcreateBooking = async (req, res) => {
             }
 
             await Promise.all(userUpdatePromises);
-            console.log("Removed invalid user FCM tokens:", userInvalidTokens);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+          // (debug log removed)
         }
       } else {
-        console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${vehicleNumber}`);
+        // (debug log removed)
       }
     }
 
@@ -2430,7 +2440,7 @@ async function sendSMS(to, text, dltContentId) {
       headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
     });
 
-    console.log("📬 SMS API Response:", smsResponse.data);
+    // (debug log removed)
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
@@ -2475,7 +2485,7 @@ exports.livecreateBooking = async (req, res) => {
       bookType,
     } = req.body;
 
-    console.log("Booking data:", req.body);
+    // (debug log removed)
 
     // Step 1: Check vendor and available slots
     const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1 });
@@ -2529,8 +2539,8 @@ exports.livecreateBooking = async (req, res) => {
       Bikes: totalAvailableSlots.Bikes - bookedSlots.Bikes,
       Others: totalAvailableSlots.Others - bookedSlots.Others,
     };
-    console.log("Available slots:", availableSlots);
-    console.log("Booked slots:", bookedSlots);
+    // (debug log removed)
+    // (debug log removed)
 
     if (vehicleType === "Car" && availableSlots.Cars <= 0) {
       return res.status(400).json({ message: "No available slots for Cars" });
@@ -2560,7 +2570,7 @@ exports.livecreateBooking = async (req, res) => {
       const date = parseDDMMYYYY(parkingDate) || new Date(parkingDate);
       if (date && !isNaN(date.getTime())) {
         const sl = (sts || "").toLowerCase();
-        const addDays = sl === "weekly" ? 7 : 30;
+        const addDays = sl === "weekly" ? 7 : sl === "15day" ? 15 : 30;
         date.setDate(date.getDate() + addDays);
         subscriptionEndDate = date.toISOString().split("T")[0];
       }
@@ -2617,6 +2627,9 @@ exports.livecreateBooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -2647,6 +2660,9 @@ exports.livecreateBooking = async (req, res) => {
           carweekly: parkingCharges.carweekly?.toString() || "",
           bikeweekly: parkingCharges.bikeweekly?.toString() || "",
           othersweekly: parkingCharges.othersweekly?.toString() || "",
+          car15day: parkingCharges.car15day?.toString() || "",
+          bike15day: parkingCharges.bike15day?.toString() || "",
+          others15day: parkingCharges.others15day?.toString() || "",
           car12h: parkingCharges.car12h?.toString() || "",
           bike12h: parkingCharges.bike12h?.toString() || "",
           others12h: parkingCharges.others12h?.toString() || "",
@@ -2779,7 +2795,7 @@ exports.livecreateBooking = async (req, res) => {
         });
 
         await bookingTransaction.save();
-        console.log(`[${new Date().toISOString()}] ✅ BookingTransaction created at booking creation (live - Subscription) for booking ${newBooking._id}`);
+        // (debug log removed)
       } catch (transactionErr) {
         console.error(`[${new Date().toISOString()}] ❌ Error creating BookingTransaction at booking creation (live):`, transactionErr);
         // Don't fail the request if transaction creation fails, but log it
@@ -2864,7 +2880,7 @@ exports.livecreateBooking = async (req, res) => {
             status,
           });
           await firstTimeNotification.save();
-          console.log(`[${new Date().toISOString()}] ✅ First-time booking notification saved for user ${userid}`);
+          // (debug log removed)
 
           // Send FCM notification for first-time booking
           const user = await userModel.findOne({ uuid: userid }, { userfcmTokens: 1 });
@@ -3034,7 +3050,7 @@ async function sendSMS(to, text, dltContentId) {
       headers: { "User-Agent": "Mozilla/5.0 (Node.js)" },
     });
 
-    console.log("📬 SMS API Response:", smsResponse.data);
+    // (debug log removed)
   } catch (err) {
     console.error("📛 SMS sending error:", err.message || err);
   }
@@ -3043,7 +3059,7 @@ async function sendSMS(to, text, dltContentId) {
 exports.userupdateCancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("BOOKING ID", id);
+    // (debug log removed)
 
     const booking = await Booking.findById(id);
     if (!booking) {
@@ -3100,7 +3116,7 @@ exports.userupdateCancelBooking = async (req, res) => {
               vehicleType: updatedBooking.vehicleType,
             },
           });
-          console.log(`Notification sent to token: ${token}`, response);
+          // (debug log removed)
         } catch (error) {
           console.error(`Error sending notification to token: ${token}`, error);
           if (error.errorInfo?.code === "messaging/registration-token-not-registered") {
@@ -3116,10 +3132,10 @@ exports.userupdateCancelBooking = async (req, res) => {
           { _id: booking.vendorId },
           { $pull: { fcmTokens: { $in: invalidTokens } } }
         );
-        console.log("Removed invalid FCM tokens:", invalidTokens);
+        // (debug log removed)
       }
     } else {
-      console.warn("No FCM tokens available for this vendor.");
+      // (debug log removed)
     }
 
     res.status(200).json({
@@ -3128,13 +3144,13 @@ exports.userupdateCancelBooking = async (req, res) => {
       data: updatedBooking,
     });
   } catch (error) {
-    console.log("err", error);
+    // (debug log removed)
     res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.updateApproveBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID", req.params);
+    // (debug log removed)
     const { id } = req.params;
     const { approvedDate, approvedTime } = req.body; // Get manual values from request
 
@@ -3151,7 +3167,7 @@ exports.updateApproveBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only pending bookings can be approved" });
     }
 
-    console.log("approvedDate", approvedDate, "approvedTime", approvedTime);
+    // (debug log removed)
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       {
@@ -3177,7 +3193,7 @@ exports.updateApproveBooking = async (req, res) => {
     });
 
     await userNotification.save();
-    console.log("User notification saved:", userNotification);
+    // (debug log removed)
 
     // Prepare FCM notification message for user
     const userNotificationMessage = {
@@ -3218,7 +3234,7 @@ exports.updateApproveBooking = async (req, res) => {
           try {
             const message = { ...userNotificationMessage, token };
             const response = await admin.messaging().send(message);
-            console.log(`✅ User notification sent to ${token}`, response);
+            // (debug log removed)
           } catch (error) {
             console.error(`❌ Error sending to user token: ${token}`, error);
             if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
@@ -3234,13 +3250,13 @@ exports.updateApproveBooking = async (req, res) => {
             { uuid: booking.userid },
             { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
           );
-          console.log("🧹 Removed invalid user tokens:", userInvalidTokens);
+          // (debug log removed)
         }
       } else {
-        console.warn("ℹ️ No FCM tokens for this user.");
+        // (debug log removed)
       }
     } else {
-      console.warn("⚠️ User not found with UUID:", booking.userid);
+      // (debug log removed)
     }
 
     // Fallback: match by mobile number OR vehicle number and send notification
@@ -3277,7 +3293,7 @@ exports.updateApproveBooking = async (req, res) => {
               try {
                 const message = { ...userNotificationMessage, token };
                 const response = await admin.messaging().send(message);
-                console.log(`📲 Fallback (mobile/vehicle) user notification sent to ${token}`, response);
+                // (debug log removed)
               } catch (error) {
                 console.error(`Error sending fallback notification to token: ${token}`, error);
                 if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
@@ -3315,13 +3331,13 @@ exports.updateApproveBooking = async (req, res) => {
               }
 
               await Promise.all(userUpdatePromises);
-              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
+              // (debug log removed)
             }
           } else {
-            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+          // (debug log removed)
         }
       } catch (fallbackErr) {
         console.error("Fallback mobile/vehicle notification error:", fallbackErr);
@@ -3334,14 +3350,14 @@ exports.updateApproveBooking = async (req, res) => {
       data: updatedBooking,
     });
   } catch (error) {
-    console.log("err", error);
+    // (debug log removed)
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.updateCancelBooking = async (req, res) => {
   try {
-    console.log("BOOKING ID", req.params);
+    // (debug log removed)
     const { id } = req.params;
 
     const booking = await Booking.findById(id).populate('vendorId', 'vendorName');
@@ -3356,7 +3372,7 @@ exports.updateCancelBooking = async (req, res) => {
     const cancelledDate = moment().format("DD-MM-YYYY");
     const cancelledTime = moment().format("hh:mm A");
 
-    console.log("cancelledDate", cancelledDate, "cancelledTime", cancelledTime);
+    // (debug log removed)
 
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
@@ -3383,7 +3399,7 @@ exports.updateCancelBooking = async (req, res) => {
     });
 
     await userNotification.save();
-    console.log("User cancellation notification saved:", userNotification);
+    // (debug log removed)
 
     // Prepare FCM message
     const userNotificationMessage = {
@@ -3423,7 +3439,7 @@ exports.updateCancelBooking = async (req, res) => {
           try {
             const message = { ...userNotificationMessage, token };
             const response = await admin.messaging().send(message);
-            console.log(`✅ Cancellation notification sent to ${token}`, response);
+            // (debug log removed)
           } catch (error) {
             console.error(`❌ Error sending to token: ${token}`, error);
             if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
@@ -3439,13 +3455,13 @@ exports.updateCancelBooking = async (req, res) => {
             { uuid: booking.userid },
             { $pull: { userfcmTokens: { $in: userInvalidTokens } } }
           );
-          console.log("🧹 Removed invalid user tokens:", userInvalidTokens);
+          // (debug log removed)
         }
       } else {
-        console.warn("ℹ️ No FCM tokens for this user.");
+        // (debug log removed)
       }
     } else {
-      console.warn("⚠️ User not found with UUID:", booking.userid);
+      // (debug log removed)
     }
 
     // Fallback: match by mobile number OR vehicle number and send notification
@@ -3482,7 +3498,7 @@ exports.updateCancelBooking = async (req, res) => {
               try {
                 const message = { ...userNotificationMessage, token };
                 const response = await admin.messaging().send(message);
-                console.log(`📲 Fallback (mobile/vehicle) cancellation sent to ${token}`, response);
+                // (debug log removed)
               } catch (error) {
                 console.error(`Error sending fallback cancellation to token: ${token}`, error);
                 if (error.errorInfo?.code === 'messaging/registration-token-not-registered') {
@@ -3520,13 +3536,13 @@ exports.updateCancelBooking = async (req, res) => {
               }
 
               await Promise.all(userUpdatePromises);
-              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
+              // (debug log removed)
             }
           } else {
-            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+          // (debug log removed)
         }
       } catch (fallbackErr) {
         console.error("Fallback mobile/vehicle cancellation notification error:", fallbackErr);
@@ -3676,10 +3692,10 @@ exports.updateApprovedCancelBooking = async (req, res) => {
           console.log("🧹 Removed invalid user tokens:", userInvalidTokens);
         }
       } else {
-        console.warn("ℹ️ No FCM tokens for this user.");
+        // (debug log removed)
       }
     } else {
-      console.warn("⚠️ User not found with UUID:", booking.userid);
+      // (debug log removed)
     }
 
     // Fallback: match by mobile number OR vehicle number and send notification
@@ -3754,13 +3770,13 @@ exports.updateApprovedCancelBooking = async (req, res) => {
               }
 
               await Promise.all(userUpdatePromises);
-              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
+              // (debug log removed)
             }
           } else {
-            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+          // (debug log removed)
         }
       } catch (fallbackErr) {
         console.error("Fallback mobile/vehicle cancelled notification error:", fallbackErr);
@@ -3897,10 +3913,10 @@ exports.allowParking = async (req, res) => {
           console.log("🧹 Removed invalid customer tokens:", userInvalidTokens);
         }
       } else {
-        console.warn("ℹ️ No FCM tokens for this customer.");
+        // (debug log removed)
       }
     } else {
-      console.warn("⚠️ Customer not found with UUID:", booking.userid);
+      // (debug log removed)
     }
 
     // Fallback: match by mobile number OR vehicle number and send notification
@@ -3975,13 +3991,13 @@ exports.allowParking = async (req, res) => {
               }
 
               await Promise.all(userUpdatePromises);
-              console.log("Removed invalid user FCM tokens (mobile/vehicle fallback):", fallbackInvalidTokens);
+              // (debug log removed)
             }
           } else {
-            console.warn(`No FCM tokens found for matched users with mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+            // (debug log removed)
           }
         } else {
-          console.warn(`No matching user found for mobile: ${cleanedMobile} or vehicle: ${booking.vehicleNumber}`);
+          // (debug log removed)
         }
       } catch (fallbackErr) {
         console.error("Fallback mobile/vehicle parking started notification error:", fallbackErr);
@@ -4265,10 +4281,10 @@ exports.directallowParking = async (req, res) => {
           console.log("🧹 Removed invalid customer tokens:", userInvalidTokens);
         }
       } else {
-        console.warn("ℹ️ No FCM tokens for this customer.");
+        // (debug log removed)
       }
     } else {
-      console.warn("⚠️ Customer not found with UUID:", booking.userid);
+      // (debug log removed)
     }
 
     // Fallback: match by mobile number and send notification
@@ -4300,10 +4316,10 @@ exports.directallowParking = async (req, res) => {
                 { userMobile: cleanedMobile },
                 { $pull: { userfcmTokens: { $in: fallbackInvalidTokens } } }
               );
-              console.log("Removed invalid user FCM tokens (mobile fallback):", fallbackInvalidTokens);
+              // (debug log removed)
             }
           } else {
-            console.warn(`No matching user or no FCM tokens found for mobile: ${cleanedMobile}`);
+            // (debug log removed)
           }
         }
       } catch (fallbackErr) {
@@ -5542,10 +5558,10 @@ exports.getParkedVehicleCount = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    console.log("Received vendorId:", vendorId);
+    // (debug log removed)
 
     const trimmedVendorId = vendorId.trim();
-    console.log("Trimmed vendorId:", trimmedVendorId);
+    // (debug log removed)
 
     const aggregationResult = await Booking.aggregate([
       {
@@ -5562,7 +5578,7 @@ exports.getParkedVehicleCount = async (req, res) => {
       }
     ]);
 
-    console.log("Aggregation Result:", aggregationResult);
+    // (debug log removed)
 
     let response = {
       totalCount: 0,
@@ -5582,7 +5598,7 @@ exports.getParkedVehicleCount = async (req, res) => {
       }
     });
 
-    console.log("Final Response:", response);
+    // (debug log removed)
 
     res.status(200).json(response);
   } catch (error) {
@@ -6019,8 +6035,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
       return res.status(400).json({ success: false, message: "Booking IDs array is required and cannot be empty" });
     }
 
-    console.log("📥 Input Booking IDs:", bookingIds);
-    console.log("📥 Vendor ID:", vendorId);
+    // (debug logs removed)
 
     // Verify vendor exists
     const vendor = await vendorModel.findById(vendorId);
@@ -6046,13 +6061,7 @@ exports.updateVendorBookingsSettlement = async (req, res) => {
       });
     }
 
-    console.log("🔍 Matched Transactions Count:", transactions.length);
-    console.log("📄 Transactions Details:", transactions.map(t => ({
-      _id: t._id,
-      bookingId: t.bookingId,
-      status: t.status,
-      settlemtstatus: t.settlemtstatus
-    })));
+    // (debug logs removed)
 
     if (transactions.length === 0) {
       return res.status(404).json({
