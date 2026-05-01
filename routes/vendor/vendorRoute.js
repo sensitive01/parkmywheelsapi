@@ -80,6 +80,7 @@ vendorRoute.post("/machinecreatebooking", (req, res, next) => {
   next();
 }, bookingController.machinecreatebooking);
 vendorRoute.get("/getbookingdata/:id", bookingController.getBookingsByVendorId);
+vendorRoute.get("/fetchbookingforsummary/:id", bookingController.fetchbookingforsummary);
 vendorRoute.get("/getparkedbooking/:id", bookingController.getBookingsparked);
 
 

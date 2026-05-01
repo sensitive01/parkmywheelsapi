@@ -4355,6 +4355,26 @@ exports.getBookingsByVendorId = async (req, res) => {
   }
 };
 
+exports.fetchbookingforsummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch bookings for the vendor that are NOT cancelled
+    const bookings = await Booking.find({ 
+      vendorId: id, 
+      status: { $ne: 'CANCELLED' } 
+    });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(404).json({ message: "No summary-eligible bookings found for this vendor" });
+    }
+    
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getBookingsparked = async (req, res) => {
   try {
     const { id } = req.params;
