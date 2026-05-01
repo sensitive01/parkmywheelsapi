@@ -157,6 +157,12 @@ const isSubscriptionSts = (sts) => {
   return s === "subscription" || s === "weekly" || s === "15day" || s === "monthly";
 };
 
+/** True when `sts` is an hourly fixed-duration booking (12hr, 24hr, 48hr, 72hr). */
+const isHourlySts = (sts) => {
+  const s = (sts || "").toLowerCase();
+  return ["12hr", "24hr", "48hr", "72hr"].includes(s);
+};
+
 // Check for existing bookings with same vehicle number and date (across all vendors)
 const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, currentSts) => {
   try {
@@ -428,6 +434,30 @@ exports.createBooking = async (req, res) => {
         const addDays = sl === "weekly" ? 7 : sl === "15day" ? 15 : 30;
         date.setDate(date.getDate() + addDays);
         subscriptionEndDate = date.toISOString().split("T")[0];
+      }
+    } else if (isHourlySts(sts) && (bookingDate || parkingDate)) {
+      // Calculate hourly expiry based on booking/parking date and time
+      const startDate = parseDDMMYYYY(bookingDate || parkingDate);
+      if (startDate && !isNaN(startDate.getTime())) {
+        const startTimeStr = bookingTime || parkingTime;
+        if (startTimeStr) {
+          const timeMatch = startTimeStr.match(/^(\d{1,2}):(\d{2})\s+(AM|PM)$/i);
+          if (timeMatch) {
+            let [_, hours, minutes, ampm] = timeMatch;
+            hours = parseInt(hours);
+            minutes = parseInt(minutes);
+            if (ampm.toUpperCase() === "PM" && hours !== 12) hours += 12;
+            if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+            startDate.setHours(hours, minutes, 0, 0);
+          }
+        }
+        
+        const sl = (sts || "").toLowerCase();
+        const addHours = parseInt(sl); // "12hr" -> 12
+        if (!isNaN(addHours)) {
+          startDate.setHours(startDate.getHours() + addHours);
+          subscriptionEndDate = startDate.toISOString(); // Store full precision for hourly
+        }
       }
     }
 
@@ -999,6 +1029,42 @@ exports.machinecreatebooking = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
+    // ✅ Calculate subsctiptionenddate if it's an hourly booking
+    let calculatedSubscriptionEndDate = subsctiptionenddate;
+    if (isHourlySts(sts) && (bookingDate || parkingDate)) {
+      const startDate = parseDDMMYYYY(bookingDate || parkingDate);
+      if (startDate && !isNaN(startDate.getTime())) {
+        const startTimeStr = bookingTime || parkingTime;
+        if (startTimeStr) {
+          const timeMatch = startTimeStr.match(/^(\d{1,2}):(\d{2})\s+(AM|PM)$/i);
+          if (timeMatch) {
+            let [_, hours, minutes, ampm] = timeMatch;
+            hours = parseInt(hours);
+            minutes = parseInt(minutes);
+            if (ampm.toUpperCase() === "PM" && hours !== 12) hours += 12;
+            if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+            startDate.setHours(hours, minutes, 0, 0);
+          }
+        }
+        
+        const sl = (sts || "").toLowerCase();
+        const addHours = parseInt(sl);
+        if (!isNaN(addHours)) {
+          startDate.setHours(startDate.getHours() + addHours);
+          calculatedSubscriptionEndDate = startDate.toISOString();
+        }
+      }
+    } else if (isSubscriptionSts(sts) && parkingDate && !calculatedSubscriptionEndDate) {
+        // Fallback for daily subscriptions if end date is missing
+        const date = parseDDMMYYYY(parkingDate);
+        if (date && !isNaN(date.getTime())) {
+          const sl = (sts || "").toLowerCase();
+          const addDays = sl === "weekly" ? 7 : sl === "15day" ? 15 : 30;
+          date.setDate(date.getDate() + addDays);
+          calculatedSubscriptionEndDate = date.toISOString().split("T")[0];
+        }
+    }
+
     // Fetch charges based on vendorId at booking time
     let chargesData = null;
     let vendorChargesData = null;
@@ -1148,7 +1214,7 @@ exports.machinecreatebooking = async (req, res) => {
       parkingTime,
       tenditivecheckout,
       subsctiptiontype,
-      subsctiptionenddate,
+      subsctiptionenddate: calculatedSubscriptionEndDate,
       status,
       sts,
       otp,
@@ -1205,7 +1271,7 @@ exports.machinecreatebooking = async (req, res) => {
         // Booking type
         bookingType: newBooking.bookType,
         subscriptionType: newBooking.subsctiptiontype,
-        subscriptionEndDate: newBooking.subsctiptionenddate,
+        subscriptionEndDate: calculatedSubscriptionEndDate,
         sts: newBooking.sts || null, // Store sts from booking (Instant, Schedule, Subscription)
         // Transaction date
         transactionDateString: transactionDateString,
@@ -4360,15 +4426,15 @@ exports.fetchbookingforsummary = async (req, res) => {
     const { id } = req.params;
 
     // Fetch bookings for the vendor that are NOT cancelled
-    const bookings = await Booking.find({ 
-      vendorId: id, 
-      status: { $ne: 'CANCELLED' } 
+    const bookings = await Booking.find({
+      vendorId: id,
+      status: { $ne: 'CANCELLED' }
     });
 
     if (!bookings || bookings.length === 0) {
       return res.status(404).json({ message: "No summary-eligible bookings found for this vendor" });
     }
-    
+
     res.status(200).json({ bookings });
   } catch (error) {
     res.status(500).json({ message: error.message });

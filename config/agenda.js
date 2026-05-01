@@ -16,6 +16,9 @@ dbConnect();
 /** Bookings whose `sts` is subscription-like (legacy + granular weekly/monthly). */
 const SUBSCRIPTION_STS_REGEX = /^(subscription|weekly|monthly)$/i;
 
+/** Bookings whose `sts` is hourly (12hr, 24hr, 48hr, 72hr). */
+const HOURLY_STS_REGEX = /^(12hr|24hr|48hr|72hr)$/i;
+
 // ------------------------------------------------------------------
 // Reusable date parser: normalize input formats to Luxon DateTime in IST at start of day
 // ------------------------------------------------------------------
@@ -258,6 +261,75 @@ const parseEndDateIst = (value) => {
   return null;
 };
 
+const completeHourlyBookings = async () => {
+  try {
+    const nowIst = DateTime.now().setZone("Asia/Kolkata");
+    console.log(`[${new Date().toISOString()}] Running hourly bookings completion check`);
+
+    const candidates = await Booking.find({
+      sts: { $regex: HOURLY_STS_REGEX },
+      subsctiptionenddate: { $exists: true, $ne: null, $ne: "" },
+      status: { $ne: "COMPLETED" },
+    });
+
+    console.log(`[${new Date().toISOString()}] Found ${candidates.length} hourly bookings to check.`);
+
+    for (const b of candidates) {
+      try {
+        let endDtIst = DateTime.fromISO(b.subsctiptionenddate, { zone: "Asia/Kolkata" });
+        if (!endDtIst.isValid) {
+            // Fallback for non-ISO strings
+            endDtIst = parseEndDateIst(b.subsctiptionenddate);
+        }
+
+        if (endDtIst && endDtIst <= nowIst) {
+          console.log(`❌ HOURLY EXPIRED: ${b.vehicleNumber} (${b._id}) - expired at ${b.subsctiptionenddate}`);
+          
+          const exitDate = nowIst.toFormat("dd-MM-yyyy");
+          const exitTime = nowIst.toFormat("hh:mm a");
+
+          await Booking.updateOne(
+            { _id: b._id },
+            {
+              $set: {
+                status: "COMPLETED",
+                exitvehicledate: exitDate,
+                exitvehicletime: exitTime,
+              },
+            }
+          );
+          
+          // Save notification
+          try {
+            const title = "Hourly Booking Completed";
+            const message = `Your ${b.sts} booking for vehicle ${b.vehicleNumber} has ended and is marked as completed.`;
+            const notif = new Notification({
+              vendorId: b.vendorId,
+              userId: b.userid,
+              bookingId: String(b._id),
+              title,
+              message,
+              vehicleType: b.vehicleType,
+              vehicleNumber: b.vehicleNumber,
+              sts: b.sts,
+              bookingtype: b.bookType || "hourly",
+              status: "info",
+              notificationdtime: `${exitDate} ${exitTime}`,
+            });
+            await notif.save();
+          } catch (notifErr) {
+            console.error("Failed to save hourly completion notification:", notifErr.message);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing hourly booking ${b._id}:`, error.message);
+      }
+    }
+  } catch (err) {
+    console.error(`Error in completeHourlyBookings:`, err);
+  }
+};
+
 const completeExpiredSubscriptions = async () => {
   try {
     const nowIst = DateTime.now().setZone("Asia/Kolkata").startOf("day");
@@ -430,6 +502,18 @@ const completeExpiredSubscriptions = async () => {
   }
 };// ------------------------------------------------------------------
 // Daily subscription reminders at 3:50 PM IST
+// ------------------------------------------------------------------
+// Hourly bookings check every 10 minutes
+// ------------------------------------------------------------------
+cron.schedule("*/10 * * * *", async () => {
+  console.log(`[${new Date().toISOString()}] Triggering hourly completion check...`);
+  try {
+    await completeHourlyBookings();
+  } catch (err) {
+    console.error("Error in hourly completion job:", err.message);
+  }
+}, { timezone: "Asia/Kolkata" });
+
 cron.schedule("50 15 * * *", async () => {
   console.log(`[${new Date().toISOString()}] Running daily subscription reminder check at 3:50 PM IST...`);
 
@@ -541,7 +625,7 @@ const triggerSevenDaySubscriptionReminders = async () => {
         type,
         daysUntilExpiry
       } = booking;
-      
+
       // Get mobileNumber separately since we may need to reassign it
       let mobileNumber = booking.mobileNumber;
 
@@ -624,11 +708,11 @@ const triggerSevenDaySubscriptionReminders = async () => {
           try {
             // Format expiry time (default to end of day: 11:59 PM)
             const expiryTime = "11:59 PM";
-            
+
             // Match exact DLT template format: "Dear ${var1}, Your Parking subscription for ${var2} is expiring on ${var3} at ${var4}. Renew now on ParkMyWheels app to enjoy hassle free parking."
             const smsMessage = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay} at ${expiryTime}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
             let cleanedMobile = String(mobileNumber).replace(/[^0-9]/g, "");
-            
+
             console.log(`📱 SENDING 7-DAY SMS: ${vehicleNumber || 'No vehicle'} (${finalBookingId}) to ${cleanedMobile}`);
             console.log(`   Message: ${smsMessage}`);
 
@@ -882,7 +966,7 @@ const triggerFiveDaySubscriptionReminders = async () => {
       const endDateDisplay = parseEndDateIst(subsctiptionenddate)?.toFormat("d-MM-yyyy") || subsctiptionenddate;
       // Format expiry time (default to end of day: 11:59 PM)
       const expiryTime = "11:59 PM";
-      
+
       // Match exact DLT template format: "Dear ${var1}, Your Parking subscription for ${var2} is expiring on ${var3} at ${var4}. Renew now on ParkMyWheels app to enjoy hassle free parking."
       const message = `Dear ${personName || "User"}, Your Parking subscription for ${vehicleNumber || ""} is expiring on ${endDateDisplay} at ${expiryTime}. Renew now on ParkMyWheels app to enjoy hassle free parking.`;
 
@@ -1027,7 +1111,7 @@ const cancelPendingBookings = async () => {
           });
         }
       }
-      
+
       // For APPROVED bookings, check if it's been more than 10 minutes past scheduled time
       if (booking.status === "APPROVED") {
         const expiryTime = parkedDateTime.plus({ minutes: 10 });
@@ -1250,22 +1334,22 @@ const sendVendorSubscriptionRenewalReminders = async () => {
         const tokens = vendor.fcmTokens || [];
         if (tokens.length > 0) {
           const payload = {
-            notification: { 
-              title, 
-              body: message 
+            notification: {
+              title,
+              body: message
             },
-            android: { 
-              notification: { 
-                sound: "default", 
-                priority: "high" 
-              } 
+            android: {
+              notification: {
+                sound: "default",
+                priority: "high"
+              }
             },
-            apns: { 
-              payload: { 
-                aps: { 
-                  sound: "default" 
-                } 
-              } 
+            apns: {
+              payload: {
+                aps: {
+                  sound: "default"
+                }
+              }
             },
             data: {
               type: "vendor_subscription_renewal",
@@ -1493,8 +1577,8 @@ const getSubscriptionReport = async () => {
       const vendor = item.vendorName.substring(0, 10).padEnd(10);
 
       const statusIndicator = item.daysLeft <= 0 ? '❌' :
-                             item.daysLeft <= 2 ? '🚨' :
-                             item.daysLeft <= 5 ? '⚠️' : '✅';
+        item.daysLeft <= 2 ? '🚨' :
+          item.daysLeft <= 5 ? '⚠️' : '✅';
 
       console.log(`${vehicleNum} | ${startDate} | ${endDate} | ${days} | ${mobile} | ${name} | ${vendor} ${statusIndicator}`);
     });
@@ -1537,7 +1621,7 @@ const sendKycPendingWarning = async () => {
     const vendorsWithKyc = await KycDetails.find({}, { vendorId: 1 });
     const kycVendorIds = new Set(vendorsWithKyc.map(k => k.vendorId));
     console.log(`[${new Date().toISOString()}] Found ${kycVendorIds.size} vendors with KYC data (matched by vendorId)`);
-    
+
     // Log some vendor IDs with KYC for verification
     if (kycVendorIds.size > 0) {
       const sampleKycIds = Array.from(kycVendorIds).slice(0, 5);
@@ -1555,7 +1639,7 @@ const sendKycPendingWarning = async () => {
     });
 
     console.log(`[${new Date().toISOString()}] Found ${vendorsWithoutKyc.length} vendors without KYC data and without spaceid (no matching vendorId in KycDetails)`);
-    
+
     // Log some vendor IDs without KYC for verification
     if (vendorsWithoutKyc.length > 0) {
       const sampleNoKycIds = vendorsWithoutKyc.slice(0, 5).map(v => v.vendorId);
@@ -1669,11 +1753,11 @@ const sendKycPendingWarning = async () => {
     console.log(`   - Total vendors without KYC: ${vendorsWithoutKyc.length}`);
     console.log(`   - Notifications sent: ${notificationsSent}`);
     console.log(`   - Notifications skipped (already sent today): ${notificationsSkipped}`);
-    return { 
-      count: notificationsSent, 
+    return {
+      count: notificationsSent,
       skipped: notificationsSkipped,
       total: vendorsWithoutKyc.length,
-      vendors: vendorsWithoutKyc.map(v => v.vendorId) 
+      vendors: vendorsWithoutKyc.map(v => v.vendorId)
     };
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error in sendKycPendingWarning:`, error);
