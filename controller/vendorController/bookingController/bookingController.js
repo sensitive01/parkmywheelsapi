@@ -4425,22 +4425,91 @@ exports.fetchbookingforsummary = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch bookings for the vendor that are NOT cancelled
+    // Fetch bookings for the vendor that are NOT cancelled.
+    // NOTE: Summary report wants Instant bookings only after exit,
+    // so we transform the response (without updating DB).
     const bookings = await Booking.find({
       vendorId: id,
-      status: { $ne: 'CANCELLED' }
-    });
+      status: { $ne: "CANCELLED" },
+    }).lean();
 
     if (!bookings || bookings.length === 0) {
-      return res.status(404).json({ message: "No summary-eligible bookings found for this vendor" });
+      return res.status(200).json({ bookings: [] });
     }
 
-    res.status(200).json({ bookings });
+    const normalize = (v) => (v ?? "").toString().trim().toLowerCase();
+
+    const convertTo24Hour = (time) => {
+      const t = (time ?? "").toString().trim();
+      if (!t) return "00:00";
+
+      // Already 24h like "13:05"
+      if (/^\d{1,2}:\d{2}$/.test(t)) return t.padStart(5, "0");
+
+      // "hh:mm AM/PM"
+      const parts = t.split(/\s+/);
+      if (parts.length < 2) return "00:00";
+      const timePart = parts[0];
+      const modifier = parts[1].toUpperCase();
+      let [hours, minutes] = timePart.split(":");
+      if (!hours || !minutes) return "00:00";
+
+      let h = parseInt(hours, 10);
+      const m = parseInt(minutes, 10);
+      if (Number.isNaN(h) || Number.isNaN(m)) return "00:00";
+
+      if (modifier === "PM" && h !== 12) h += 12;
+      if (modifier === "AM" && h === 12) h = 0;
+
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    };
+
+    const toComparableDate = (dateStr, timeStr) => {
+      const d = (dateStr ?? "").toString().trim();
+      if (!d) return new Date(0);
+      const parts = d.split("-");
+      if (parts.length !== 3) return new Date(0);
+      const [dd, mm, yyyy] = parts;
+      const time24 = convertTo24Hour(timeStr);
+      const iso = `${yyyy}-${mm}-${dd}T${time24}:00`;
+      const dt = new Date(iso);
+      return Number.isNaN(dt.getTime()) ? new Date(0) : dt;
+    };
+
+    // Instant summary rule:
+    // - Instant booking should appear only after exit
+    // - Use exit date/time as effective booking date/time for filtering/sorting in frontend
+    const transformed = bookings
+      .map((b) => {
+        const sts = normalize(b.sts);
+        const bookType = normalize(b.bookType);
+        const isInstant = sts === "instant" || bookType === "instant";
+
+        if (!isInstant) return b;
+
+        const exitDate = (b.exitvehicledate ?? "").toString().trim();
+        if (!exitDate) return null; // exclude instant bookings without exit
+
+        const exitTime = (b.exitvehicletime ?? "").toString().trim();
+        return {
+          ...b,
+          bookingDate: exitDate,
+          bookingTime: exitTime || b.bookingTime || "",
+        };
+      })
+      .filter(Boolean);
+
+    transformed.sort((a, b) => {
+      const da = toComparableDate(a.bookingDate, a.bookingTime);
+      const db = toComparableDate(b.bookingDate, b.bookingTime);
+      return db - da; // latest first
+    });
+
+    res.status(200).json({ bookings: transformed });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 exports.getBookingsparked = async (req, res) => {
   try {
     const { id } = req.params;
