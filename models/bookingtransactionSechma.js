@@ -6,6 +6,9 @@ const bookingTransactionSchema = new mongoose.Schema({
     ref: 'Booking',
     required: true
   },
+    paymentMode: {
+    type: String
+  },
   vendorId: {
     type: String,
     required: true
