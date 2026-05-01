@@ -4926,7 +4926,7 @@ exports.updateBooking = async (req, res) => {
 
 exports.updateBookingAmountAndHour = async (req, res) => {
   try {
-    const { amount, hour, gstamout, totalamout, handlingfee } = req.body;
+    const { amount, hour, gstamout, totalamout, handlingfee, paymentMode } = req.body;
 
     if (amount === undefined || hour === undefined) {
       return res.status(400).json({ error: "Amount and hour are required" });
@@ -4991,6 +4991,9 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
     booking.status = "COMPLETED";
+    if (paymentMode) {
+      booking.paymentMode = paymentMode;
+    }
 
     // Optional fields
     if (roundedGstAmount !== undefined)
@@ -5042,6 +5045,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
         subscriptionType: updatedBooking.subsctiptiontype,
         subscriptionEndDate: updatedBooking.subsctiptionenddate,
         sts: updatedBooking.sts || null, // Store sts from booking
+        paymentMode: updatedBooking.paymentMode,
         // Transaction date
         transactionDateString: exitvehicledate,
         status: 'active',
