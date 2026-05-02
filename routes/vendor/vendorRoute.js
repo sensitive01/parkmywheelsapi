@@ -101,6 +101,7 @@ vendorRoute.get("/fetch/:vendorId", bookingController.vendorfetch);
 vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getReceivableAmount);
 vendorRoute.get("/userbookingtrans/:vendorId", bookingController.getReceivableAmountByUser);
 vendorRoute.get("/nonuserbookings/:vendorId", bookingController.getReceivableAmountWithPlatformFee);
+vendorRoute.get("/getsearchablebooking/:id", bookingController.getSearchableBookings);
 
 vendorRoute.get("/bookedslots/:vendorId", bookingController.getParkedVehicleCount);
 vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotCount);
