@@ -4533,8 +4533,20 @@ exports.getSearchableBookings = async (req, res) => {
 
     const bookings = await Booking.find({
       vendorId: id,
-      status: { $in: ['PARKED',  'Parked'] },
-      exitvehicledate: { $exists: false }
+      status: { $in: ['PARKED', 'Parked'] },
+      $or: [
+        { sts: { $regex: /instant|weekly|monthly|12hr|24hr|48hr|72hr|15day|7day|Schedule/i } },
+        { subsctiptiontype: { $regex: /instant|weekly|monthly|12hr|24hr|48hr|72hr|15day|7day|Schedule/i } }
+      ],
+      $and: [
+        {
+          $or: [
+            { exitvehicledate: { $exists: false } },
+            { exitvehicledate: "" },
+            { exitvehicledate: null }
+          ]
+        }
+      ]
     }).sort({ createdAt: -1 });
 
     res.status(200).json({ bookings: bookings || [] });
