@@ -25,6 +25,8 @@ const reportSchema = new mongoose.Schema(
     totals: { type: Number, default: 0 },
     cash: { type: Number, default: 0 },
     online: { type: Number, default: 0 },
+    hourlycount: { type: Number, default: 0 },
+    hourlyamount: { type: Number, default: 0 },
     reportdate_time: { type: String, default: "" },
   },
   { timestamps: true }
