@@ -26,6 +26,8 @@ const saveReport = async (req, res) => {
       totals,
       cash,
       online,
+      hourlycount,
+      hourlyamount,
       reportdate_time,
     } = req.body;
 
@@ -57,6 +59,8 @@ const saveReport = async (req, res) => {
       totals: totals || 0,
       cash: cash || 0,
       online: online || 0,
+      hourlycount: hourlycount || 0,
+      hourlyamount: hourlyamount || 0,
       reportdate_time: reportdate_time || "",
     });
 
