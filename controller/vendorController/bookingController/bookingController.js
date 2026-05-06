@@ -5028,10 +5028,17 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     booking.amount = roundedAmount.toFixed(2);
     booking.hour = hour;
     booking.exitvehicledate = exitvehicledate;
-    booking.exitvehicletime = exitvehicletime;
+    booking.exitvehicletime = exitvehicletime.toUpperCase(); // Standardize to uppercase AM/PM
     booking.status = "COMPLETED";
+
+    // Standardize paymentMode persistence
     if (paymentMode) {
       booking.paymentMode = paymentMode;
+    } else if (booking.userid && booking.userid.trim().isNotEmpty) {
+      // Default to Online if it's a customer-side booking and no mode provided
+      booking.paymentMode = booking.paymentMode || "Online";
+    } else {
+      booking.paymentMode = booking.paymentMode || "Cash";
     }
 
     // Optional fields
@@ -5351,23 +5358,30 @@ exports.exitvendorsub = async (req, res) => {
     const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     const [datePart, timePart] = nowInIndia.split(", "); // "DD/MM/YYYY", "HH:MM:SS AM/PM"
 
-    // ✅ Convert DD/MM/YYYY → DD-MM-YYYY
-    const [day, month, year] = datePart.split("/");
+    // ✅ Convert DD/MM/YYYY → DD-MM-YYYY (with padding)
+    const [d, m, y] = datePart.split("/");
+    const day = d.padStart(2, '0');
+    const month = m.padStart(2, '0');
     const exitvehicledate = `${day}-${month}-${year}`;
 
     // Format time as "HH:MM AM/PM" (remove seconds if present)
     const parts = timePart.split(" ");
-    const ampm = parts[parts.length - 1]; // Get AM/PM from the end
-    const timeOnly = parts.slice(0, -1).join(" "); // Get time part (everything except AM/PM)
+    const ampm = parts[parts.length - 1].toUpperCase(); // Ensure uppercase AM/PM
+    const timeOnly = parts.slice(0, -1).join(" "); 
     const timeComponents = timeOnly.split(":");
-    const hours = timeComponents[0];
-    const minutes = timeComponents[1];
-    const exitvehicletime = `${hours}:${minutes} ${ampm}`; // Format: "HH:MM AM/PM"
+    const hours = timeComponents[0].padStart(2, '0');
+    const minutes = timeComponents[1].padStart(2, '0');
+    const exitvehicletime = `${hours}:${minutes} ${ampm}`; 
 
     // ✅ Only update status + exit date/time
     booking.status = "COMPLETED";
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
+    
+    // Auto-set payment mode for subscriptions if not set
+    if (!booking.paymentMode) {
+       booking.paymentMode = booking.userid ? "Online" : "Cash";
+    }
 
     const updatedBooking = await booking.save();
 
