@@ -41,8 +41,8 @@ function formatToDDMMYYYY(dateStr) {
     // Use current date in India timezone
     const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     const [datePart] = nowInIndia.split(", ");
-    const [day, month, year] = datePart.split("/");
-    return `${day}-${month}-${year}`;
+    const [d, m, y] = datePart.split("/");
+    return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
   }
 
   // If already in DD-MM-YYYY format, return as is
@@ -66,8 +66,8 @@ function formatToDDMMYYYY(dateStr) {
   // Final fallback to current date
   const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
   const [datePart] = nowInIndia.split(", ");
-  const [day, month, year] = datePart.split("/");
-  return `${day}-${month}-${year}`;
+  const [d, m, y] = datePart.split("/");
+  return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
 }
 
 // 📌 Helper function to find charges by type pattern (not by chargeid)
@@ -4479,7 +4479,12 @@ exports.fetchbookingforsummary = async (req, res) => {
       if (!d) return new Date(0);
       const parts = d.split("-");
       if (parts.length !== 3) return new Date(0);
-      const [dd, mm, yyyy] = parts;
+      
+      // Ensure day and month are two digits for ISO compatibility
+      const dd = parts[0].padStart(2, '0');
+      const mm = parts[1].padStart(2, '0');
+      const yyyy = parts[2];
+      
       const time24 = convertTo24Hour(timeStr);
       const iso = `${yyyy}-${mm}-${dd}T${time24}:00`;
       const dt = new Date(iso);
@@ -5003,17 +5008,20 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     const nowInIndia = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     const [datePart, timePart] = nowInIndia.split(", "); // "DD/MM/YYYY", "HH:MM:SS AM/PM"
 
-    // Convert DD/MM/YYYY to DD-MM-YYYY
-    const [day, month, year] = datePart.split("/");
+    // Convert DD/MM/YYYY to DD-MM-YYYY with padding
+    const [d, m, y] = datePart.split("/");
+    const day = d.padStart(2, '0');
+    const month = m.padStart(2, '0');
+    const year = y;
     const exitvehicledate = `${day}-${month}-${year}`;
 
     // Format time as "HH:MM AM/PM" (remove seconds if present)
-    const parts = timePart.split(" ");
-    const ampm = parts[parts.length - 1]; // Get AM/PM from the end
-    const timeOnly = parts.slice(0, -1).join(" "); // Get time part (everything except AM/PM)
-    const timeComponents = timeOnly.split(":");
-    const hours = timeComponents[0];
-    const minutes = timeComponents[1];
+    const timeParts = timePart.split(" ");
+    const ampm = timeParts[timeParts.length - 1]; // Get AM/PM
+    const timeOnly = timeParts.slice(0, -1).join(" "); 
+    const [h, min] = timeOnly.split(":");
+    const hours = h.padStart(2, '0');
+    const minutes = min.padStart(2, '0');
     const exitvehicletime = `${hours}:${minutes} ${ampm}`; // Format: "HH:MM AM/PM"
 
     // Update booking fields
