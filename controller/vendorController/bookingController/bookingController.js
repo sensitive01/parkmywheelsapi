@@ -334,6 +334,7 @@ exports.createBooking = async (req, res) => {
       parkedTime = null,
       bookType,
       invoice,
+      paymentMode,
     } = req.body;
 
     // (debug log removed)
@@ -601,6 +602,7 @@ exports.createBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      paymentMode: paymentMode || "",
       subsctiptionenddate: subscriptionEndDate,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -623,6 +625,7 @@ exports.createBooking = async (req, res) => {
           vehicleType: newBooking.vehicleType,
           personName: newBooking.personName,
           mobileNumber: newBooking.mobileNumber,
+          paymentMode: newBooking.paymentMode,
           // Transaction details
           bookingAmount: newBooking.amount,
           gstAmount: newBooking.gstamout,
@@ -1249,6 +1252,7 @@ exports.machinecreatebooking = async (req, res) => {
         vehicleType: newBooking.vehicleType,
         personName: newBooking.personName,
         mobileNumber: newBooking.mobileNumber,
+        paymentMode: newBooking.paymentMode,
         // Transaction details
         bookingAmount: newBooking.amount,
         gstAmount: newBooking.gstamout,
@@ -2021,6 +2025,7 @@ exports.vendorcreateBooking = async (req, res) => {
         vehicleType: newBooking.vehicleType,
         personName: newBooking.personName,
         mobileNumber: newBooking.mobileNumber,
+        paymentMode: newBooking.paymentMode,
         // Transaction details
         bookingAmount: newBooking.amount,
         gstAmount: newBooking.gstamout,
@@ -2538,6 +2543,8 @@ exports.livecreateBooking = async (req, res) => {
       bookingTime,
       parkingDate,
       parkingTime,
+      paymentType,
+      paymentMode,
       tenditivecheckout,
       subsctiptiontype,
       status,
@@ -2785,6 +2792,8 @@ exports.livecreateBooking = async (req, res) => {
       vehicleType,
       vendorName,
       mobileNumber,
+      paymentType,
+      paymentMode,
       carType,
       vehicleNumber,
       bookingDate,
@@ -2828,6 +2837,7 @@ exports.livecreateBooking = async (req, res) => {
           vehicleType: newBooking.vehicleType,
           personName: newBooking.personName,
           mobileNumber: newBooking.mobileNumber,
+          paymentMode: newBooking.paymentMode,
           // Transaction details
           bookingAmount: newBooking.amount,
           gstAmount: newBooking.gstamout,
@@ -5676,6 +5686,7 @@ exports.renewSubscription = async (req, res) => {
 
         vehicleNumber: updatedBooking.vehicleNumber,
         vehicleType: updatedBooking.vehicleType,
+        paymentMode: req.body.paymentMode || "",
 
         bookingAmount: roundedNewTotal.toFixed(2),
         gstAmount: roundedGst.toFixed(2),
