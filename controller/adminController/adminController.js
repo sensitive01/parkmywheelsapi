@@ -1582,8 +1582,9 @@ const getVendorById = async (req, res) => {
 
 const UpdateVendorDataByAdmin = async (req, res) => {
   try {
+    console.log(req.body);
     const { vendorId } = req.params;
-    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries, platformfee } = req.body;
+    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries, platformfee, vehicleReturnTime } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -1601,8 +1602,11 @@ const UpdateVendorDataByAdmin = async (req, res) => {
       address: address || existingVendor.address,
       landMark: landmark || existingVendor.landMark,
       contacts: Array.isArray(contacts) ? contacts : existingVendor.contacts,
-      parkingEntries: Array.isArray(parkingEntries) ? parkingEntries : existingVendor.parkingEntries,
+      parkingEntries: parkingEntries
+        ? JSON.parse(parkingEntries)
+        : existingVendor.parkingEntries,
       platformfee: platformfee || existingVendor.platformfee,
+      vehicleReturnTime: vehicleReturnTime || existingVendor.vehicleReturnTime,
     };
 
     let uploadedImageUrl;
@@ -2005,9 +2009,9 @@ const getAdminNotifications = async (req, res) => {
 };
 
 
-const getAllVendorData = async(req,res)=>{
+const getAllVendorData = async (req, res) => {
   try {
-    const vendors = await vendorModel.find({},{vendorName:1});
+    const vendors = await vendorModel.find({}, { vendorName: 1 });
     return res.status(200).json({
       success: true,
       data: vendors

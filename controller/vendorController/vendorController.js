@@ -1741,7 +1741,26 @@ const updateToggleStates = async (req, res) => {
   }
 };
 
+
+const getReturnMinutes = async (req, res) => {
+  try {
+    const {vendor_id} = req.query;
+    if(!vendor_id){
+      return res.status(400).json({message:"Vendor ID is required"})
+    }
+    const vendor = await vendorModel.findById(vendor_id,{vehicleReturnTime:1});
+    if(!vendor){
+      return res.status(404).json({message:"Vendor not found"})
+    }
+    return res.status(200).json({message:"Return minutes fetched successfully",data:vendor.vehicleReturnTime})
+  } catch (error) {
+    console.error("Error fetching return minutes:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
+  getReturnMinutes,
   updateValidity,
   vendoridlogin,
   updateVendorPlatformFee,

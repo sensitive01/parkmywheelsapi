@@ -277,6 +277,9 @@ vendorRoute.get('/settlement/:settlementid', settlementcontroller.getBookingsByS
 vendorRoute.delete('/deletesettlement/:settlementid', settlementcontroller.deleteSettlement);
 
 
+vendorRoute.get('/getreturnminutes', vendorController.getReturnMinutes);
+
+
 vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCharges);
 
 vendorRoute.get('/get-my-notification/:vendorId', notificationController.getNotificationsByVendor);

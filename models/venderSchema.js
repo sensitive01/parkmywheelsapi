@@ -81,6 +81,7 @@ contacts: [
     exitEnabled: { type: Boolean, default: false },
     vehicleUploadEnabled: { type: Boolean, default: false },
     valetEnabled: { type: Boolean, default: false },
+    vehicleReturnTime:{type:String,default:"20"}
   },
   { timestamps: true }
 );
