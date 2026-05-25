@@ -26,7 +26,7 @@ const orderController = require("../../controller/vendorController/orderControll
 const notificationController = require("../../controller/adminController/notificationController")
 const scannerController = require("../../controller/userController/scanner/scannerController")
 const reportController = require("../../controller/vendorController/reportController/reportController")
-
+const accountantController = require("../../controller/vendorController/addaccountant/VendorAddNewAccountant")
 
 
 
@@ -167,7 +167,10 @@ vendorRoute.post(
   vendorController.vendorSignup
 );
 vendorRoute.post("/login", vendorController.vendorLogin);
+vendorRoute.post("/accountant/login", vendorController.accountantLogin);
 vendorRoute.put("/newuser", vendorController.updateVendor);
+
+
 
 
 vendorRoute.post("/profilepass", vendorController.vendoridlogin);
@@ -284,6 +287,33 @@ vendorRoute.get('/fetchfilter', chargesController.fetchVendorsWithCategorizedCha
 
 vendorRoute.get('/get-my-notification/:vendorId', notificationController.getNotificationsByVendor);
 vendorRoute.delete('/delete-my-notification/:notificationId', notificationController.deleteNotificationByVendor);
+
+
+
+
+vendorRoute.post("/add-new-accountant/:vendorId", accountantController.addAccountant);
+vendorRoute.get("/get-accountants/:vendorId", accountantController.getAccountants);
+vendorRoute.put("/edit-accountant/:id", accountantController.editAccountant);
+vendorRoute.delete("/delete-accountant/:id", accountantController.deleteAccountant);
+
+// Send & Verify OTP routes for Accountant
+vendorRoute.post("/accountant/send-otp", accountantController.sendOtpForAccountant);
+vendorRoute.post("/accountant/verify-otp", accountantController.verifyOtpForAccountant);
+vendorRoute.get("/fetch-accountant-data", vendorController.fetchAccountantData);
+
+
+
+// Subunit mapping endpoints
+vendorRoute.post("/subunit/send-otp", accountantController.sendOtpForSubunit);
+vendorRoute.post("/subunit/verify-and-map", accountantController.verifyAndAddSubunit);
+vendorRoute.get("/subunits/:vendorId", accountantController.getSubunits);
+vendorRoute.delete("/subunit/:mainVendorId/:subunitId", accountantController.removeSubunit);
+
+
+vendorRoute.post("/accountant/login", vendorController.accountantLogin);
+
+
+
 
 
 // --- Test endpoint to trigger 5-day reminders from Postman ---

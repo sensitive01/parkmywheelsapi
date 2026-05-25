@@ -513,7 +513,178 @@ const addExtraDaysToSubscription = async (req, res) => {
 
 const vendorLogin = async (req, res) => {
   try {
-    console.log("🔹 Vendor Login API hit");
+    console.log("🔹 Vendor/Accountant Login API hit");
+    console.log("➡️ Request body:", req.body);
+
+    const { mobile, password, fcmToken, loginType } = req.body;
+
+    // 1️⃣ Validate required fields
+    if (!mobile || !password) {
+      console.log("❌ Missing mobile or password");
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number and password are required",
+      });
+    }
+
+    console.log("✅ Mobile & password received:", mobile);
+
+    let vendor = null;
+    let accountant = null;
+    let isAccountant = false;
+
+    // Clean mobile number
+    let cleanedMobile = mobile.replace(/\D/g, '');
+    if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
+      cleanedMobile = cleanedMobile.slice(2);
+    }
+
+    if (loginType === "accountant") {
+      // Look up in Accountant collection only
+      const AccountantCollection = require("../../models/accountantSchema");
+      accountant = await AccountantCollection.findOne({ mobile: cleanedMobile });
+
+      if (!accountant) {
+        console.log("❌ Accountant not found for mobile:", cleanedMobile);
+        return res.status(404).json({
+          success: false,
+          message: "Accountant not found with this mobile number",
+        });
+      }
+
+      vendor = await vendorModel.findById(accountant.vendorId);
+      if (!vendor) {
+        console.log("❌ Parent vendor not found for accountant's vendorId:", accountant.vendorId);
+        return res.status(404).json({
+          success: false,
+          message: "Parent vendor not found for this accountant",
+        });
+      }
+      isAccountant = true;
+    } else if (loginType === "vendor") {
+      // Look up in Vendor model only
+      vendor = await vendorModel.findOne({
+        "contacts.mobile": mobile,
+      });
+
+      if (!vendor) {
+        console.log("❌ Vendor not found for mobile:", mobile);
+        return res.status(404).json({
+          success: false,
+          message: "Vendor not found with this mobile number",
+        });
+      }
+    } else {
+      // Backward compatibility: try finding vendor first, then accountant
+      vendor = await vendorModel.findOne({
+        "contacts.mobile": mobile,
+      });
+
+      if (!vendor) {
+        console.log("🔍 Vendor not found. Searching accountant with mobile:", mobile);
+        const AccountantCollection = require("../../models/accountantSchema");
+        accountant = await AccountantCollection.findOne({ mobile: cleanedMobile });
+
+        if (accountant) {
+          vendor = await vendorModel.findById(accountant.vendorId);
+          if (!vendor) {
+            console.log("❌ Parent vendor not found for accountant:", accountant.vendorId);
+            return res.status(404).json({
+              success: false,
+              message: "Parent vendor not found for this accountant",
+            });
+          }
+          isAccountant = true;
+        } else {
+          console.log("❌ Neither Vendor nor Accountant found for mobile:", mobile);
+          return res.status(404).json({
+            success: false,
+            message: "User not found with this mobile number",
+          });
+        }
+      }
+    }
+
+    // Check status
+    if (isAccountant) {
+      if (accountant.status === "inactive") {
+        console.log("❌ Accountant account is inactive:", accountant._id);
+        return res.status(403).json({
+          success: false,
+          message: "Your accountant account is inactive. Please contact the vendor.",
+        });
+      }
+    }
+
+    // 4️⃣ Check password
+    console.log("🔐 Checking password...");
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      isAccountant ? accountant.password : vendor.password
+    );
+
+    console.log("🔐 Password match result:", isPasswordValid);
+    if (!isPasswordValid) {
+      console.log("❌ Incorrect password");
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect password",
+      });
+    }
+
+    // 5️⃣ Save FCM token if provided (optional)
+    if (fcmToken) {
+      console.log("📱 FCM token received:", fcmToken);
+      if (!vendor.fcmTokens) {
+        vendor.fcmTokens = [];
+      }
+      if (!vendor.fcmTokens.includes(fcmToken)) {
+        vendor.fcmTokens.push(fcmToken);
+        await vendor.save();
+      }
+    }
+
+    // 6️⃣ Successful login response
+    console.log("✅ Login successful. Role:", isAccountant ? "accountant" : "vendor");
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      vendorId: vendor._id,
+      vendorName: vendor.vendorName || "",
+      contacts: vendor.contacts || [],
+      latitude: vendor.latitude || "",
+      longitude: vendor.longitude || "",
+      address: vendor.address || "",
+      newuser: vendor.newuser || "false",
+      role: isAccountant ? "accountant" : "vendor",
+      accountName: isAccountant ? accountant.accountName : undefined,
+      accountantId: isAccountant ? accountant._id : undefined,
+      image: vendor.image || "",
+      parkingEntries: vendor.parkingEntries || [],
+    });
+
+  } catch (error) {
+    console.error("🔥 Error in login controller:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+const accountantLogin = async (req, res) => {
+  try {
+    console.log("🔹 Accountant Login API hit");
     console.log("➡️ Request body:", req.body);
 
     const { mobile, password, fcmToken } = req.body;
@@ -529,83 +700,251 @@ const vendorLogin = async (req, res) => {
 
     console.log("✅ Mobile & password received:", mobile);
 
-    // 2️⃣ Find vendor by mobile number
-    console.log("🔍 Searching vendor with mobile:", mobile);
+    // Clean mobile number (strips non-digits, slices '91' if length > 10)
+    let cleanedMobile = mobile.replace(/\D/g, '');
+    if (cleanedMobile.startsWith("91") && cleanedMobile.length > 10) {
+      cleanedMobile = cleanedMobile.slice(2);
+    }
 
-    const vendor = await vendorModel.findOne({
-      "contacts.mobile": mobile,
-    });
+    // 2️⃣ Find accountant by mobile number
+    console.log("🔍 Searching accountant with mobile:", cleanedMobile);
+    const AccountantCollection = require("../../models/accountantSchema");
+    const accountant = await AccountantCollection.findOne({ mobile: cleanedMobile });
 
-    if (!vendor) {
-      console.log("❌ Vendor not found for mobile:", mobile);
+    if (!accountant) {
+      console.log("❌ Accountant not found for mobile:", cleanedMobile);
       return res.status(404).json({
         success: false,
-        message: "Vendor not found",
+        message: "Accountant account not found with this mobile number",
       });
     }
 
-    console.log("✅ Vendor found:", vendor._id);
+    console.log("✅ Accountant found:", accountant._id);
 
-    // 3️⃣ Check password
+    // Check status
+    if (accountant.status === "inactive") {
+      console.log("❌ Accountant account is inactive:", accountant._id);
+      return res.status(403).json({
+        success: false,
+        message: "Your accountant account is inactive. Please contact the vendor.",
+      });
+    }
+
+    // 3️⃣ Fetch the parent vendor details using the accountant's vendorId reference
+    const vendor = await vendorModel.findById(accountant.vendorId);
+    if (!vendor) {
+      console.log("❌ Parent vendor not found for accountant:", accountant.vendorId);
+      return res.status(404).json({
+        success: false,
+        message: "Parent vendor not found for this accountant",
+      });
+    }
+
+    console.log("✅ Parent vendor found:", vendor._id);
+
+    // 4️⃣ Check password
     console.log("🔐 Checking password...");
-
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      vendor.password
-    );
-
+    const isPasswordValid = await bcrypt.compare(password, accountant.password);
     console.log("🔐 Password match result:", isPasswordValid);
 
     if (!isPasswordValid) {
-      console.log("❌ Incorrect password for vendor:", vendor._id);
+      console.log("❌ Incorrect password for accountant:", accountant._id);
       return res.status(401).json({
         success: false,
         message: "Incorrect password",
       });
     }
 
-    // 4️⃣ Save FCM token if provided (optional)
+    // 5️⃣ Save FCM token if provided (optional)
     if (fcmToken) {
       console.log("📱 FCM token received:", fcmToken);
-
       if (!vendor.fcmTokens) {
-        console.log("ℹ️ fcmTokens array not found, initializing");
         vendor.fcmTokens = [];
       }
-
       if (!vendor.fcmTokens.includes(fcmToken)) {
-        console.log("➕ Adding new FCM token");
         vendor.fcmTokens.push(fcmToken);
         await vendor.save();
-      } else {
-        console.log("ℹ️ FCM token already exists");
       }
-    } else {
-      console.log("ℹ️ No FCM token provided");
     }
 
-    // 5️⃣ Successful login response
-    console.log("✅ Login successful for vendor:", vendor._id);
-
+    // 6️⃣ Successful login response
+    console.log("✅ Accountant login successful.");
     return res.status(200).json({
       success: true,
       message: "Login successful",
       vendorId: vendor._id,
-      vendorName: vendor.vendorName,
-      contacts: vendor.contacts,
-      latitude: vendor.latitude,
-      longitude: vendor.longitude,
-      address: vendor.address,
-      newuser: vendor.newuser,
+      vendorName: vendor.vendorName || "",
+      contacts: vendor.contacts || [],
+      latitude: vendor.latitude || "",
+      longitude: vendor.longitude || "",
+      address: vendor.address || "",
+      newuser: vendor.newuser || "false",
+      role: "accountant",
+      accountName: accountant.accountName,
+      accountantId: accountant._id,
+      image: vendor.image || "",
+      parkingEntries: vendor.parkingEntries || [],
     });
+
   } catch (error) {
-    console.error("🔥 Error in vendor login:", error);
+    console.error("🔥 Error in accountant login:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
   }
 };
+
+
+
+
+
+
+
+// const vendorLogin = async (req, res) => {
+//   try {
+//     console.log("🔹 Vendor Login API hit");
+//     console.log("➡️ Request body:", req.body);
+
+//     const { mobile, password, fcmToken } = req.body;
+
+//     // 1️⃣ Validate required fields
+//     if (!mobile || !password) {
+//       console.log("❌ Missing mobile or password");
+//       return res.status(400).json({
+//         success: false,
+//         message: "Mobile number and password are required",
+//       });
+//     }
+
+//     console.log("✅ Mobile & password received:", mobile);
+
+//     // 2️⃣ Find vendor by mobile number
+//     console.log("🔍 Searching vendor with mobile:", mobile);
+
+//     let vendor = await vendorModel.findOne({
+//       "contacts.mobile": mobile,
+//     });
+
+//     let isAccountant = false;
+//     let accountant = null;
+
+//     // 3️⃣ If vendor is NOT found, check the accountant collection
+//     if (!vendor) {
+//       console.log("🔍 Vendor not found. Searching accountant with mobile:", mobile);
+
+//       // Clean mobile format for accountant lookup (strips non-digits, slices '91' if length > 10)
+//       let cleanedMobileForAccountant = mobile.replace(/\D/g, '');
+//       if (cleanedMobileForAccountant.startsWith("91") && cleanedMobileForAccountant.length > 10) {
+//         cleanedMobileForAccountant = cleanedMobileForAccountant.slice(2);
+//       }
+
+//       // Dynamically require the accountant model
+//       const AccountantCollection = require("../../models/accountantSchema");
+
+//       accountant = await AccountantCollection.findOne({
+//         mobile: cleanedMobileForAccountant,
+//       });
+
+//       if (!accountant) {
+//         console.log("❌ Neither Vendor nor Accountant found for mobile:", mobile);
+//         return res.status(404).json({
+//           success: false,
+//           message: "Vendor not found",
+//         });
+//       }
+
+//       console.log("✅ Accountant found:", accountant._id);
+
+//       // Fetch the parent vendor details using the accountant's vendorId reference
+//       vendor = await vendorModel.findById(accountant.vendorId);
+//       if (!vendor) {
+//         console.log("❌ Parent vendor not found for accountant:", accountant.vendorId);
+//         return res.status(404).json({
+//           success: false,
+//           message: "Parent vendor not found for this accountant",
+//         });
+//       }
+
+//       isAccountant = true;
+//     }
+
+//     console.log("✅ Vendor/Parent-Vendor found:", vendor._id);
+
+//     // 4️⃣ Check password
+//     console.log("🔐 Checking password...");
+
+//     const isPasswordValid = await bcrypt.compare(
+//       password,
+//       isAccountant ? accountant.password : vendor.password
+//     );
+
+//     console.log("🔐 Password match result:", isPasswordValid);
+
+//     if (!isPasswordValid) {
+//       console.log("❌ Incorrect password for:", isAccountant ? accountant._id : vendor._id);
+//       return res.status(401).json({
+//         success: false,
+//         message: "Incorrect password",
+//       });
+//     }
+
+//     // 5️⃣ Save FCM token if provided (optional)
+//     if (fcmToken) {
+//       console.log("📱 FCM token received:", fcmToken);
+
+//       if (!vendor.fcmTokens) {
+//         console.log("ℹ️ fcmTokens array not found, initializing");
+//         vendor.fcmTokens = [];
+//       }
+
+//       if (!vendor.fcmTokens.includes(fcmToken)) {
+//         console.log("➕ Adding new FCM token");
+//         vendor.fcmTokens.push(fcmToken);
+//         await vendor.save();
+//       } else {
+//         console.log("ℹ️ FCM token already exists");
+//       }
+//     } else {
+//       console.log("ℹ️ No FCM token provided");
+//     }
+
+//     // 6️⃣ Successful login response (with safe fallbacks)
+//     console.log("✅ Login successful. Vendor ID returned:", vendor._id);
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       vendorId: vendor._id,
+//       vendorName: vendor.vendorName || "",
+//       contacts: vendor.contacts || [],
+//       latitude: vendor.latitude || "",
+//       longitude: vendor.longitude || "",
+//       address: vendor.address || "",
+//       newuser: vendor.newuser || "false",
+//       role: isAccountant ? "accountant" : "vendor",
+//       accountName: isAccountant ? accountant.accountName : undefined,
+//       accountantId: isAccountant ? accountant._id : undefined,
+//     });
+//   } catch (error) {
+//     console.error("🔥 Error in vendor login:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//     });
+//   }
+// };
+
+
+
+
+
+
+
+
+
+
+
 
 
 const updateVendor = async (req, res) => {
@@ -673,6 +1012,39 @@ const fetchVendorData = async (req, res) => {
     });
   } catch (err) {
     console.log("Error in fetching the vendor details", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+const fetchAccountantData = async (req, res) => {
+  try {
+    console.log("Welcome to fetch accountant data");
+
+    const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ message: "Accountant ID is required" });
+    }
+
+    const AccountantCollection = require("../../models/accountantSchema");
+    const accountantData = await AccountantCollection.findById(id).populate("vendorId", "-password");
+
+    if (!accountantData) {
+      return res.status(404).json({ message: "Accountant not found" });
+    }
+
+    return res.status(200).json({
+      message: "Accountant data fetched successfully",
+      data: {
+        id: accountantData._id,
+        accountName: accountantData.accountName,
+        mobile: accountantData.mobile,
+        role: accountantData.role,
+        status: accountantData.status,
+        vendor: accountantData.vendorId
+      }
+    });
+  } catch (err) {
+    console.log("Error in fetching the accountant details", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -1434,7 +1806,7 @@ const updateValidity = async (req, res) => {
     const { day } = req.body;
 
     console.log(`UpdateValidity Request - Vendor: ${vendorId}, Days to add: ${day}`);
-    
+
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -1724,7 +2096,7 @@ const updateToggleStates = async (req, res) => {
     if (valetEnabled !== undefined) {
       vendor.valetEnabled = valetEnabled;
     }
-    
+
     await vendor.save();
 
     return res.status(200).json({
@@ -1744,15 +2116,15 @@ const updateToggleStates = async (req, res) => {
 
 const getReturnMinutes = async (req, res) => {
   try {
-    const {vendor_id} = req.query;
-    if(!vendor_id){
-      return res.status(400).json({message:"Vendor ID is required"})
+    const { vendor_id } = req.query;
+    if (!vendor_id) {
+      return res.status(400).json({ message: "Vendor ID is required" })
     }
-    const vendor = await vendorModel.findById(vendor_id,{vehicleReturnTime:1});
-    if(!vendor){
-      return res.status(404).json({message:"Vendor not found"})
+    const vendor = await vendorModel.findById(vendor_id, { vehicleReturnTime: 1 });
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" })
     }
-    return res.status(200).json({message:"Return minutes fetched successfully",data:vendor.vehicleReturnTime})
+    return res.status(200).json({ message: "Return minutes fetched successfully", data: vendor.vehicleReturnTime })
   } catch (error) {
     console.error("Error fetching return minutes:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -1774,10 +2146,12 @@ module.exports = {
   updateVendorHours,
   vendorSignup,
   vendorLogin,
+  accountantLogin,
   vendorForgotPassword,
   verifyOTP,
   vendorChangePassword,
   fetchVendorData,
+  fetchAccountantData,
   fetchAllVendorData,
   sendNewLocationNotificationToAllUsers,
   updateVendorData,

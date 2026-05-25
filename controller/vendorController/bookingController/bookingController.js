@@ -6570,9 +6570,144 @@ exports.getBookingByIds = async (req, res) => {
 // --------------TEMP SOLUTION IN TRANSACTIONS------------------------
 
 
+// exports.getReceivableAmountByUser = async (req, res) => {
+//   try {
+//     const { vendorId, userId } = req.params;
+
+//     if (!vendorId) {
+//       return res.status(400).json({ success: false, message: "Vendor ID is required" });
+//     }
+
+//     const vendor = await vendorModel.findById(vendorId);
+//     if (!vendor) {
+//       return res.status(404).json({ success: false, message: "Vendor not found" });
+//     }
+
+//     let matchFilter = { vendorId };
+
+//     if (userId) {
+//       matchFilter.userId = userId;
+//     } else {
+//       matchFilter.userId = { $ne: null, $exists: true };
+//     }
+
+//     const transactions = await BookingTransaction.aggregate([
+//       { $match: matchFilter },
+
+//       {
+//         $addFields: {
+//           totalNum: { $toDouble: { $ifNull: ["$totalAmount", "0"] } },
+//           receivableNum: { $toDouble: { $ifNull: ["$receivableAmount", "0"] } },
+//           hasExit: {
+//             $cond: [
+//               {
+//                 $and: [
+//                   { $ne: ["$exitDate", null] },
+//                   { $ne: ["$exitTime", null] }
+//                 ]
+//               },
+//               1,
+//               0
+//             ]
+//           }
+//         }
+//       },
+
+//       {
+//         $addFields: {
+//           priority: {
+//             $cond: [
+//               {
+//                 $and: [
+//                   { $gt: ["$totalNum", 0] },
+//                   { $gt: ["$receivableNum", 0] },
+//                   { $eq: ["$hasExit", 1] }
+//                 ]
+//               },
+//               1,
+//               {
+//                 $cond: [
+//                   { $gt: ["$totalNum", 0] },
+//                   2,
+//                   3
+//                 ]
+//               }
+//             ]
+//           }
+//         }
+//       },
+
+//       {
+//         $sort: {
+//           invoiceId: 1,
+//           priority: 1,
+//           totalNum: -1,
+//           _id: -1
+//         }
+//       },
+
+//       {
+//         $group: {
+//           _id: "$invoiceId",
+//           bestRecord: { $first: "$$ROOT" }
+//         }
+//       },
+
+//       { $replaceRoot: { newRoot: "$bestRecord" } }
+//     ]);
+
+//     if (!transactions.length) {
+//       return res.status(200).json({ success: true, message: "No transactions found", data: [] });
+//     }
+
+//     const bookings = transactions.map((transaction) => {
+//       const platformFee = parseFloat(transaction.platformFee || "0.00");
+//       const receivableAmount = parseFloat(transaction.receivableAmount || "0.00");
+
+//       return {
+//         invoice: null,
+//         username: transaction.personName || null,
+//         _id: transaction._id,
+//         invoiceid: transaction.invoiceId || null,
+//         userid: transaction.userId || null,
+//         bookingDate: transaction.bookingDate || null,
+//         parkingDate: transaction.parkingDate || null,
+//         parkingTime: transaction.parkingTime || null,
+//         vehiclenumber: transaction.vehicleNumber || null,
+//         exitdate: transaction.exitDate || null,
+//         exittime: transaction.exitTime || null,
+//         status: transaction.status || null,
+//         sts: transaction.subscriptionType || null,
+//         otp: null,
+//         vendorname: transaction.vendorName || null,
+//         vendorid: transaction.vendorId || null,
+//         bookingtype: transaction.bookingType || null,
+//         vehicleType: transaction.vehicleType || null,
+//         amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
+//         handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
+//         releasefee: platformFee.toFixed(2),
+//         recievableamount: receivableAmount.toFixed(2),
+//         payableamout: receivableAmount.toFixed(2),
+//         gstamout: transaction.gstAmount || "0.00",
+//         totalamout: transaction.totalAmount || "0.00",
+//       };
+//     });
+
+//     res.status(200).json({ success: true, data: bookings });
+
+//   } catch (error) {
+//     console.error("Error fetching receivable amounts:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
+
+
 exports.getReceivableAmountByUser = async (req, res) => {
   try {
     const { vendorId, userId } = req.params;
+    const { subunitId, includeSubunits } = req.query;
 
     if (!vendorId) {
       return res.status(400).json({ success: false, message: "Vendor ID is required" });
@@ -6583,12 +6718,21 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    let matchFilter = { vendorId };
+    let matchFilter = {};
 
+    // Apply Subunit filter logic
+    if (subunitId) {
+      matchFilter.vendorId = subunitId;
+    } else if (includeSubunits === 'true') {
+      const subUnitIds = vendor.subUnits || [];
+      matchFilter.vendorId = { $in: [vendorId, ...subUnitIds] };
+    } else {
+      matchFilter.vendorId = vendorId;
+    }
+
+    // Filter by specific user if provided; otherwise return all bookings (both user and vendor-created)
     if (userId) {
       matchFilter.userId = userId;
-    } else {
-      matchFilter.userId = { $ne: null, $exists: true };
     }
 
     const transactions = await BookingTransaction.aggregate([
@@ -6703,9 +6847,150 @@ exports.getReceivableAmountByUser = async (req, res) => {
 
 
 
+
+
+// exports.getReceivableAmountWithPlatformFee = async (req, res) => {
+//   try {
+//     const { vendorId } = req.params;
+
+//     if (!vendorId) {
+//       return res.status(400).json({ success: false, message: "Vendor ID is required" });
+//     }
+
+//     const vendor = await vendorModel.findById(vendorId);
+//     if (!vendor) {
+//       return res.status(404).json({ success: false, message: "Vendor not found" });
+//     }
+
+//     const transactions = await BookingTransaction.aggregate([
+//       {
+//         $match: {
+//           vendorId,
+//           $or: [{ userId: null }, { userId: { $exists: false } }]
+//         }
+//       },
+
+//       {
+//         $addFields: {
+//           totalNum: { $toDouble: { $ifNull: ["$totalAmount", "0"] } },
+//           receivableNum: { $toDouble: { $ifNull: ["$receivableAmount", "0"] } },
+//           hasExit: {
+//             $cond: [
+//               {
+//                 $and: [
+//                   { $ne: ["$exitDate", null] },
+//                   { $ne: ["$exitTime", null] }
+//                 ]
+//               },
+//               1,
+//               0
+//             ]
+//           }
+//         }
+//       },
+
+//       {
+//         $addFields: {
+//           priority: {
+//             $cond: [
+//               {
+//                 $and: [
+//                   { $gt: ["$totalNum", 0] },
+//                   { $gt: ["$receivableNum", 0] },
+//                   { $eq: ["$hasExit", 1] }
+//                 ]
+//               },
+//               1,
+//               {
+//                 $cond: [
+//                   { $gt: ["$totalNum", 0] },
+//                   2,
+//                   3
+//                 ]
+//               }
+//             ]
+//           }
+//         }
+//       },
+
+//       {
+//         $sort: {
+//           invoiceId: 1,
+//           priority: 1,
+//           totalNum: -1,
+//           _id: -1
+//         }
+//       },
+
+//       {
+//         $group: {
+//           _id: "$invoiceId",
+//           bestRecord: { $first: "$$ROOT" }
+//         }
+//       },
+
+//       { $replaceRoot: { newRoot: "$bestRecord" } }
+//     ]);
+
+//     if (!transactions.length) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "No transactions without userId found",
+//         data: []
+//       });
+//     }
+
+//     const bookings = transactions.map((transaction) => {
+//       const platformFee = parseFloat(transaction.platformFee || "0.00");
+//       const receivableAmount = parseFloat(transaction.receivableAmount || "0.00");
+
+//       return {
+//         invoiceid: transaction.invoiceId || null,
+//         invoice: null,
+//         username: transaction.personName || null,
+//         _id: transaction._id,
+//         userid: transaction.userId || null,
+//         bookingDate: transaction.bookingDate || null,
+//         parkingDate: transaction.parkingDate || null,
+//         parkingTime: transaction.parkingTime || null,
+//         vehiclenumber: transaction.vehicleNumber || null,
+//         exitdate: transaction.exitDate || null,
+//         exittime: transaction.exitTime || null,
+//         status: transaction.status || null,
+//         sts: transaction.subscriptionType || null,
+//         otp: null,
+//         vendorname: transaction.vendorName || null,
+//         vendorid: transaction.vendorId || null,
+//         bookingtype: transaction.bookingType || null,
+//         vehicleType: transaction.vehicleType || null,
+//         amount: transaction.bookingAmount ? parseFloat(transaction.bookingAmount).toFixed(2) : "0.00",
+//         handlingfee: transaction.handlingFee ? parseFloat(transaction.handlingFee).toFixed(2) : "0.00",
+//         releasefee: platformFee.toFixed(2),
+//         recievableamount: receivableAmount.toFixed(2),
+//         payableamout: receivableAmount.toFixed(2),
+//         gstamout: transaction.gstAmount || "0.00",
+//         totalamout: transaction.totalAmount || "0.00",
+//         handlingFee: transaction.handlingFee || "0.00"
+//       };
+//     });
+
+//     res.status(200).json({ success: true, data: bookings });
+
+//   } catch (error) {
+//     console.error("Error fetching receivable amounts:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
+
+
+// --------------TEMP SOLUTION IN TRANSACTIONS------------------------
+
 exports.getReceivableAmountWithPlatformFee = async (req, res) => {
   try {
     const { vendorId } = req.params;
+    const { subunitId, includeSubunits } = req.query;
 
     if (!vendorId) {
       return res.status(400).json({ success: false, message: "Vendor ID is required" });
@@ -6716,13 +7001,22 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
+    let matchFilter = {};
+
+    // Apply Subunit filter logic
+    if (subunitId) {
+      matchFilter.vendorId = subunitId;
+    } else if (includeSubunits === 'true') {
+      const subUnitIds = vendor.subUnits || [];
+      matchFilter.vendorId = { $in: [vendorId, ...subUnitIds] };
+    } else {
+      matchFilter.vendorId = vendorId;
+    }
+
+    matchFilter.$or = [{ userId: null }, { userId: { $exists: false } }];
+
     const transactions = await BookingTransaction.aggregate([
-      {
-        $match: {
-          vendorId,
-          $or: [{ userId: null }, { userId: { $exists: false } }]
-        }
-      },
+      { $match: matchFilter },
 
       {
         $addFields: {
@@ -6799,10 +7093,10 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       const receivableAmount = parseFloat(transaction.receivableAmount || "0.00");
 
       return {
-        invoiceid: transaction.invoiceId || null,
         invoice: null,
         username: transaction.personName || null,
         _id: transaction._id,
+        invoiceid: transaction.invoiceId || null,
         userid: transaction.userId || null,
         bookingDate: transaction.bookingDate || null,
         parkingDate: transaction.parkingDate || null,
@@ -6824,7 +7118,6 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
         payableamout: receivableAmount.toFixed(2),
         gstamout: transaction.gstAmount || "0.00",
         totalamout: transaction.totalAmount || "0.00",
-        handlingFee: transaction.handlingFee || "0.00"
       };
     });
 
@@ -6835,11 +7128,6 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-
-
-
-// --------------TEMP SOLUTION IN TRANSACTIONS------------------------
 
 
 
