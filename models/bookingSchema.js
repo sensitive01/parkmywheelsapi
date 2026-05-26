@@ -211,16 +211,39 @@ type: String,
 );
 
 // Pre-save middleware to generate invoiceid
-bookingSchema.pre('save', function(next) {
+bookingSchema.pre('save', async function(next) {
   if (this.isNew && !this.invoiceid) {
     const now = new Date();
-    const year = now.getFullYear().toString().slice(-2); // Last two digits of year
-    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // Month as 2 digits
-    const day = now.getDate().toString().padStart(2, '0'); // Day as 2 digits
-    const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
-    this.invoiceid = `PMW${year}${month}${day}${randomNum}`;
+    // Convert to IST offset (+5.5 hours)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(now.getTime() + istOffset);
+
+    const day = String(istTime.getUTCDate()).padStart(2, '0');
+    const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+    const year = istTime.getUTCFullYear();
+    const dateString = `${day}${month}${year}`; // DDMMYYYY
+
+    const startOfDay = new Date(Date.UTC(year, istTime.getUTCMonth(), istTime.getUTCDate(), 0, 0, 0) - istOffset);
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+    try {
+      const count = await this.constructor.countDocuments({
+        vendorId: this.vendorId,
+        createdAt: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        }
+      });
+
+      const sequence = String(count + 1).padStart(3, '0');
+      this.invoiceid = `PMW${dateString}${sequence}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else {
+    next();
   }
-  next();
 });
 
 

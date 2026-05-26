@@ -1,8 +1,30 @@
 const Payment = require("../../../models/transactionschema");
-function generateBookingId() {
+async function generateBookingId(vendorId) {
   const prefix = "PMW";
-  const randomDigits = Math.floor(1000000 + Math.random() * 9000000); // Ensures 7 digits
-  return prefix + randomDigits;
+  
+  const now = new Date();
+  // Convert to IST offset (+5.5 hours)
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+
+  const day = String(istTime.getUTCDate()).padStart(2, '0');
+  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+  const year = istTime.getUTCFullYear();
+  const dateString = `${day}${month}${year}`;
+
+  const startOfDay = new Date(Date.UTC(year, istTime.getUTCMonth(), istTime.getUTCDate(), 0, 0, 0) - istOffset);
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+  const count = await Payment.countDocuments({
+    vendorId: vendorId,
+    createdAt: {
+      $gte: startOfDay,
+      $lt: endOfDay
+    }
+  });
+
+  const sequence = String(count + 1).padStart(3, '0');
+  return `${prefix}${dateString}${sequence}`;
 }
 const verifyPaymentResponse = async (req, res) => {
  
@@ -16,8 +38,8 @@ const verifyPaymentResponse = async (req, res) => {
       transaction_name,
       payment_status,
     } = req.body;
-const order_id = generateBookingId(); // Generate a unique order ID
     const vendor_id = req.params.vendorId;
+    const order_id = await generateBookingId(vendor_id); // Generate a unique order ID
 
     const payment = new Payment({
       paymentId: payment_id,
