@@ -181,10 +181,17 @@ exports.addAccountant = async (req, res) => {
 exports.editAccountant = async (req, res) => {
     try {
         const { id } = req.params;
+        const updateData = { ...req.body };
+
+        if (updateData.password) {
+            updateData.password = await bcrypt.hash(updateData.password, 10);
+        } else {
+            delete updateData.password;
+        }
 
         const updatedAccountant = await Accountant.findByIdAndUpdate(
             id,
-            req.body,
+            updateData,
             { new: true }
         );
 

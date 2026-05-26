@@ -6724,7 +6724,12 @@ exports.getReceivableAmountByUser = async (req, res) => {
 
     // Apply Subunit filter logic
     if (subunitId) {
-      matchFilter.vendorId = subunitId;
+      if (subunitId.includes(",")) {
+        const ids = subunitId.split(",").map(id => id.trim());
+        matchFilter.vendorId = { $in: ids };
+      } else {
+        matchFilter.vendorId = subunitId;
+      }
     } else if (includeSubunits === 'true') {
       const subUnitIds = vendor.subUnits || [];
       matchFilter.vendorId = { $in: [vendorId, ...subUnitIds] };
@@ -6785,7 +6790,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
 
       {
         $sort: {
-          invoiceId: 1,
+          bookingId: 1,
           priority: 1,
           totalNum: -1,
           _id: -1
@@ -6794,7 +6799,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
 
       {
         $group: {
-          _id: "$invoiceId",
+          _id: "$bookingId",
           bestRecord: { $first: "$$ROOT" }
         }
       },
@@ -6814,6 +6819,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
         invoice: null,
         username: transaction.personName || null,
         _id: transaction._id,
+        bookingId: transaction.bookingId || null,
         invoiceid: transaction.invoiceId || null,
         userid: transaction.userId || null,
         bookingDate: transaction.bookingDate || null,
@@ -7007,7 +7013,12 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
     // Apply Subunit filter logic
     if (subunitId) {
-      matchFilter.vendorId = subunitId;
+      if (subunitId.includes(",")) {
+        const ids = subunitId.split(",").map(id => id.trim());
+        matchFilter.vendorId = { $in: ids };
+      } else {
+        matchFilter.vendorId = subunitId;
+      }
     } else if (includeSubunits === 'true') {
       const subUnitIds = vendor.subUnits || [];
       matchFilter.vendorId = { $in: [vendorId, ...subUnitIds] };
@@ -7065,7 +7076,7 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
       {
         $sort: {
-          invoiceId: 1,
+          bookingId: 1,
           priority: 1,
           totalNum: -1,
           _id: -1
@@ -7074,7 +7085,7 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
       {
         $group: {
-          _id: "$invoiceId",
+          _id: "$bookingId",
           bestRecord: { $first: "$$ROOT" }
         }
       },
@@ -7098,6 +7109,7 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
         invoice: null,
         username: transaction.personName || null,
         _id: transaction._id,
+        bookingId: transaction.bookingId || null,
         invoiceid: transaction.invoiceId || null,
         userid: transaction.userId || null,
         bookingDate: transaction.bookingDate || null,
