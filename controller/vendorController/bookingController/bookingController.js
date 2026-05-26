@@ -1700,6 +1700,7 @@ exports.machinecreatebooking = async (req, res) => {
       bookingId: newBooking._id,
       booking: {
         _id: newBooking._id,
+        invoiceid: newBooking.invoiceid,
         amount: newBooking.amount,
         totalamout: newBooking.totalamout,
         gstamout: newBooking.gstamout,
@@ -2473,6 +2474,7 @@ exports.vendorcreateBooking = async (req, res) => {
       bookingId: newBooking._id,
       booking: {
         _id: newBooking._id,
+        invoiceid: newBooking.invoiceid,
         amount: newBooking.amount,
         totalamout: newBooking.totalamout,
         gstamout: newBooking.gstamout,
