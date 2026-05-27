@@ -4908,7 +4908,38 @@ exports.getAllBookings = async (req, res) => {
 
 exports.deleteBooking = async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndDelete(req.params.id);
+    const id = req.params.id;
+
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: "Invalid ID format" });
+    }
+
+    // 1. Try to delete the Booking document
+    let booking = await Booking.findByIdAndDelete(id);
+
+    if (booking) {
+      // Delete any associated transactions
+      await BookingTransaction.deleteMany({ bookingId: id });
+    } else {
+      // 2. If no booking was found, check if the ID belongs to a BookingTransaction
+      const transaction = await BookingTransaction.findById(id);
+      if (transaction) {
+        const assocBookingId = transaction.bookingId;
+        await BookingTransaction.findByIdAndDelete(id);
+        booking = true; // Mark as success since we successfully deleted the transaction document
+        if (assocBookingId) {
+          await Booking.findByIdAndDelete(assocBookingId);
+          // Clean up all transactions associated with that booking
+          await BookingTransaction.deleteMany({ bookingId: assocBookingId });
+        }
+      } else {
+        // 3. Fallback: If neither, check if there are transactions associated with this ID as a bookingId
+        const txResult = await BookingTransaction.deleteMany({ bookingId: id });
+        if (txResult.deletedCount > 0) {
+          booking = true; // We successfully deleted associated transactions
+        }
+      }
+    }
 
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
@@ -6746,6 +6777,21 @@ exports.getReceivableAmountByUser = async (req, res) => {
       { $match: matchFilter },
 
       {
+        $lookup: {
+          from: "bookings",
+          localField: "bookingId",
+          foreignField: "_id",
+          as: "bookingDetails"
+        }
+      },
+
+      {
+        $addFields: {
+          bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] }
+        }
+      },
+
+      {
         $addFields: {
           totalNum: { $toDouble: { $ifNull: ["$totalAmount", "0"] } },
           receivableNum: { $toDouble: { $ifNull: ["$receivableAmount", "0"] } },
@@ -6828,7 +6874,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
         vehiclenumber: transaction.vehicleNumber || null,
         exitdate: transaction.exitDate || null,
         exittime: transaction.exitTime || null,
-        status: transaction.status || null,
+        status: transaction.bookingStatus || transaction.status || null,
         sts: transaction.subscriptionType || null,
         otp: null,
         vendorname: transaction.vendorName || null,
@@ -7032,6 +7078,21 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
       { $match: matchFilter },
 
       {
+        $lookup: {
+          from: "bookings",
+          localField: "bookingId",
+          foreignField: "_id",
+          as: "bookingDetails"
+        }
+      },
+
+      {
+        $addFields: {
+          bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] }
+        }
+      },
+
+      {
         $addFields: {
           totalNum: { $toDouble: { $ifNull: ["$totalAmount", "0"] } },
           receivableNum: { $toDouble: { $ifNull: ["$receivableAmount", "0"] } },
@@ -7118,7 +7179,7 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
         vehiclenumber: transaction.vehicleNumber || null,
         exitdate: transaction.exitDate || null,
         exittime: transaction.exitTime || null,
-        status: transaction.status || null,
+        status: transaction.bookingStatus || transaction.status || null,
         sts: transaction.subscriptionType || null,
         otp: null,
         vendorname: transaction.vendorName || null,

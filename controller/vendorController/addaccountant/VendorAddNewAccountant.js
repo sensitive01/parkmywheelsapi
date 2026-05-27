@@ -511,6 +511,44 @@ exports.getSubunits = async (req, res) => {
         const totalBookings = subBookings.length;
         const totalAmount = subBookings.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
 
+        // Group statistics by status (case-insensitive)
+        const countsByStatus = {
+          parked: 0,
+          completed: 0,
+          pending: 0,
+          approved: 0,
+          cancelled: 0
+        };
+
+        const revenueByStatus = {
+          parked: 0,
+          completed: 0,
+          pending: 0,
+          approved: 0,
+          cancelled: 0
+        };
+
+        subBookings.forEach((b) => {
+          const status = (b.status || "").trim().toLowerCase();
+          const amt = parseFloat(b.amount) || 0;
+          if (status === "parked") {
+            countsByStatus.parked += 1;
+            revenueByStatus.parked += amt;
+          } else if (status === "completed") {
+            countsByStatus.completed += 1;
+            revenueByStatus.completed += amt;
+          } else if (status === "pending") {
+            countsByStatus.pending += 1;
+            revenueByStatus.pending += amt;
+          } else if (status === "approved") {
+            countsByStatus.approved += 1;
+            revenueByStatus.approved += amt;
+          } else if (status === "cancelled") {
+            countsByStatus.cancelled += 1;
+            revenueByStatus.cancelled += amt;
+          }
+        });
+
         return {
           id: sub._id,
           name: sub.vendorName,
@@ -522,6 +560,16 @@ exports.getSubunits = async (req, res) => {
           contacts: sub.contacts,
           totalBookings: totalBookings,
           totalAmount: totalAmount,
+          completedBookings: countsByStatus.completed,
+          completedAmount: revenueByStatus.completed,
+          parkedBookings: countsByStatus.parked,
+          parkedAmount: revenueByStatus.parked,
+          pendingBookings: countsByStatus.pending,
+          pendingAmount: revenueByStatus.pending,
+          approvedBookings: countsByStatus.approved,
+          approvedAmount: revenueByStatus.approved,
+          cancelledBookings: countsByStatus.cancelled,
+          cancelledAmount: revenueByStatus.cancelled,
         };
       })
     );
