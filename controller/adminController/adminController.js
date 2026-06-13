@@ -1198,25 +1198,28 @@ const getBookingSummary = async (req, res) => {
   try {
     const count = await Booking.countDocuments();
 
-    const bookings = await Booking.find({}, { createdAt: 1 });
+    const stats = await Booking.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          }
+        }
+      }
+    ]);
 
-    // Create a Set to store unique "YYYY-MM" strings
-    const uniqueMonths = new Set();
-
-    bookings.forEach((booking) => {
-      if (booking.createdAt) {
-        const date = new Date(booking.createdAt);
-        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}`;
-        uniqueMonths.add(month);
+    let uniqueMonths = 0;
+    stats.forEach(stat => {
+      if (stat._id.year && stat._id.month) {
+        uniqueMonths++;
       }
     });
 
     res.status(200).json({
       message: "Booking summary fetched successfully",
       count,
-      totalMonths: uniqueMonths.size
+      totalMonths: uniqueMonths
     });
   } catch (error) {
     console.error("Error fetching booking summary:", error);
@@ -1231,24 +1234,28 @@ const getUserSummary = async (req, res) => {
   try {
     const count = await userModel.countDocuments();
 
-    const users = await userModel.find({}, { createdAt: 1 });
+    const stats = await userModel.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          }
+        }
+      }
+    ]);
 
-    const uniqueMonths = new Set();
-
-    users.forEach((user) => {
-      if (user.createdAt) {
-        const date = new Date(user.createdAt);
-        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}`;
-        uniqueMonths.add(month);
+    let uniqueMonths = 0;
+    stats.forEach(stat => {
+      if (stat._id.year && stat._id.month) {
+        uniqueMonths++;
       }
     });
 
     res.status(200).json({
       message: "User summary fetched successfully",
       count,
-      totalMonths: uniqueMonths.size
+      totalMonths: uniqueMonths
     });
   } catch (error) {
     console.error("Error fetching user summary:", error);
@@ -1261,30 +1268,32 @@ const getUserSummary = async (req, res) => {
 
 const getVendorSpaceSummary = async (req, res) => {
   try {
-    // Filter only vendors with non-empty spaceid
-    const vendors = await vendorModel.find(
-      { spaceid: { $exists: true, $ne: "" } },
-      { createdAt: 1 }
-    );
+    const matchQuery = { spaceid: { $exists: true, $ne: "" } };
+    const count = await vendorModel.countDocuments(matchQuery);
 
-    const count = vendors.length;
+    const stats = await vendorModel.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          }
+        }
+      }
+    ]);
 
-    const uniqueMonths = new Set();
-
-    vendors.forEach((vendor) => {
-      if (vendor.createdAt) {
-        const date = new Date(vendor.createdAt);
-        const month = `${date.getFullYear()}-${(date.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}`;
-        uniqueMonths.add(month);
+    let uniqueMonths = 0;
+    stats.forEach(stat => {
+      if (stat._id.year && stat._id.month) {
+        uniqueMonths++;
       }
     });
 
     return res.status(200).json({
       message: "Vendor space summary fetched successfully",
       count,
-      totalMonths: uniqueMonths.size
+      totalMonths: uniqueMonths
     });
   } catch (err) {
     console.error("Error fetching vendor space summary:", err.message);
@@ -1298,28 +1307,34 @@ const getVendorSpaceSummary = async (req, res) => {
 
 const getKycSummary = async (req, res) => {
   try {
-    const kycDetails = await KycDetails.find({}, { createdAt: 1 });
-
-    if (!kycDetails || kycDetails.length === 0) {
+    const count = await KycDetails.countDocuments();
+    
+    if (count === 0) {
       return res.status(404).json({ message: 'No KYC details found' });
     }
 
-    const count = kycDetails.length;
+    const stats = await KycDetails.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          }
+        }
+      }
+    ]);
 
-    const uniqueMonths = new Set();
-
-    kycDetails.forEach(detail => {
-      if (detail.createdAt) {
-        const date = new Date(detail.createdAt);
-        const month = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        uniqueMonths.add(month);
+    let uniqueMonths = 0;
+    stats.forEach(stat => {
+      if (stat._id.year && stat._id.month) {
+        uniqueMonths++;
       }
     });
 
     return res.status(200).json({
       message: 'KYC summary fetched successfully',
       count,
-      totalMonths: uniqueMonths.size
+      totalMonths: uniqueMonths
     });
   } catch (error) {
     return res.status(500).json({
@@ -1333,44 +1348,63 @@ const getKycSummary = async (req, res) => {
 
 const getTransactionSummary = async (req, res) => {
   try {
-    const completedBookings = await Booking.find({ status: "COMPLETED" });
-
-    if (!completedBookings || completedBookings.length === 0) {
-      return res.status(404).json({ success: false, message: "No completed bookings found" });
-    }
-
-    const uniqueMonths = new Set();
-    let totalAmount = 0;
-    let totalAmountThisMonth = 0;
-
     const now = new Date();
     const currentMonth = now.getMonth(); // 0-11
     const currentYear = now.getFullYear();
 
-    completedBookings.forEach((booking) => {
-      const amount = parseFloat(booking.amount || 0);
-      totalAmount += amount;
-
-      if (booking.createdAt) {
-        const bookingDate = new Date(booking.createdAt);
-        const monthKey = `${bookingDate.getFullYear()}-${(bookingDate.getMonth() + 1).toString().padStart(2, "0")}`;
-        uniqueMonths.add(monthKey);
-
-        // Check if this booking is from current month
-        if (
-          bookingDate.getMonth() === currentMonth &&
-          bookingDate.getFullYear() === currentYear
-        ) {
-          totalAmountThisMonth += amount;
+    const stats = await Booking.aggregate([
+      { $match: { status: "COMPLETED" } },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          totalAmount: {
+            $sum: { $convert: { input: "$amount", to: "double", onError: 0, onNull: 0 } }
+          },
+          count: { $sum: 1 },
+          thisMonthAmount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: [{ $year: "$createdAt" }, currentYear] },
+                    { $eq: [{ $month: "$createdAt" }, currentMonth + 1] }
+                  ]
+                },
+                { $convert: { input: "$amount", to: "double", onError: 0, onNull: 0 } },
+                0
+              ]
+            }
+          }
         }
       }
+    ]);
+
+    if (!stats || stats.length === 0) {
+      return res.status(404).json({ success: false, message: "No completed bookings found" });
+    }
+
+    let totalAmount = 0;
+    let totalAmountThisMonth = 0;
+    let totalCompletedBookings = 0;
+    let uniqueMonths = 0;
+
+    stats.forEach(stat => {
+      if (stat._id.year && stat._id.month) {
+        uniqueMonths++;
+      }
+      totalAmount += stat.totalAmount;
+      totalCompletedBookings += stat.count;
+      totalAmountThisMonth += stat.thisMonthAmount;
     });
 
     res.status(200).json({
       success: true,
       message: "Booking summary fetched successfully",
-      totalCompletedBookings: completedBookings.length,
-      totalMonths: uniqueMonths.size,
+      totalCompletedBookings,
+      totalMonths: uniqueMonths,
       totalAmount: totalAmount.toFixed(2),
       totalAmountThisMonth: totalAmountThisMonth.toFixed(2)
     });
