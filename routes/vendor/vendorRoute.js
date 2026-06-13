@@ -92,6 +92,7 @@ vendorRoute.get("/fetchmonthlybook/:id", bookingController.fetchmonthlysubuser);
 vendorRoute.get("/getbooking/:id", bookingController.getBookingById);
 vendorRoute.get("/bookings", bookingController.getAllBookings);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
+vendorRoute.post("/deletebookings/bulk", bookingController.deleteBookingsBulk);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
 vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour);
 vendorRoute.put("/renewmonthl/:id", bookingController.renewSubscription);

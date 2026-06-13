@@ -60,6 +60,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+userSchema.index({ uuid: 1 });
+
 const User = mongoose.model("User", userSchema);
 
 module.exports = User;

@@ -249,6 +249,14 @@ bookingSchema.pre('save', async function(next) {
 
 
 
+bookingSchema.index({ vendorId: 1 });
+bookingSchema.index({ userid: 1 });
+bookingSchema.index({ vehicleNumber: 1 });
+bookingSchema.index({ status: 1 });
+bookingSchema.index({ parkingDate: 1 });
+bookingSchema.index({ vendorId: 1, status: 1 });
+bookingSchema.index({ userid: 1, status: 1 });
+
 const Booking = mongoose.model("Booking", bookingSchema);
 
 module.exports = Booking;

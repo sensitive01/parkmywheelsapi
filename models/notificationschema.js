@@ -32,4 +32,11 @@ notificationdtime: { type: String }, // Added notificationType field
   isVendorRead:{type:Boolean,default:false}
 });
 
+notificationSchema.index({ vendorId: 1 });
+notificationSchema.index({ userId: 1 });
+notificationSchema.index({ isVendorRead: 1 });
+notificationSchema.index({ read: 1 });
+notificationSchema.index({ vendorId: 1, isVendorRead: 1 });
+notificationSchema.index({ userId: 1, read: 1 });
+
 module.exports = mongoose.model('Notification', notificationSchema);

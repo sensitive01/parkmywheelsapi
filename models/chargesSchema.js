@@ -72,4 +72,6 @@ const vendorchargeSchema = new mongoose.Schema({
   others72h:{type: String,},
 });
 
+vendorchargeSchema.index({ vendorid: 1 });
+
 module.exports = mongoose.model("Parkingcharges", vendorchargeSchema);

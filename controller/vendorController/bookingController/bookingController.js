@@ -173,21 +173,18 @@ const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, curren
       return { exists: false };
     }
 
-    // STEP 1: First check if vehicle has bookings with status PENDING, APPROVED, or PARKED (case-insensitive)
-    const bookingsWithActiveStatus = await Booking.find({
+    // Build regex to match space-insensitive and case-insensitive vehicle number directly in MongoDB query
+    const chars = normalizedVehicleNumber.split("").map(char => {
+      return char.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "\\s*";
+    }).join("");
+    const targetVehicleRegex = new RegExp("^\\s*" + chars + "$", "i");
+
+    // STEP 1: Query MongoDB directly using status AND vehicleNumber regex (utilizing indexes)
+    const vehicleBookings = await Booking.find({
       status: {
         $regex: /^(pending|approved|parked)$/i  // Case-insensitive regex for status
-      }
-    });
-
-    if (!bookingsWithActiveStatus || bookingsWithActiveStatus.length === 0) {
-      return { exists: false };
-    }
-
-    // STEP 2: Filter by normalized vehicle number (case-insensitive, space-insensitive)
-    const vehicleBookings = bookingsWithActiveStatus.filter(booking => {
-      const bookingVehicleNormalized = normalizeVehicleNumber(booking.vehicleNumber);
-      return bookingVehicleNormalized === normalizedVehicleNumber;
+      },
+      vehicleNumber: targetVehicleRegex
     });
 
     if (!vehicleBookings || vehicleBookings.length === 0) {
@@ -4951,6 +4948,44 @@ exports.deleteBooking = async (req, res) => {
   }
 };
 
+exports.deleteBookingsBulk = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Booking IDs are required" });
+    }
+
+    for (const id of ids) {
+      // 1. Try to delete the Booking document
+      let booking = await Booking.findByIdAndDelete(id);
+
+      if (booking) {
+        // Delete any associated transactions
+        await BookingTransaction.deleteMany({ bookingId: id });
+      } else {
+        // 2. If no booking was found, check if the ID belongs to a BookingTransaction
+        const transaction = await BookingTransaction.findById(id);
+        if (transaction) {
+          const assocBookingId = transaction.bookingId;
+          await BookingTransaction.findByIdAndDelete(id);
+          if (assocBookingId) {
+            await Booking.findByIdAndDelete(assocBookingId);
+            // Clean up all transactions associated with that booking
+            await BookingTransaction.deleteMany({ bookingId: assocBookingId });
+          }
+        } else {
+          // 3. Fallback: Check if there are transactions associated with this ID as a bookingId
+          await BookingTransaction.deleteMany({ bookingId: id });
+        }
+      }
+    }
+
+    res.status(200).json({ message: "Bookings deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.updateBookingStatus = async (req, res) => {
   try {
     console.log("Parking Started to update status")
@@ -6740,7 +6775,7 @@ exports.getBookingByIds = async (req, res) => {
 exports.getReceivableAmountByUser = async (req, res) => {
   try {
     const { vendorId, userId } = req.params;
-    const { subunitId, includeSubunits } = req.query;
+    const { subunitId, includeSubunits, status } = req.query;
 
     if (!vendorId) {
       return res.status(400).json({ success: false, message: "Vendor ID is required" });
@@ -6773,23 +6808,8 @@ exports.getReceivableAmountByUser = async (req, res) => {
       matchFilter.userId = userId;
     }
 
-    const transactions = await BookingTransaction.aggregate([
+    const pipeline = [
       { $match: matchFilter },
-
-      {
-        $lookup: {
-          from: "bookings",
-          localField: "bookingId",
-          foreignField: "_id",
-          as: "bookingDetails"
-        }
-      },
-
-      {
-        $addFields: {
-          bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] }
-        }
-      },
 
       {
         $addFields: {
@@ -6850,8 +6870,57 @@ exports.getReceivableAmountByUser = async (req, res) => {
         }
       },
 
-      { $replaceRoot: { newRoot: "$bestRecord" } }
-    ]);
+      { $replaceRoot: { newRoot: "$bestRecord" } },
+
+      {
+        $lookup: {
+          from: "bookings",
+          localField: "bookingId",
+          foreignField: "_id",
+          as: "bookingDetails"
+        }
+      },
+
+      {
+        $project: {
+          _id: 1,
+          personName: 1,
+          bookingId: 1,
+          invoiceId: 1,
+          userId: 1,
+          bookingDate: 1,
+          parkingDate: 1,
+          parkingTime: 1,
+          vehicleNumber: 1,
+          exitDate: 1,
+          exitTime: 1,
+          status: 1,
+          bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] },
+          subscriptionType: 1,
+          vendorName: 1,
+          vendorId: 1,
+          bookingType: 1,
+          vehicleType: 1,
+          bookingAmount: 1,
+          handlingFee: 1,
+          platformFee: 1,
+          receivableAmount: 1,
+          gstAmount: 1,
+          totalAmount: 1
+        }
+      }
+    ];
+
+    if (status) {
+      const statuses = status.split(",").map(s => s.trim().toLowerCase());
+      pipeline.push({
+        $match: {
+          bookingStatus: { $in: statuses.map(s => new RegExp(`^${s}$`, 'i')) }
+        }
+      });
+    }
+
+    const transactions = await BookingTransaction.aggregate(pipeline);
 
     if (!transactions.length) {
       return res.status(200).json({ success: true, message: "No transactions found", data: [] });
@@ -7044,7 +7113,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
 exports.getReceivableAmountWithPlatformFee = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { subunitId, includeSubunits } = req.query;
+    const { subunitId, includeSubunits, status } = req.query;
 
     if (!vendorId) {
       return res.status(400).json({ success: false, message: "Vendor ID is required" });
@@ -7074,23 +7143,8 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
 
     matchFilter.$or = [{ userId: null }, { userId: { $exists: false } }];
 
-    const transactions = await BookingTransaction.aggregate([
+    const pipeline = [
       { $match: matchFilter },
-
-      {
-        $lookup: {
-          from: "bookings",
-          localField: "bookingId",
-          foreignField: "_id",
-          as: "bookingDetails"
-        }
-      },
-
-      {
-        $addFields: {
-          bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] }
-        }
-      },
 
       {
         $addFields: {
@@ -7151,8 +7205,57 @@ exports.getReceivableAmountWithPlatformFee = async (req, res) => {
         }
       },
 
-      { $replaceRoot: { newRoot: "$bestRecord" } }
-    ]);
+      { $replaceRoot: { newRoot: "$bestRecord" } },
+
+      {
+        $lookup: {
+          from: "bookings",
+          localField: "bookingId",
+          foreignField: "_id",
+          as: "bookingDetails"
+        }
+      },
+
+      {
+        $project: {
+          _id: 1,
+          personName: 1,
+          bookingId: 1,
+          invoiceId: 1,
+          userId: 1,
+          bookingDate: 1,
+          parkingDate: 1,
+          parkingTime: 1,
+          vehicleNumber: 1,
+          exitDate: 1,
+          exitTime: 1,
+          status: 1,
+          bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] },
+          subscriptionType: 1,
+          vendorName: 1,
+          vendorId: 1,
+          bookingType: 1,
+          vehicleType: 1,
+          bookingAmount: 1,
+          handlingFee: 1,
+          platformFee: 1,
+          receivableAmount: 1,
+          gstAmount: 1,
+          totalAmount: 1
+        }
+      }
+    ];
+
+    if (status) {
+      const statuses = status.split(",").map(s => s.trim().toLowerCase());
+      pipeline.push({
+        $match: {
+          bookingStatus: { $in: statuses.map(s => new RegExp(`^${s}$`, 'i')) }
+        }
+      });
+    }
+
+    const transactions = await BookingTransaction.aggregate(pipeline);
 
     if (!transactions.length) {
       return res.status(200).json({
