@@ -98,10 +98,15 @@ adminRoute.patch("/adminclosechat/:helpRequestId", adminController.closeChat);
 // Dashboard route for admin
 adminRoute.get("/vendor-count", adminController.getVendorCount);
 adminRoute.get("/booking-count", adminController.getBookingSummary);
+adminRoute.get("/booking-summary-v2", adminController.getBookingSummaryV2);
 adminRoute.get("/user-summary", adminController.getUserSummary);
+adminRoute.get("/user-summary-v2", adminController.getUserSummaryV2);
 adminRoute.get("/space-summary", adminController.getVendorSpaceSummary);
+adminRoute.get("/vendor-space-summary-v2", adminController.getVendorSpaceSummaryV2);
 adminRoute.get('/kyc-summary', adminController.getKycSummary);
+adminRoute.get('/kyc-summary-v2', adminController.getKycSummaryV2);
 adminRoute.get("/transaction-summary", adminController.getTransactionSummary);
+adminRoute.get("/transaction-summary-v2", adminController.getTransactionSummaryV2);
 adminRoute.get("/transaction-status-list", adminController.getVendorsByTransactionStatus);
 adminRoute.get("/vendor-status-stats", adminController.getVendorStatusStats);
 adminRoute.get("/space-status-stats", adminController.getSpacesStatus);
