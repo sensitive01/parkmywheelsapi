@@ -4445,6 +4445,46 @@ exports.getBookingsByVehicleType = async (req, res) => {
   }
 };
 
+exports.getOnParkingBookingsByVehicleType = async (req, res) => {
+  try {
+    const { id, vehicleType } = req.params;
+    const bookings = await Booking.find({
+      vendorId: id,
+      vehicleType,
+      status: { $in: ['PARKED', 'Parked', 'Booked', 'BOOKED'] }
+    });
+    if (!bookings || bookings.length === 0) {
+      return res.status(400).json({ message: "No bookings found" });
+    }
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getCompletedBookingsByVehicleType = async (req, res) => {
+  try {
+    const { id, vehicleType } = req.params;
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const todayStr = `${day}-${month}-${year}`;
+    const bookings = await Booking.find({
+      vendorId: id,
+      vehicleType,
+      status: { $regex: /^COMPLETED$/i },
+      exitvehicledate: todayStr
+    });
+    if (!bookings || bookings.length === 0) {
+      return res.status(400).json({ message: "No bookings found" });
+    }
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.fetchbookingforsummary = async (req, res) => {
   try {
     const { id } = req.params;
