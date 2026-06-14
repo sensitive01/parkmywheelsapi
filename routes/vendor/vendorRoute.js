@@ -8,7 +8,6 @@ const meetingController = require("../../controller/vendorController/meetingCont
 const bookingController = require("../../controller/vendorController/bookingController/bookingController")
 const vehiclefetchController = require("../../controller/vendorController/vehiclefetchController/vehiclefetchController");
 const fetchbyidController = require("../../controller/vendorController/fetchbyidController/fetchBookingsByVendorId");
-const fetchbyidControllerV2 = require("../../controller/vendorController/fetchbyidController/fetchBookingsByVendorIdV2");
 const privacyController = require("../../controller/vendorController/privacyController/privacyController")
 const chargesController = require("../../controller/vendorController/chargesController/chargesController")
 const bannerController = require("../../controller/vendorController/bannerController/bannerController");
@@ -104,6 +103,7 @@ vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getRecei
 vendorRoute.get("/userbookingtrans/:vendorId", bookingController.getReceivableAmountByUser);
 vendorRoute.get("/nonuserbookings/:vendorId", bookingController.getReceivableAmountWithPlatformFee);
 vendorRoute.get("/getsearchablebooking/:id", bookingController.getSearchableBookings);
+vendorRoute.get("/searchscreen/:id", bookingController.getSearchScreenBookings);
 
 vendorRoute.get("/bookedslots/:vendorId", bookingController.getParkedVehicleCount);
 vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotCount);
@@ -155,7 +155,6 @@ vendorRoute.put("/usercancelbooking/:id", bookingController.userupdateCancelBook
 vendorRoute.put("/changevisibility", bookingController.setVendorVisibility);
 
 vendorRoute.get("/fetchbookingsbyvendorid/:id", fetchbyidController.fetchBookingsByVendorId);
-vendorRoute.get("/fetchbookingsbyvendorid-v2/:id", fetchbyidControllerV2.fetchBookingsByVendorIdV2);
 
 vendorRoute.get("/vendortotalparking/:id", vehiclefetchController.fetchParkingData);
 
