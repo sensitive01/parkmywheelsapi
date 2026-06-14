@@ -106,6 +106,8 @@ vendorRoute.get("/fetchbookingtransaction/:vendorId", bookingController.getRecei
 vendorRoute.get("/userbookingtrans/:vendorId", bookingController.getReceivableAmountByUser);
 vendorRoute.get("/nonuserbookings/:vendorId", bookingController.getReceivableAmountWithPlatformFee);
 vendorRoute.get("/calculate-exit/:id", bookingController.calculateExitCharges);
+vendorRoute.get("/fast-summary/:id", bookingController.fastSummaryBookings);
+vendorRoute.get("/fast-transactions/:vendorId", bookingController.fastTransactions);
 vendorRoute.get("/getsearchablebooking/:id", bookingController.getSearchableBookings);
 vendorRoute.get("/searchscreen/:id", bookingController.getSearchScreenBookings);
 
