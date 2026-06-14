@@ -4699,6 +4699,35 @@ exports.fastTransactions = async (req, res) => {
   }
 };
 
+exports.fastSubscriptionBookings = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const fields = {
+      vendorId: 1, userid: 1, vendorName: 1, bookType: 1, sts: 1,
+      bookingDate: 1, bookingTime: 1, parkingDate: 1, parkingTime: 1,
+      exitvehicledate: 1, exitvehicletime: 1, parkedDate: 1, parkedTime: 1,
+      amount: 1, totalamout: 1, payableamout: 1, status: 1,
+      vehicleType: 1, vehicleNumber: 1, cancelledStatus: 1, carType: 1,
+      personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
+      subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
+      approvedDate: 1, approvedTime: 1, paymentMode: 1,
+    };
+
+    const bookings = await Booking.find(
+      {
+        vendorId,
+        sts: { $regex: /subscription|weekly|15day|monthly|7day|7 days/i },
+      },
+      fields
+    ).sort({ createdAt: -1 }).lean();
+
+    res.status(200).json({ success: true, bookings: bookings || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.fastManageBookings = async (req, res) => {
   try {
     const { vendorId } = req.params;
