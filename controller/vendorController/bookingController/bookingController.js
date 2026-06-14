@@ -4728,6 +4728,60 @@ exports.fastSubscriptionBookings = async (req, res) => {
   }
 };
 
+exports.fastExitData = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const [booking, gstFeeData] = await Promise.all([
+      Booking.findById(bookingId, {
+        vendorId: 1, userid: 1, vehicleType: 1, sts: 1, bookType: 1,
+        parkedDate: 1, parkedTime: 1, parkingDate: 1, parkingTime: 1,
+        amount: 1, allCharges: 1, invoiceid: 1, status: 1,
+      }).lean(),
+      Gstfee.findOne({}, { gst: 1, handlingfee: 1 }).lean(),
+    ]);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+
+    const vendor = await vendorModel.findById(booking.vendorId, {
+      platformfee: 1, customerplatformfee: 1, vendorName: 1, upiId: 1,
+    }).lean();
+
+    const vehicleType = booking.vehicleType || '';
+    const vehicleCharges = (booking.allCharges || []).filter(c => c.category === vehicleType);
+
+    const isCustomer = !!(booking.userid && booking.userid.trim());
+    const gstPct = parseFloat(gstFeeData?.gst || '0') || 0;
+    const handlingFeeAmt = parseFloat(gstFeeData?.handlingfee || '0') || 0;
+    const pfPct = Math.ceil(
+      parseFloat(isCustomer ? (vendor?.customerplatformfee || '0') : (vendor?.platformfee || '0')) || 0
+    );
+
+    res.status(200).json({
+      success: true,
+      parkedDate: booking.parkedDate || booking.parkingDate || '',
+      parkedTime: booking.parkedTime || booking.parkingTime || '',
+      invoiceid: booking.invoiceid || '',
+      sts: booking.sts || '',
+      bookType: booking.bookType || '',
+      vehicleType,
+      amount: booking.amount || '0',
+      status: booking.status || '',
+      isCustomer,
+      gstPercentage: gstPct,
+      handlingFee: handlingFeeAmt,
+      platformFeePercentage: pfPct,
+      vehicleCharges,
+      vendorName: vendor?.vendorName || '',
+      upiId: vendor?.upiId || '',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.fastManageBookings = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -4773,6 +4827,36 @@ exports.fastManageBookings = async (req, res) => {
     }
 
     res.status(200).json({ success: true, cars, bikes, others });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.fastRequestBookings = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const fields = {
+      vendorId: 1, userid: 1, vendorName: 1, bookType: 1, sts: 1,
+      bookingDate: 1, bookingTime: 1, parkingDate: 1, parkingTime: 1,
+      exitvehicledate: 1, exitvehicletime: 1, parkedDate: 1, parkedTime: 1,
+      amount: 1, totalamout: 1, payableamout: 1, status: 1,
+      vehicleType: 1, vehicleNumber: 1, cancelledStatus: 1,
+      personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
+      subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
+      approvedDate: 1, approvedTime: 1, paymentMode: 1,
+    };
+    const bookings = await Booking.find(
+      { vendorId, status: { $in: ['PENDING', 'Approved', 'Cancelled'] } },
+      fields
+    ).sort({ createdAt: -1 }).lean();
+    const pending = [], approved = [], cancelled = [];
+    for (const b of bookings) {
+      const s = (b.status || '').toLowerCase();
+      if (s === 'pending') pending.push(b);
+      else if (s === 'approved') approved.push(b);
+      else cancelled.push(b);
+    }
+    res.status(200).json({ success: true, pending, approved, cancelled });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
