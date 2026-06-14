@@ -4562,6 +4562,47 @@ exports.getSearchableBookings = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.getSearchScreenBookings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendorId = id.trim();
+
+    // Build today's date string in DD-MM-YYYY (matches the app's stored format)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const todayStr = `${day}-${month}-${year}`;
+
+    const bookings = await Booking.find({
+      vendorId: vendorId,
+      $or: [
+        // On-Parking tab: active statuses
+        { status: { $in: ['PARKED', 'parked', 'BOOKED', 'Approved', 'PENDING'] } },
+        // On-Parking tab: COMPLETED subscription passes that haven't been exited yet
+        {
+          status: { $in: ['COMPLETED', 'completed'] },
+          $or: [
+            { exitvehicledate: { $exists: false } },
+            { exitvehicledate: null },
+            { exitvehicledate: '' },
+            { exitvehicledate: 'null' },
+          ],
+        },
+        // Completed tab: today's exited bookings
+        { status: { $in: ['COMPLETED', 'completed'] }, exitvehicledate: todayStr },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json({ bookings: bookings || [] });
+  } catch (error) {
+    console.error('Error fetching search screen bookings:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getBookingsByuserid = async (req, res) => {
   try {
     const { id } = req.params;
