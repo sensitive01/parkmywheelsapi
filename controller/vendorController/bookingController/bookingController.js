@@ -4434,11 +4434,7 @@ exports.getBookingsByVehicleType = async (req, res) => {
   try {
     const { id, vehicleType } = req.params;
 
-    const bookings = await Booking.find({
-      vendorId: id,
-      vehicleType,
-      status: { $in: ["PARKED", "Parked", "parked", "Booked", "BOOKED"] },
-    });
+    const bookings = await Booking.find({ vendorId: id, vehicleType });
 
     if (!bookings || bookings.length === 0) {
       return res.status(400).json({ message: "No bookings found" });
