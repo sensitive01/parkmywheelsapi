@@ -4430,6 +4430,25 @@ exports.getBookingsByVendorId = async (req, res) => {
   }
 };
 
+exports.getBookingsByVehicleType = async (req, res) => {
+  try {
+    const { id, vehicleType } = req.params;
+
+    const bookings = await Booking.find({
+      vendorId: id,
+      vehicleType,
+      status: { $in: ["PARKED", "Parked", "parked", "Booked", "BOOKED"] },
+    });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(400).json({ message: "No bookings found" });
+    }
+    res.status(200).json({ bookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.fetchbookingforsummary = async (req, res) => {
   try {
     const { id } = req.params;
@@ -6007,6 +6026,67 @@ exports.getAvailableSlotCount = async (req, res) => {
   } catch (error) {
     console.error("Error fetching available slot count for vendor ID:", req.params.vendorId, error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * GET /vendor/dashboard-slots/:vendorId
+ * Returns total, parked, and available slot counts for Cars / Bikes / Others
+ * in a single response — replaces the 3 separate endpoints the dashboard was calling.
+ */
+exports.getDashboardSlots = async (req, res) => {
+  try {
+    const vendorId = req.params.vendorId?.trim();
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    }
+
+    // Run both DB queries in parallel
+    const [vendorData, parkedAgg] = await Promise.all([
+      vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1 }),
+      Booking.aggregate([
+        { $match: { vendorId, status: "PARKED" } },
+        { $group: { _id: "$vehicleType", count: { $sum: 1 } } }
+      ])
+    ]);
+
+    if (!vendorData) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    // Build total slots from parkingEntries
+    const total = { Cars: 0, Bikes: 0, Others: 0 };
+    (vendorData.parkingEntries || []).forEach(entry => {
+      const type = entry.type?.trim();
+      const count = parseInt(entry.count) || 0;
+      if (type === "Cars") total.Cars = count;
+      else if (type === "Bikes") total.Bikes = count;
+      else total.Others += count;
+    });
+
+    // Build parked counts from aggregation
+    const parked = { Cars: 0, Bikes: 0, Others: 0 };
+    parkedAgg.forEach(({ _id, count }) => {
+      if (_id === "Car") parked.Cars = count;
+      else if (_id === "Bike") parked.Bikes = count;
+      else parked.Others += count;
+    });
+
+    // Available = total - parked (min 0)
+    const available = {
+      Cars:   Math.max(total.Cars   - parked.Cars,   0),
+      Bikes:  Math.max(total.Bikes  - parked.Bikes,  0),
+      Others: Math.max(total.Others - parked.Others, 0),
+    };
+
+    return res.status(200).json({
+      success: true,
+      total,
+      parked,
+      available,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
