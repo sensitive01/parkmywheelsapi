@@ -4485,6 +4485,59 @@ exports.getCompletedBookingsByVehicleType = async (req, res) => {
   }
 };
 
+exports.calculateExitCharges = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Parallel fetch: booking (lean, projected) + GST fee
+    const [booking, gstFeeData] = await Promise.all([
+      Booking.findById(id, {
+        vendorId: 1, userid: 1, vehicleType: 1, sts: 1, bookType: 1,
+        parkedDate: 1, parkedTime: 1, parkingDate: 1, parkingTime: 1,
+        amount: 1, allCharges: 1, invoiceid: 1, status: 1
+      }).lean(),
+      Gstfee.findOne({}, { gst: 1, handlingfee: 1 }).lean()
+    ]);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+
+    const vendor = await vendorModel.findById(booking.vendorId, {
+      platformfee: 1, customerplatformfee: 1
+    }).lean();
+
+    const vehicleType = booking.vehicleType || '';
+    const vehicleCharges = (booking.allCharges || []).filter(c => c.category === vehicleType);
+
+    const isCustomer = !!(booking.userid && booking.userid.trim());
+    const gstPct = parseFloat(gstFeeData?.gst || '0') || 0;
+    const handlingFeeAmt = parseFloat(gstFeeData?.handlingfee || '0') || 0;
+    const pfPct = Math.ceil(
+      parseFloat(isCustomer ? (vendor?.customerplatformfee || '0') : (vendor?.platformfee || '0')) || 0
+    );
+
+    res.status(200).json({
+      success: true,
+      parkedDate: booking.parkedDate || booking.parkingDate || '',
+      parkedTime: booking.parkedTime || booking.parkingTime || '',
+      invoiceid: booking.invoiceid || '',
+      sts: booking.sts || '',
+      bookType: booking.bookType || '',
+      vehicleType,
+      amount: booking.amount || '0',
+      status: booking.status || '',
+      isCustomer,
+      gstPercentage: gstPct,
+      handlingFee: handlingFeeAmt,
+      platformFeePercentage: pfPct,
+      vehicleCharges,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.fetchbookingforsummary = async (req, res) => {
   try {
     const { id } = req.params;
