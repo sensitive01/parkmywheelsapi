@@ -4538,6 +4538,167 @@ exports.calculateExitCharges = async (req, res) => {
   }
 };
 
+// Fast summary bookings with server-side date filter via createdAt
+exports.fastSummaryBookings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const filter = { vendorId: id, status: { $ne: 'CANCELLED' } };
+
+    if (startDate || endDate) {
+      const createdAtFilter = {};
+      if (startDate) {
+        const [d, m, y] = startDate.split('-');
+        createdAtFilter.$gte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0);
+      }
+      if (endDate) {
+        const [d, m, y] = endDate.split('-');
+        createdAtFilter.$lte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 23, 59, 59, 999);
+      }
+      filter.createdAt = createdAtFilter;
+    }
+
+    const bookings = await Booking.find(filter, {
+      vendorId: 1, userid: 1, vendorName: 1, bookType: 1, sts: 1,
+      bookingDate: 1, bookingTime: 1, parkingDate: 1, parkingTime: 1,
+      exitvehicledate: 1, exitvehicletime: 1, parkedDate: 1, parkedTime: 1,
+      amount: 1, totalamout: 1, payableamout: 1, status: 1,
+      vehicleType: 1, vehicleNumber: 1, paymentMode: 1,
+      personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
+      subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
+      approvedDate: 1, approvedTime: 1,
+    }).lean();
+
+    res.status(200).json({ bookings: bookings || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Fast transactions with server-side date filter — returns user and non-user in one call
+exports.fastTransactions = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: 'Vendor ID is required' });
+    }
+
+    const matchFilter = { vendorId };
+
+    if (startDate || endDate) {
+      const createdAtFilter = {};
+      if (startDate) {
+        const [d, m, y] = startDate.split('-');
+        createdAtFilter.$gte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0);
+      }
+      if (endDate) {
+        const [d, m, y] = endDate.split('-');
+        createdAtFilter.$lte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 23, 59, 59, 999);
+      }
+      matchFilter.createdAt = createdAtFilter;
+    }
+
+    const basePipeline = (extra) => [
+      { $match: { ...matchFilter, ...extra } },
+      {
+        $addFields: {
+          totalNum: { $toDouble: { $ifNull: ['$totalAmount', '0'] } },
+          receivableNum: { $toDouble: { $ifNull: ['$receivableAmount', '0'] } },
+          hasExit: {
+            $cond: [{ $and: [{ $ne: ['$exitDate', null] }, { $ne: ['$exitTime', null] }] }, 1, 0]
+          }
+        }
+      },
+      {
+        $addFields: {
+          priority: {
+            $cond: [
+              { $and: [{ $gt: ['$totalNum', 0] }, { $gt: ['$receivableNum', 0] }, { $eq: ['$hasExit', 1] }] },
+              1,
+              { $cond: [{ $gt: ['$totalNum', 0] }, 2, 3] }
+            ]
+          }
+        }
+      },
+      { $sort: { bookingId: 1, priority: 1, totalNum: -1, _id: -1 } },
+      { $group: { _id: '$bookingId', bestRecord: { $first: '$$ROOT' } } },
+      { $replaceRoot: { newRoot: '$bestRecord' } },
+      { $lookup: { from: 'bookings', localField: 'bookingId', foreignField: '_id', as: 'bookingDetails' } },
+      {
+        $project: {
+          _id: 1, personName: 1, bookingId: 1, invoiceId: 1, userId: 1,
+          bookingDate: 1, parkingDate: 1, parkingTime: 1, vehicleNumber: 1,
+          exitDate: 1, exitTime: 1, status: 1,
+          bookingStatus: { $arrayElemAt: ['$bookingDetails.status', 0] },
+          subscriptionType: 1, vendorName: 1, vendorId: 1, bookingType: 1, vehicleType: 1,
+          bookingAmount: 1, handlingFee: 1, platformFee: 1, receivableAmount: 1, gstAmount: 1, totalAmount: 1,
+          parkedDate: { $arrayElemAt: ['$bookingDetails.parkedDate', 0] },
+          parkedTime: { $arrayElemAt: ['$bookingDetails.parkedTime', 0] },
+          exitvehicledate: { $arrayElemAt: ['$bookingDetails.exitvehicledate', 0] },
+          exitvehicletime: { $arrayElemAt: ['$bookingDetails.exitvehicletime', 0] },
+          subsctiptionenddate: { $arrayElemAt: ['$bookingDetails.subsctiptionenddate', 0] },
+          invoice: { $arrayElemAt: ['$bookingDetails.invoice', 0] },
+          otp: { $arrayElemAt: ['$bookingDetails.otp', 0] },
+        }
+      }
+    ];
+
+    const mapTx = (t, isUser) => {
+      const platformFee = parseFloat(t.platformFee || '0');
+      const receivable = parseFloat(t.receivableAmount || '0');
+      return {
+        invoice: t.invoice || null,
+        username: t.personName || null,
+        _id: t._id,
+        bookingId: t.bookingId || null,
+        invoiceid: t.invoiceId || null,
+        userid: t.userId || null,
+        bookingDate: t.parkingDate || t.bookingDate || null,
+        bookingTime: t.parkingTime || null,
+        exitdate: t.exitDate || null,
+        exittime: t.exitTime || null,
+        status: t.bookingStatus || t.status || null,
+        sts: t.subscriptionType || null,
+        otp: t.otp || null,
+        vendorname: t.vendorName || null,
+        vendorid: t.vendorId || null,
+        bookingtype: t.bookingType || null,
+        vehicleType: t.vehicleType || null,
+        vehiclenumber: t.vehicleNumber || null,
+        amount: t.bookingAmount ? parseFloat(t.bookingAmount).toFixed(2) : '0.00',
+        handlingfee: t.handlingFee ? parseFloat(t.handlingFee).toFixed(2) : '0.00',
+        releasefee: platformFee.toFixed(2),
+        recievableamount: receivable.toFixed(2),
+        payableamout: receivable.toFixed(2),
+        gstamout: t.gstAmount || '0.00',
+        totalamout: t.totalAmount || '0.00',
+        parkedDate: t.parkedDate || null,
+        parkedTime: t.parkedTime || null,
+        exitvehicledate: t.exitvehicledate || null,
+        exitvehicletime: t.exitvehicletime || null,
+        subsctiptionenddate: t.subsctiptionenddate || null,
+        isUserBooking: isUser,
+      };
+    };
+
+    const [userTx, vendorTx] = await Promise.all([
+      BookingTransaction.aggregate(basePipeline({ userId: { $ne: null, $exists: true } })),
+      BookingTransaction.aggregate(basePipeline({ $or: [{ userId: null }, { userId: { $exists: false } }] })),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      userData: userTx.map(t => mapTx(t, true)),
+      nonUserData: vendorTx.map(t => mapTx(t, false)),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.fetchbookingforsummary = async (req, res) => {
   try {
     const { id } = req.params;
