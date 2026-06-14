@@ -4699,6 +4699,56 @@ exports.fastTransactions = async (req, res) => {
   }
 };
 
+exports.fastManageBookings = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const filter = { vendorId };
+
+    if (startDate || endDate) {
+      const createdAtFilter = {};
+      if (startDate) {
+        const [d, m, y] = startDate.split('-');
+        createdAtFilter.$gte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0);
+      }
+      if (endDate) {
+        const [d, m, y] = endDate.split('-');
+        createdAtFilter.$lte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 23, 59, 59, 999);
+      }
+      filter.createdAt = createdAtFilter;
+    }
+
+    const fields = {
+      vendorId: 1, userid: 1, vendorName: 1, bookType: 1, sts: 1,
+      bookingDate: 1, bookingTime: 1, parkingDate: 1, parkingTime: 1,
+      exitvehicledate: 1, exitvehicletime: 1, parkedDate: 1, parkedTime: 1,
+      amount: 1, totalamout: 1, payableamout: 1, status: 1,
+      vehicleType: 1, vehicleNumber: 1, cancelledStatus: 1,
+      personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
+      subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
+      approvedDate: 1, approvedTime: 1, paymentMode: 1,
+    };
+
+    const bookings = await Booking.find(filter, fields).sort({ createdAt: -1 }).lean();
+
+    const cars = [];
+    const bikes = [];
+    const others = [];
+
+    for (const b of bookings) {
+      const vt = (b.vehicleType || '').toLowerCase();
+      if (vt === 'car') cars.push(b);
+      else if (vt === 'bike') bikes.push(b);
+      else others.push(b);
+    }
+
+    res.status(200).json({ success: true, cars, bikes, others });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.fetchbookingforsummary = async (req, res) => {
   try {
     const { id } = req.params;
