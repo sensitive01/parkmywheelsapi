@@ -8,6 +8,7 @@ const meetingController = require("../../controller/vendorController/meetingCont
 const bookingController = require("../../controller/vendorController/bookingController/bookingController")
 const vehiclefetchController = require("../../controller/vendorController/vehiclefetchController/vehiclefetchController");
 const fetchbyidController = require("../../controller/vendorController/fetchbyidController/fetchBookingsByVendorId");
+const fetchbyidControllerFast = require("../../controller/vendorController/fetchbyidController/fetchBookingsByVendorIdFast");
 const privacyController = require("../../controller/vendorController/privacyController/privacyController")
 const chargesController = require("../../controller/vendorController/chargesController/chargesController")
 const bannerController = require("../../controller/vendorController/bannerController/bannerController");
@@ -114,6 +115,7 @@ vendorRoute.get("/fast-subscriptions/:vendorId", bookingController.fastSubscript
 vendorRoute.get("/fast-requests/:vendorId", bookingController.fastRequestBookings);
 vendorRoute.get("/getsearchablebooking/:id", bookingController.getSearchableBookings);
 vendorRoute.get("/searchscreen/:id", bookingController.getSearchScreenBookings);
+vendorRoute.get("/fetchbookingsbyvendorid-fast/:id", fetchbyidControllerFast.fetchBookingsByVendorIdFast);
 
 vendorRoute.get("/bookedslots/:vendorId", bookingController.getParkedVehicleCount);
 vendorRoute.get("/availableslots/:vendorId", bookingController.getAvailableSlotCount);
