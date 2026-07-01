@@ -223,15 +223,15 @@ bookingSchema.pre('save', async function(next) {
     const year = istTime.getUTCFullYear();
     const dateString = `${day}${month}${year}`; // DDMMYYYY
 
-    const startOfDay = new Date(Date.UTC(year, istTime.getUTCMonth(), istTime.getUTCDate(), 0, 0, 0) - istOffset);
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const startOfYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0) - istOffset);
+    const endOfYear = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0) - istOffset); 
 
     try {
       const count = await this.constructor.countDocuments({
         vendorId: this.vendorId,
         createdAt: {
-          $gte: startOfDay,
-          $lt: endOfDay
+          $gte: startOfYear,
+          $lt: endOfYear
         }
       });
 
@@ -245,7 +245,6 @@ bookingSchema.pre('save', async function(next) {
     next();
   }
 });
-
 
 
 
