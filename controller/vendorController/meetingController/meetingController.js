@@ -48,7 +48,7 @@ const getMeetingsByVendor = async (req, res) => {
     const meetings = await meetingModel.find({ vendorId: id });
 
     if (!meetings || meetings.length === 0) {
-      return res.status(404).json({ message: "No meetings found for this vendor" });
+      return res.status(200).json({ meetings: [] });
     }
 
     res.status(200).json({ meetings });

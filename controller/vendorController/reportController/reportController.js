@@ -65,6 +65,23 @@ const saveReport = async (req, res) => {
     });
 
     const saved = await report.save();
+
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: vendorid },
+      actorType: "VENDOR", // Assuming this is done by a vendor
+      action: "GENERATE_REPORT",
+      resourceType: "REPORT",
+      resourceId: saved._id,
+      details: {
+        from: fromdate_time,
+        to: todate_time,
+        totalAmount: totals
+      }
+    });
+
     return res.status(201).json({ message: "Report saved", reportid: saved._id });
   } catch (error) {
     console.error("saveReport error:", error);

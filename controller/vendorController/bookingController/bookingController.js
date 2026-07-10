@@ -608,6 +608,22 @@ exports.createBooking = async (req, res) => {
 
     await newBooking.save();
 
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { userId: userid }, // Assuming user is the actor here
+      actorType: "USER",
+      action: "CREATE_BOOKING",
+      resourceType: "BOOKING",
+      resourceId: newBooking._id,
+      details: {
+        vehicleType,
+        vehicleNumber,
+        amount
+      }
+    });
+
     // Create BookingTransaction record at booking creation time - ONLY for Subscription bookings
     if (isSubscriptionSts(sts)) {
       try {
@@ -1692,6 +1708,37 @@ exports.machinecreatebooking = async (req, res) => {
       }
     }
 
+    // Log Activity for Vendor Creation
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: newBooking.vendorId },
+      actorType: "VENDOR",
+      action: "CREATE_BOOKING",
+      resourceType: "BOOKING",
+      resourceId: newBooking._id,
+      details: {
+        amount: newBooking.amount,
+        vehicleNumber: newBooking.vehicleNumber,
+        type: "machine"
+      }
+    });
+
+    // Since a machine/vendor booking is instantly parked, log parking as well
+    await logActivity({
+      req,
+      actor: { vendorId: newBooking.vendorId },
+      actorType: "VENDOR",
+      action: "PARKING",
+      resourceType: "BOOKING",
+      resourceId: newBooking._id,
+      details: {
+        vehicleNumber: newBooking.vehicleNumber,
+        parkedDate: newBooking.parkedDate,
+        parkedTime: newBooking.parkedTime
+      }
+    });
+
     res.status(200).json({
       message: "Booking created successfully",
       bookingId: newBooking._id,
@@ -2008,7 +2055,37 @@ exports.vendorcreateBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    // (debug log removed)
+
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: vendorId },
+      actorType: "VENDOR", 
+      action: "CREATE_BOOKING",
+      resourceType: "BOOKING",
+      resourceId: newBooking._id,
+      details: {
+        vehicleType,
+        vehicleNumber,
+        amount: bookingAmount
+      }
+    });
+
+    // If status is instantly set to PARKED or active, log PARKING
+    await logActivity({
+      req,
+      actor: { vendorId: vendorId },
+      actorType: "VENDOR",
+      action: "PARKING",
+      resourceType: "BOOKING",
+      resourceId: newBooking._id,
+      details: {
+        vehicleNumber,
+        parkedDate,
+        parkedTime
+      }
+    });
 
     // Create BookingTransaction record at booking creation time for ALL booking types (Instant, Schedule, Subscription)
     try {
@@ -3091,6 +3168,22 @@ exports.livecreateBooking = async (req, res) => {
       await sendSMS(cleanedMobile, smsText2, dltTemplateId2);
     }
 
+    // Log Activity for Vendor Creation
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: newBooking.vendorId },
+      actorType: "VENDOR",
+      action: "CREATE_BOOKING",
+      resourceType: "BOOKING",
+      resourceId: newBooking._id,
+      details: {
+        amount: newBooking.amount,
+        vehicleNumber: newBooking.vehicleNumber,
+        type: "live"
+      }
+    });
+
     // ✅ Response
     res.status(200).json({
       message: "Booking created successfully",
@@ -3906,6 +3999,22 @@ exports.allowParking = async (req, res) => {
       { new: true }
     );
 
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: booking.vendorId._id || booking.vendorId },
+      actorType: "VENDOR", // Usually vendor allows parking
+      action: "PARKING",
+      resourceType: "BOOKING",
+      resourceId: updatedBooking._id,
+      details: {
+        parkedDate,
+        parkedTime,
+        vehicleNumber: booking.vehicleNumber
+      }
+    });
+
     // Create a new notification for the customer
     const userNotification = new Notification({
       vendorId: booking.vendorId._id,
@@ -4273,6 +4382,22 @@ exports.directallowParking = async (req, res) => {
       },
       { new: true }
     );
+
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: booking.vendorId._id || booking.vendorId },
+      actorType: "VENDOR", // Usually vendor allows parking
+      action: "PARKING",
+      resourceType: "BOOKING",
+      resourceId: updatedBooking._id,
+      details: {
+        parkedDate,
+        parkedTime,
+        vehicleNumber: booking.vehicleNumber
+      }
+    });
 
     // Create a new notification for the customer
     const userNotification = new Notification({
@@ -5597,6 +5722,23 @@ exports.updateBookingAmountAndHour = async (req, res) => {
 
     const updatedBooking = await booking.save();
 
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: updatedBooking.vendorId },
+      actorType: "VENDOR", // Usually vendor marks exit
+      action: "EXITING",
+      resourceType: "BOOKING",
+      resourceId: updatedBooking._id,
+      details: {
+        amount: updatedBooking.amount,
+        hour: updatedBooking.hour,
+        vehicleNumber: updatedBooking.vehicleNumber,
+        exitTime: updatedBooking.exitvehicletime
+      }
+    });
+
     // Create BookingTransaction record
     try {
       const bookingTransaction = new BookingTransaction({
@@ -5925,6 +6067,21 @@ exports.exitvendorsub = async (req, res) => {
     }
 
     const updatedBooking = await booking.save();
+
+    // Log Activity
+    const { logActivity } = require("../../../utils/activityLogger");
+    await logActivity({
+      req,
+      actor: { vendorId: updatedBooking.vendorId },
+      actorType: "VENDOR", 
+      action: "EXITING",
+      resourceType: "BOOKING",
+      resourceId: updatedBooking._id,
+      details: {
+        vehicleNumber: updatedBooking.vehicleNumber,
+        exitTime: updatedBooking.exitvehicletime
+      }
+    });
 
     // Send Invoice Ready Notification after subscription exit
     try {
@@ -7428,6 +7585,9 @@ exports.getReceivableAmountByUser = async (req, res) => {
           vehicleNumber: 1,
           exitDate: 1,
           exitTime: 1,
+          exitvehicledate: { $arrayElemAt: ["$bookingDetails.exitvehicledate", 0] },
+          exitvehicletime: { $arrayElemAt: ["$bookingDetails.exitvehicletime", 0] },
+          duration: { $arrayElemAt: ["$bookingDetails.hour", 0] },
           status: 1,
           bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] },
           subscriptionType: 1,

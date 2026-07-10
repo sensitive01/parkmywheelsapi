@@ -10,16 +10,19 @@ const kycSchema = require("../../models/kycSchema");
 
 const getNotification = async (req, res) => {
     try {
+        console.log("HIT GET NOTIFICATIONS - START");
         const notifications = await advNotification.find({ isRead: false });
+        console.log("Q1 Done");
         let helpAndSupports = await VendorHelpSupport.find({ isRead: false }).sort({ updatedAt: -1 }).lean();
-
+        console.log("Q2 Done");
         let bankApprovalNotification = await bankApprovalSchema.find({ $or: [{ isRead: false }, { isApproved: false }] }).lean();
-
+        console.log("Q3 Done");
         let kycNotification = await kycSchema.find({ $or: [{ isAdminRead: false }, { isApproved: false }] }).lean();
-
+        console.log("Q4 Done");
 
         // Manually populate vendor details
         if (helpAndSupports.length > 0) {
+            console.log("Populating Help & Supports...");
             helpAndSupports = await Promise.all(helpAndSupports.map(async (support) => {
                 const vendor = await Vendor.findOne({
                     $or: [
@@ -35,7 +38,6 @@ const getNotification = async (req, res) => {
                     const sortedChat = support.chatbox.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
                     const lastChat = sortedChat[sortedChat.length - 1];
                     latestMsg = lastChat.message || "Sent an attachment";
-                    console.log(`[getNotification] Vendor: ${vendor?.vendorName}, LastMsg: ${latestMsg}, ChatCount: ${sortedChat.length}`);
                 }
 
                 return {
@@ -48,9 +50,11 @@ const getNotification = async (req, res) => {
                 };
             }));
         }
+        console.log("Help & Supports Done");
 
         // Manually populate vendor details for bankApprovalNotification
         if (bankApprovalNotification.length > 0) {
+            console.log("Populating Bank Approvals...");
             bankApprovalNotification = await Promise.all(bankApprovalNotification.map(async (approval) => {
                 const vendor = await Vendor.findOne({
                     $or: [
@@ -66,9 +70,11 @@ const getNotification = async (req, res) => {
                 };
             }));
         }
+        console.log("Bank Approvals Done");
 
         // Manually populate vendor details for kycNotification
         if (kycNotification.length > 0) {
+            console.log("Populating KYC...");
             kycNotification = await Promise.all(kycNotification.map(async (kyc) => {
                 const vendor = await Vendor.findOne({
                     $or: [
@@ -84,8 +90,10 @@ const getNotification = async (req, res) => {
                 };
             }));
         }
+        console.log("KYC Done");
 
 
+        console.log("SENDING RES");
         res.json({
             data: notifications,
             helpAndSupports,

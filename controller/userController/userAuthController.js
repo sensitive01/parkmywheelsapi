@@ -3,6 +3,8 @@ const userModel = require("../../models/userModel");
 const generateOTP = require("../../utils/generateOTP")
 const vendorModel = require("../../models/venderSchema");
 const admin = require("firebase-admin");
+const jwt = require("jsonwebtoken");
+const { createAuthLog } = require("../../utils/authLogger");
 const qs = require("qs");
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios'); // <-- Add this line
@@ -193,6 +195,14 @@ const userVerification = async (req, res) => {
     // Find user
     const userData = await userModel.findOne({ userMobile: mobile });
     if (!userData) {
+      await createAuthLog({
+        req,
+        user: { userName: "Unknown User", userEmail: mobile },
+        userType: "USER",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "User not found",
+      });
       return res.status(404).json({ message: "User is not registered, please sign up." });
     }
     console.log("User found:", { mobile, uuid: userData.uuid, _id: userData._id });
@@ -200,6 +210,14 @@ const userVerification = async (req, res) => {
     // Validate password
     const isPasswordValid = await bcrypt.compare(password, userData.userPassword);
     if (!isPasswordValid) {
+      await createAuthLog({
+        req,
+        user: { _id: userData._id, name: userData.userName, email: userData.userEmail },
+        userType: "USER",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Incorrect password",
+      });
       return res.status(401).json({ message: "Entered password is incorrect." });
     }
 
@@ -268,6 +286,15 @@ const userVerification = async (req, res) => {
     }
 
     const role = userData.role === "user" ? "user" : "admin";
+    
+    await createAuthLog({
+      req,
+      user: { _id: userData._id, name: userData.userName, email: userData.userEmail },
+      userType: "USER",
+      action: "LOGIN",
+      status: "SUCCESS",
+    });
+
     return res.status(200).json({
       message: "Login successful.",
       id: userUuid,
@@ -414,15 +441,21 @@ const userLogoutById = async (req, res) => {
       return res.status(404).json({ message: "User not found with provided uuid" });
     }
 
-    if (!user.userfcmTokens || user.userfcmTokens.length === 0) {
-      return res.status(200).json({ message: "No FCM tokens to remove" });
+    // Log the logout event
+    await createAuthLog({
+      req,
+      user: user,
+      userType: "USER",
+      action: "LOGOUT",
+      status: "SUCCESS"
+    });
+
+    if (user.userfcmTokens && user.userfcmTokens.length > 0) {
+      user.userfcmTokens.pop();
+      await user.save();
     }
 
-    // Remove the last token
-    user.userfcmTokens.pop();
-    await user.save();
-
-    return res.status(200).json({ message: "Last FCM token removed successfully" });
+    return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     console.error("Error in logout:", error);
     return res.status(500).json({ message: "Internal server error" });

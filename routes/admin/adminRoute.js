@@ -10,6 +10,7 @@ const adminChatboxController = require("../../controller/adminController/chatbox
 const customerHandlingFeeController = require("../../controller/adminController/customerHanglingFee");
 const bankVerificationController = require("../../controller/adminController/bankVerificationController");
 const notificationController = require("../../controller/adminController/notificationController");
+const authLogController = require("../../controller/adminController/authLogController");
 
 
 const agenda = require("../../config/agenda");
@@ -38,6 +39,7 @@ adminRoute.post(
 
 adminRoute.get("/fetchspace", adminController.fetchspacedata);
 adminRoute.post("/login", adminController.vendorLogin);
+adminRoute.post("/logout", adminController.adminLogout);
 adminRoute.get("/fetch-vendor-data", adminController.fetchVendorData);
 adminRoute.get("/fetch-all-vendor-data", adminController.fetchAllVendorData);
 adminRoute.get("/fetch-slot-vendor-data/:id", adminController.fetchSlotVendorData);
@@ -159,5 +161,17 @@ adminRoute.get("/fetchallvendors", adminController.getAllVendorData);
 
 
 
+
+const activityLogController = require("../../controller/adminController/activityLogController");
+
+// Auth Audit Logs
+adminRoute.get("/auth-logs", authLogController.getAuthLogs);
+adminRoute.get("/auth-logs/:id", authLogController.getAuthLogById);
+adminRoute.delete("/auth-logs/:id", authLogController.deleteAuthLog);
+
+// Activity Audit Logs
+adminRoute.get("/activity-logs", activityLogController.getActivityLogs);
+adminRoute.get("/activity-logs/:id", activityLogController.getActivityLogById);
+adminRoute.delete("/activity-logs/:id", activityLogController.deleteActivityLog);
 
 module.exports = adminRoute;

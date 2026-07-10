@@ -9,6 +9,7 @@ const qs = require("qs");
 const Notification = require("../../models/notificationschema");
 const userModel = require("../../models/userModel");
 const admin = require("../../config/firebaseAdmin");
+const { createAuthLog } = require("../../utils/authLogger");
 
 
 const vendorForgotPassword = async (req, res) => {
@@ -516,7 +517,7 @@ const vendorLogin = async (req, res) => {
     console.log("🔹 Vendor/Accountant Login API hit");
     console.log("➡️ Request body:", req.body);
 
-    const { mobile, password, fcmToken, loginType } = req.body;
+    const { mobile, password, fcmToken, loginType, accessType } = req.body;
 
     // 1️⃣ Validate required fields
     if (!mobile || !password) {
@@ -597,6 +598,14 @@ const vendorLogin = async (req, res) => {
           isAccountant = true;
         } else {
           console.log("❌ Neither Vendor nor Accountant found for mobile:", mobile);
+          await createAuthLog({
+            req,
+            user: { emailid: mobile, name: "Unknown" },
+            userType: "UNKNOWN",
+            action: "LOGIN_FAILED",
+            status: "FAILED",
+            reason: "User not found with this mobile number",
+          });
           return res.status(404).json({
             success: false,
             message: "User not found with this mobile number",
@@ -626,6 +635,14 @@ const vendorLogin = async (req, res) => {
     console.log("🔐 Password match result:", isPasswordValid);
     if (!isPasswordValid) {
       console.log("❌ Incorrect password");
+      await createAuthLog({
+        req,
+        user: isAccountant ? accountant : vendor,
+        userType: accessType ? accessType : (isAccountant ? "ACCOUNTANT" : "VENDOR"),
+        action: accessType ? "ACCESS_DENIED" : "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Incorrect password",
+      });
       return res.status(401).json({
         success: false,
         message: "Incorrect password",
@@ -646,6 +663,15 @@ const vendorLogin = async (req, res) => {
 
     // 6️⃣ Successful login response
     console.log("✅ Login successful. Role:", isAccountant ? "accountant" : "vendor");
+    
+    await createAuthLog({
+      req,
+      user: isAccountant ? accountant : vendor,
+      userType: accessType ? accessType : (isAccountant ? "ACCOUNTANT" : "VENDOR"),
+      action: accessType ? "ACCESS_VERIFIED" : "LOGIN",
+      status: "SUCCESS",
+    });
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -687,7 +713,7 @@ const accountantLogin = async (req, res) => {
     console.log("🔹 Accountant Login API hit");
     console.log("➡️ Request body:", req.body);
 
-    const { mobile, password, fcmToken } = req.body;
+    const { mobile, password, fcmToken, accessType } = req.body;
 
     // 1️⃣ Validate required fields
     if (!mobile || !password) {
@@ -713,6 +739,14 @@ const accountantLogin = async (req, res) => {
 
     if (!accountant) {
       console.log("❌ Accountant not found for mobile:", cleanedMobile);
+      await createAuthLog({
+        req,
+        user: { name: "Unknown Accountant", mobile: cleanedMobile },
+        userType: "ACCOUNTANT",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Accountant account not found with this mobile number",
+      });
       return res.status(404).json({
         success: false,
         message: "Accountant account not found with this mobile number",
@@ -749,6 +783,14 @@ const accountantLogin = async (req, res) => {
 
     if (!isPasswordValid) {
       console.log("❌ Incorrect password for accountant:", accountant._id);
+      await createAuthLog({
+        req,
+        user: accountant,
+        userType: accessType ? accessType : "ACCOUNTANT",
+        action: accessType ? "ACCESS_DENIED" : "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Incorrect password",
+      });
       return res.status(401).json({
         success: false,
         message: "Incorrect password",
@@ -769,6 +811,15 @@ const accountantLogin = async (req, res) => {
 
     // 6️⃣ Successful login response
     console.log("✅ Accountant login successful.");
+
+    await createAuthLog({
+      req,
+      user: accountant,
+      userType: accessType ? accessType : "ACCOUNTANT",
+      action: accessType ? "ACCESS_VERIFIED" : "LOGIN",
+      status: "SUCCESS",
+    });
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -1470,15 +1521,21 @@ const vendorLogoutById = async (req, res) => {
       return res.status(404).json({ message: "Vendor not found with provided _id" });
     }
 
-    if (vendor.fcmTokens.length === 0) {
-      return res.status(200).json({ message: "No FCM tokens to remove" });
+    // Log the logout event
+    await createAuthLog({
+      req,
+      user: vendor,
+      userType: "VENDOR",
+      action: "LOGOUT",
+      status: "SUCCESS"
+    });
+
+    if (vendor.fcmTokens.length > 0) {
+      vendor.fcmTokens.pop();
+      await vendor.save();
     }
 
-    // Remove the last token
-    vendor.fcmTokens.pop();
-    await vendor.save();
-
-    return res.status(200).json({ message: "Last FCM token removed successfully" });
+    return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     console.error("Error in logout:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -1913,18 +1970,42 @@ const vendoridlogin = async (req, res) => {
     // Find vendor by vendorId
     const vendor = await vendorModel.findOne({ vendorId });
     if (!vendor) {
+      await createAuthLog({
+        req,
+        user: { name: "Unknown", vendorId },
+        userType: "UNKNOWN",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Vendor not found",
+      });
       return res.status(404).json({ message: "Vendor not found" });
     }
 
     // Compare password
     const isPasswordValid = await bcrypt.compare(password, vendor.password);
     if (!isPasswordValid) {
+      await createAuthLog({
+        req,
+        user: vendor,
+        userType: "VENDOR",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Incorrect password",
+      });
       return res.status(401).json({ message: "Incorrect password" });
     }
 
 
 
     // Return success response with vendor details
+    await createAuthLog({
+      req,
+      user: vendor,
+      userType: "VENDOR",
+      action: "LOGIN",
+      status: "SUCCESS",
+    });
+
     return res.status(200).json({
       message: "Login successful",
       vendorId: vendor.vendorId,

@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const adminModel = require("../../models/adminSchema");
+const { createAuthLog } = require("../../utils/authLogger");
 const vendorModel = require("../../models/venderSchema");
 const userModel = require("../../models/userModel");
 const KycDetails = require('../../models/kycSchema');
@@ -401,13 +402,37 @@ const vendorLogin = async (req, res) => {
 
     const vendor = await adminModel.findOne({ 'contacts.mobile': mobile });
     if (!vendor) {
+      await createAuthLog({
+        req,
+        user: { name: "Unknown Admin", email: mobile },
+        userType: "ADMIN",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Admin not found",
+      });
       return res.status(404).json({ message: "Admin not found" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, vendor.password);
     if (!isPasswordValid) {
+      await createAuthLog({
+        req,
+        user: vendor,
+        userType: "ADMIN",
+        action: "LOGIN_FAILED",
+        status: "FAILED",
+        reason: "Incorrect password",
+      });
       return res.status(401).json({ message: "Incorrect password" });
     }
+
+    await createAuthLog({
+      req,
+      user: vendor,
+      userType: "ADMIN",
+      action: "LOGIN",
+      status: "SUCCESS",
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -420,6 +445,35 @@ const vendorLogin = async (req, res) => {
     });
   } catch (err) {
     console.error("Error in vendor login", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const adminLogout = async (req, res) => {
+  try {
+    const { adminId } = req.body;
+
+    if (!adminId) {
+      return res.status(400).json({ message: "Admin ID is required" });
+    }
+
+    const admin = await adminModel.findById(adminId);
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    await createAuthLog({
+      req,
+      user: admin,
+      userType: "ADMIN",
+      action: "LOGOUT",
+      status: "SUCCESS",
+    });
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Error in admin logout", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -2286,6 +2340,8 @@ module.exports = {
   updateParkingEntriesVendorData,
   updateVendorSubscription,
   fetchVendorSubscriptionLeft,
+  vendorLogin,
+  adminLogout,
   myspacereg,
   fetchspacedata,
   deleteVendor,
