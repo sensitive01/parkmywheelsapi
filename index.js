@@ -54,6 +54,7 @@ const allowedOrigins = [
   "https://parkmywheel.netlify.app",
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:3002",
   "https://parmywheels-admin-ui.vercel.app",
   "https://parmywheels-vendor-ui.vercel.app",
   "https://space.parkmywheels.com"

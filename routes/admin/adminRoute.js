@@ -11,6 +11,11 @@ const customerHandlingFeeController = require("../../controller/adminController/
 const bankVerificationController = require("../../controller/adminController/bankVerificationController");
 const notificationController = require("../../controller/adminController/notificationController");
 const authLogController = require("../../controller/adminController/authLogController");
+const valetDriverController = require("../../controller/adminController/valetDriverController");
+const employeeController = require("../../controller/adminController/employeeController");
+const leadController = require("../../controller/adminController/leadController");
+const attendanceController = require("../../controller/adminController/attendanceController");
+const leaveController = require("../../controller/adminController/leaveController");
 
 
 const agenda = require("../../config/agenda");
@@ -90,6 +95,11 @@ adminRoute.delete("/delete/:id", adminController.deleteKycData);
 adminRoute.get("/fetchallbookingtransactions", adminController.getAllVendorsTransaction);
 adminRoute.get('/getfilteredbookingtransactions', adminController.getFilteredVendorsTransaction);
 
+// Valet Drivers
+adminRoute.get("/valet-drivers", valetDriverController.getAllValetDrivers);
+adminRoute.put("/valet-driver/:driverId", upload.single("proof"), valetDriverController.updateValetDriver);
+adminRoute.delete("/valet-driver/:driverId", valetDriverController.deleteValetDriver);
+
 // adminRoute.get("/get-admin-notifications", adminController.getAdminNotifications);
 
 
@@ -155,6 +165,31 @@ adminRoute.put('/verify-vendor-bank-details/:id', bankVerificationController.ver
 
 adminRoute.get("/get-admin-notifications", notificationController.getNotification);
 adminRoute.put("/update-admin-notification/:id", notificationController.updateNotification);
+
+// --- Employee Routes ---
+adminRoute.post("/employee", employeeController.createEmployee);
+adminRoute.get("/employees", employeeController.getEmployees);
+adminRoute.put("/employee/:id", employeeController.updateEmployee);
+adminRoute.delete("/employee/:id", employeeController.deleteEmployee);
+
+
+// --- Lead Routes ---
+adminRoute.post("/lead", leadController.createLead);
+adminRoute.get("/leads", leadController.getLeads);
+adminRoute.put("/lead/:id", leadController.updateLead);
+adminRoute.delete("/lead/:id", leadController.deleteLead);
+// --- Attendance Routes ---
+adminRoute.post("/attendance", attendanceController.createAttendance);
+adminRoute.get("/attendance", attendanceController.getAttendance);
+adminRoute.put("/attendance/:id", attendanceController.updateAttendance);
+adminRoute.delete("/attendance/:id", attendanceController.deleteAttendance);
+
+// --- Leave Routes ---
+adminRoute.post("/leave", leaveController.createLeave);
+adminRoute.get("/leaves", leaveController.getLeaves);
+adminRoute.put("/leave/:id", leaveController.updateLeave);
+adminRoute.delete("/leave/:id", leaveController.deleteLeave);
+
 adminRoute.put("/clear-all-admin-notifications", notificationController.clearAllAdminNotification);
 
 adminRoute.get("/fetchallvendors", adminController.getAllVendorData);

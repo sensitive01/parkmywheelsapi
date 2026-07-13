@@ -465,7 +465,11 @@ const adminLogout = async (req, res) => {
 
     await createAuthLog({
       req,
-      user: admin,
+      user: {
+        _id: admin._id,
+        name: admin.adminName,
+        email: admin.email
+      },
       userType: "ADMIN",
       action: "LOGOUT",
       status: "SUCCESS",

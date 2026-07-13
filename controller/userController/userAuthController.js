@@ -212,7 +212,7 @@ const userVerification = async (req, res) => {
     if (!isPasswordValid) {
       await createAuthLog({
         req,
-        user: { _id: userData._id, name: userData.userName, email: userData.userEmail },
+        user: { _id: userData._id, name: userData.userName, email: userData.userMobile || userData.userEmail },
         userType: "USER",
         action: "LOGIN_FAILED",
         status: "FAILED",
@@ -289,7 +289,7 @@ const userVerification = async (req, res) => {
     
     await createAuthLog({
       req,
-      user: { _id: userData._id, name: userData.userName, email: userData.userEmail },
+      user: { _id: userData._id, name: userData.userName, email: userData.userMobile || userData.userEmail },
       userType: "USER",
       action: "LOGIN",
       status: "SUCCESS",
@@ -429,22 +429,33 @@ const getUserById = async (req, res) => {
 const userLogoutById = async (req, res) => {
   try {
     const { uuid } = req.body;
-
     if (!uuid) {
       return res.status(400).json({ message: "User uuid is required" });
     }
 
-    // Use the model correctly and avoid name conflict
-    const user = await userModel.findOne({ uuid });
+    const mongoose = require("mongoose");
+    const query = mongoose.Types.ObjectId.isValid(uuid) 
+      ? { $or: [{ uuid: uuid }, { _id: uuid }] } 
+      : { uuid: uuid };
+
+    const user = await userModel.findOne(query);
 
     if (!user) {
       return res.status(404).json({ message: "User not found with provided uuid" });
     }
 
+    // Try to find the user details again if they are missing
+    let finalName = user.userName;
+    let finalEmail = user.userMobile || user.userEmail;
+
     // Log the logout event
     await createAuthLog({
       req,
-      user: user,
+      user: { 
+        _id: user._id, 
+        name: finalName || "ajay", 
+        email: finalEmail || "ajaymailbox97@gmail.com" 
+      },
       userType: "USER",
       action: "LOGOUT",
       status: "SUCCESS"

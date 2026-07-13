@@ -36,8 +36,54 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
+      enum: ["user", "employee", "lead", "admin"],
       default: "user",
     },
+
+    // --- Employee Specific Fields ---
+    designation: {
+      type: String,
+      default: "",
+    },
+
+    dob: {
+      type: String,
+      default: "",
+    },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other", ""],
+      default: "",
+    },
+    joiningDate: {
+      type: String,
+      default: "",
+    },
+    salary: {
+      type: Number,
+      default: 0,
+    },
+    attendance: {
+      type: Number,
+      default: 0,
+    },
+    leaves: {
+      type: Number,
+      default: 0,
+    },
+
+    // --- Lead Specific Fields ---
+    leadStatus: {
+      type: String,
+      enum: ["New", "Contacted", "Follow-up", "Converted", ""],
+      default: "",
+    },
+    followUps: [
+      {
+        date: { type: Date, default: Date.now },
+        notes: { type: String, default: "" }
+      }
+    ],
 
     status: {
       type: String,

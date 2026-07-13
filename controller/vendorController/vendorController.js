@@ -1524,7 +1524,11 @@ const vendorLogoutById = async (req, res) => {
     // Log the logout event
     await createAuthLog({
       req,
-      user: vendor,
+      user: {
+        _id: vendor._id,
+        name: vendor.vendorName,
+        email: vendor.mobile || vendor.email
+      },
       userType: "VENDOR",
       action: "LOGOUT",
       status: "SUCCESS"

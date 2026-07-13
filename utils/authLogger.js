@@ -76,10 +76,13 @@ const createAuthLog = async ({
       accessType = osType === "IOS" ? "IOS_APP" : "ANDROID_APP";
     }
 
+
+
+
     const logData = {
       userId: user?._id || user?.id || "UNKNOWN",
-      name: user?.name || user?.personName || user?.vendorName || user?.adminName || "UNKNOWN",
-      email: user?.email || user?.emailid || user?.mobile || (user?.contacts && user.contacts.length > 0 ? user.contacts[0].mobile : null) || user?.contacts?.mobile || "UNKNOWN",
+      name: user?.name || user?.userName || user?.personName || user?.vendorName || user?.adminName || "UNKNOWN",
+      email: user?.mobile || user?.userMobile || user?.email || user?.userEmail || user?.emailid || (user?.contacts && user.contacts.length > 0 ? user.contacts[0].mobile : null) || user?.contacts?.mobile || "UNKNOWN",
       userType: userType || "UNKNOWN",
       action,
       status,

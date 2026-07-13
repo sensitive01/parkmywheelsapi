@@ -28,6 +28,18 @@ const notificationController = require("../../controller/adminController/notific
 const scannerController = require("../../controller/userController/scanner/scannerController")
 const reportController = require("../../controller/vendorController/reportController/reportController")
 const accountantController = require("../../controller/vendorController/addaccountant/VendorAddNewAccountant")
+const valetDriverController = require("../../controller/vendorController/valetDriverController");
+
+// Valet Drivers
+vendorRoute.post("/valet-driver", upload.single("proof"), valetDriverController.createValetDriver);
+vendorRoute.get("/valet-drivers/:vendorId", valetDriverController.getValetDriversByVendor);
+vendorRoute.put("/valet-driver/:driverId", upload.single("proof"), valetDriverController.updateValetDriver);
+vendorRoute.delete("/valet-driver/:driverId", valetDriverController.deleteValetDriver);
+
+// Audit Logs
+const auditLogController = require("../../controller/vendorController/auditLogController");
+vendorRoute.get("/activity-logs/:vendorId", auditLogController.getVendorActivityLogs);
+vendorRoute.get("/auth-logs/:vendorId", auditLogController.getVendorAuthLogs);
 
 
 
