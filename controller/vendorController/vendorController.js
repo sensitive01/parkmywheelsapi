@@ -988,16 +988,6 @@ const accountantLogin = async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
 const updateVendor = async (req, res) => {
   try {
     const { vendorId } = req.body; // Assuming vendorId is sent in the request body
@@ -2142,6 +2132,7 @@ const getToggleStates = async (req, res) => {
       exitEnabled: vendor.exitEnabled ?? false,
       vehicleUploadEnabled: vendor.vehicleUploadEnabled ?? false,
       valetEnabled: vendor.valetEnabled ?? false,
+      valetCharge: vendor.valetCharge ?? "0",
     });
   } catch (error) {
     console.error("Error fetching toggle states:", error);
@@ -2153,7 +2144,7 @@ const getToggleStates = async (req, res) => {
 const updateToggleStates = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled, valetEnabled } = req.body;
+    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled, valetEnabled, valetCharge } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -2181,6 +2172,9 @@ const updateToggleStates = async (req, res) => {
     if (valetEnabled !== undefined) {
       vendor.valetEnabled = valetEnabled;
     }
+    if (valetCharge !== undefined) {
+      vendor.valetCharge = valetCharge;
+    }
 
     await vendor.save();
 
@@ -2191,6 +2185,7 @@ const updateToggleStates = async (req, res) => {
       exitEnabled: vendor.exitEnabled,
       vehicleUploadEnabled: vendor.vehicleUploadEnabled,
       valetEnabled: vendor.valetEnabled,
+      valetCharge: vendor.valetCharge,
     });
   } catch (error) {
     console.error("Error updating toggle states:", error);

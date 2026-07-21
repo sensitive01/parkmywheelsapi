@@ -953,6 +953,8 @@ exports.machinecreatebooking = async (req, res) => {
       parkedDate = null,
       parkedTime = null,
       bookType,
+      isValet = false,
+      valetCharge = "0",
     } = req.body;
 
     // (debug log removed)
@@ -1243,6 +1245,8 @@ exports.machinecreatebooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      isValet: (vehicleType === "Car" || vehicleType === "car") ? isValet : false,
+      valetCharge: (vehicleType === "Car" || vehicleType === "car") && isValet ? valetCharge : "0",
       vehicleImages: vehicleImageUrls,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -1794,6 +1798,8 @@ exports.vendorcreateBooking = async (req, res) => {
       parkedDate = null,
       parkedTime = null,
       bookType,
+      isValet = false,
+      valetCharge = "0",
     } = req.body;
 
     // (debug log removed)
@@ -2048,6 +2054,8 @@ exports.vendorcreateBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      isValet: (vehicleType === "Car" || vehicleType === "car") ? isValet : false,
+      valetCharge: (vehicleType === "Car" || vehicleType === "car") && isValet ? valetCharge : "0",
       vehicleImages: vehicleImageUrls,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -4619,7 +4627,8 @@ exports.calculateExitCharges = async (req, res) => {
       Booking.findById(id, {
         vendorId: 1, userid: 1, vehicleType: 1, sts: 1, bookType: 1,
         parkedDate: 1, parkedTime: 1, parkingDate: 1, parkingTime: 1,
-        amount: 1, allCharges: 1, invoiceid: 1, status: 1
+        amount: 1, allCharges: 1, invoiceid: 1, status: 1,
+        isValet: 1, valetCharge: 1
       }).lean(),
       Gstfee.findOne({}, { gst: 1, handlingfee: 1 }).lean()
     ]);
@@ -4657,6 +4666,8 @@ exports.calculateExitCharges = async (req, res) => {
       handlingFee: handlingFeeAmt,
       platformFeePercentage: pfPct,
       vehicleCharges,
+      isValet: booking.isValet || false,
+      valetCharge: booking.valetCharge || "0",
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -4862,6 +4873,7 @@ exports.fastExitData = async (req, res) => {
         vendorId: 1, userid: 1, vehicleType: 1, sts: 1, bookType: 1,
         parkedDate: 1, parkedTime: 1, parkingDate: 1, parkingTime: 1,
         amount: 1, allCharges: 1, invoiceid: 1, status: 1,
+        isValet: 1, valetCharge: 1,
       }).lean(),
       Gstfee.findOne({}, { gst: 1, handlingfee: 1 }).lean(),
     ]);
@@ -4901,6 +4913,8 @@ exports.fastExitData = async (req, res) => {
       vehicleCharges,
       vendorName: vendor?.vendorName || '',
       upiId: vendor?.upiId || '',
+      isValet: booking.isValet || false,
+      valetCharge: booking.valetCharge || "0",
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -8083,7 +8097,6 @@ exports.setVendorVisibility = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 
 
 // const Vendor = require("../models/vendorSchema");

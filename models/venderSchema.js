@@ -81,6 +81,7 @@ contacts: [
     exitEnabled: { type: Boolean, default: false },
     vehicleUploadEnabled: { type: Boolean, default: false },
     valetEnabled: { type: Boolean, default: false },
+    valetCharge: { type: String, default: "0" },
     vehicleReturnTime:{type:String,default:"20"},
     accountant: { type: [String], default: [] },
     subUnits:{type:[String],default:[]}

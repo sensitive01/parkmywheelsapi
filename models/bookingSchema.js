@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 const Vendor = require("./venderSchema");
 
@@ -147,6 +148,8 @@ type: String,
     parkedTime: { type: String, },
     exitvehicledate: { type: String },  
     exitvehicletime: { type: String },
+    isValet: { type: Boolean, default: false },
+    valetCharge: { type: String, default: "0" },
     // Vehicle images (optional) - URLs from Cloudinary
     vehicleImages: [{ type: String }],
     // Feedback fields stored in booking
