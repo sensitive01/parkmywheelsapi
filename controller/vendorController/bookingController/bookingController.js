@@ -5693,7 +5693,8 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     const day = d.padStart(2, '0');
     const month = m.padStart(2, '0');
     const year = y;
-    const exitvehicledate = `${day}-${month}-${year}`;
+    // const exitvehicledate = `${day}-${month}-${year}`;
+    const exitvehicledate = `${day}-${month}-${y}`;
 
     // Format time as "HH:MM AM/PM" (remove seconds if present)
     const timeParts = timePart.split(" ");
