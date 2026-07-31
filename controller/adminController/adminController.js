@@ -2215,7 +2215,7 @@ const getVendorSpaceSummaryV2 = async (req, res) => {
 const getKycSummaryV2 = async (req, res) => {
   try {
     const count = await KycDetails.countDocuments();
-    
+
     if (count === 0) {
       return res.status(404).json({ message: 'No KYC details found' });
     }

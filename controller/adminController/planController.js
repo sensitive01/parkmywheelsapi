@@ -35,9 +35,12 @@ const addNewPlan = async (req, res) => {
     const imageUrl = await uploadImage(imageFile.buffer, "plans");
 
     // Parse features (comma-separated string or array)
-    const parsedFeatures = Array.isArray(features)
-      ? features
-      : features.split(",").map((feature) => feature.trim());
+    let parsedFeatures = [];
+    if (features) {
+      parsedFeatures = Array.isArray(features)
+        ? features
+        : features.split(",").map((feature) => feature.trim());
+    }
 
     // Create new plan
     const newPlan = new planModel({
@@ -47,7 +50,7 @@ const addNewPlan = async (req, res) => {
       validity: Number(validity),
       amount: Number(amount),
       features: parsedFeatures,
-      status: status || "disable",
+      status: status || "enable",
       image: imageUrl,
       subscriptionGivenTo: Array.isArray(subscriptionData) ? subscriptionData : [],
     });

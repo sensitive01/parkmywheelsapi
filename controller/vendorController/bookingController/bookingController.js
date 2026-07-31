@@ -19,6 +19,7 @@ const bankApprovalSchema = require("../../../models/bankdetailsSchema");
 const Gstfee = require("../../../models/gstfeeschema"); // Adjust path as per your project
 const BookingTransaction = require("../../../models/bookingtransactionSechma");
 const { uploadImage } = require("../../../config/cloudinary");
+const ValetDriver = require("../../../models/valetDriverSchema");
 
 // 📌 Parse "DD-MM-YYYY" string safely
 function parseDDMMYYYY(dateStr) {
@@ -955,6 +956,7 @@ exports.machinecreatebooking = async (req, res) => {
       bookType,
       isValet = false,
       valetCharge = "0",
+      valetDriverId,
     } = req.body;
 
     // (debug log removed)
@@ -1207,6 +1209,19 @@ exports.machinecreatebooking = async (req, res) => {
       }
     }
 
+    let valetDriverName = "";
+    if (valetDriverId) {
+      try {
+        const ValetDriver = require("../../../models/valetDriverSchema");
+        const driver = await ValetDriver.findById(valetDriverId);
+        if (driver) {
+          valetDriverName = [driver.firstName, driver.lastName].filter(Boolean).join(" ");
+        }
+      } catch (err) {
+        console.error("Error fetching valet driver:", err);
+      }
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -1247,6 +1262,8 @@ exports.machinecreatebooking = async (req, res) => {
       bookType,
       isValet: (vehicleType === "Car" || vehicleType === "car") ? isValet : false,
       valetCharge: (vehicleType === "Car" || vehicleType === "car") && isValet ? valetCharge : "0",
+      valetDriverId,
+      valetDriverName,
       vehicleImages: vehicleImageUrls,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -1800,6 +1817,7 @@ exports.vendorcreateBooking = async (req, res) => {
       bookType,
       isValet = false,
       valetCharge = "0",
+      valetDriverId = "",
     } = req.body;
 
     // (debug log removed)
@@ -2016,6 +2034,18 @@ exports.vendorcreateBooking = async (req, res) => {
       }
     }
 
+    let valetDriverName = "";
+    if (valetDriverId) {
+      try {
+        const driver = await ValetDriver.findById(valetDriverId);
+        if (driver) {
+          valetDriverName = [driver.firstName, driver.lastName].filter(Boolean).join(" ");
+        }
+      } catch (err) {
+        console.error("Error fetching valet driver:", err);
+      }
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -2056,6 +2086,8 @@ exports.vendorcreateBooking = async (req, res) => {
       bookType,
       isValet: (vehicleType === "Car" || vehicleType === "car") ? isValet : false,
       valetCharge: (vehicleType === "Car" || vehicleType === "car") && isValet ? valetCharge : "0",
+      valetDriverId,
+      valetDriverName,
       vehicleImages: vehicleImageUrls,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -7607,6 +7639,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
           duration: { $arrayElemAt: ["$bookingDetails.hour", 0] },
           status: 1,
           bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] },
+          valetDriverName: { $arrayElemAt: ["$bookingDetails.valetDriverName", 0] },
           subscriptionType: 1,
           vendorName: 1,
           vendorId: 1,
@@ -7644,6 +7677,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return {
         invoice: null,
         username: transaction.personName || null,
+        valetDriverName: transaction.valetDriverName || null,
         _id: transaction._id,
         bookingId: transaction.bookingId || null,
         invoiceid: transaction.invoiceId || null,

@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
   {
-vendorName: { type: String, },
-spaceid: { type: String },
-upiId: { type: String, default: "", trim: true },
-contacts: [
-  {
-    name: { type: String, },
-    mobile: { type: String,  }
+    vendorName: { type: String, },
+    spaceid: { type: String },
+    upiId: { type: String, default: "", trim: true },
+    contacts: [
+      {
+        name: { type: String, },
+        mobile: { type: String, }
       }
     ],
     latitude: {
@@ -22,12 +22,12 @@ contacts: [
     },
     address: {
       type: String,
-      
+
       trim: true,
     },
     password: {
       type: String,
-      
+
     },
     landMark: {
       type: String,
@@ -41,15 +41,15 @@ contacts: [
         isClosed: Boolean,
       },
     ],
-      visibility: { type: Boolean, default: false },
+    visibility: { type: Boolean, default: false },
 
-   subscriptionleft: { type: Number, default: 0 },
+    subscriptionleft: { type: Number, default: 0 },
 
     platformfee: { type: String, },//vendor
     customerplatformfee: { type: String, },//user platform fee
     subscription: { type: String, default: "false" },
     newuser: { type: String, default: "false" },
-    trial : { type: String, default: "false" },
+    trial: { type: String, default: "false" },
     subscriptionenddate: { type: String, },
     image: {
       type: String,
@@ -58,7 +58,7 @@ contacts: [
       type: String,
       unique: true
     },
-   
+
     fcmTokens: { type: [String], default: [] },
     status: { type: String, default: "pending" },
     handlingFee: { type: String, default: "" },
@@ -73,7 +73,7 @@ contacts: [
 
 
     }],
-        otp: { type: String },
+    otp: { type: String },
     otpExpiresAt: { type: Date },
     // Toggle states for Book, Print, Exit, and Vehicle Upload
     bookEnabled: { type: Boolean, default: false },
@@ -83,9 +83,9 @@ contacts: [
     valetEnabled: { type: Boolean, default: false },
     valetCharge: { type: String, default: "0" },
     customerPaymentEnabled: { type: Boolean, default: true },
-    vehicleReturnTime:{type:String,default:"20"},
+    vehicleReturnTime: { type: String, default: "20" },
     accountant: { type: [String], default: [] },
-    subUnits:{type:[String],default:[]}
+    subUnits: { type: [String], default: [] }
   },
   { timestamps: true }
 );

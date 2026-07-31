@@ -663,7 +663,7 @@ const vendorLogin = async (req, res) => {
 
     // 6️⃣ Successful login response
     console.log("✅ Login successful. Role:", isAccountant ? "accountant" : "vendor");
-    
+
     await createAuthLog({
       req,
       user: isAccountant ? accountant : vendor,
