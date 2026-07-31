@@ -663,7 +663,7 @@ const vendorLogin = async (req, res) => {
 
     // 6️⃣ Successful login response
     console.log("✅ Login successful. Role:", isAccountant ? "accountant" : "vendor");
-    
+
     await createAuthLog({
       req,
       user: isAccountant ? accountant : vendor,
@@ -985,16 +985,6 @@ const accountantLogin = async (req, res) => {
 //     });
 //   }
 // };
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2142,6 +2132,8 @@ const getToggleStates = async (req, res) => {
       exitEnabled: vendor.exitEnabled ?? false,
       vehicleUploadEnabled: vendor.vehicleUploadEnabled ?? false,
       valetEnabled: vendor.valetEnabled ?? false,
+      valetCharge: vendor.valetCharge ?? "0",
+      customerPaymentEnabled: vendor.customerPaymentEnabled ?? true,
     });
   } catch (error) {
     console.error("Error fetching toggle states:", error);
@@ -2153,7 +2145,7 @@ const getToggleStates = async (req, res) => {
 const updateToggleStates = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled, valetEnabled } = req.body;
+    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled, valetEnabled, valetCharge, customerPaymentEnabled } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -2181,6 +2173,12 @@ const updateToggleStates = async (req, res) => {
     if (valetEnabled !== undefined) {
       vendor.valetEnabled = valetEnabled;
     }
+    if (valetCharge !== undefined) {
+      vendor.valetCharge = valetCharge;
+    }
+    if (customerPaymentEnabled !== undefined) {
+      vendor.customerPaymentEnabled = customerPaymentEnabled;
+    }
 
     await vendor.save();
 
@@ -2191,6 +2189,8 @@ const updateToggleStates = async (req, res) => {
       exitEnabled: vendor.exitEnabled,
       vehicleUploadEnabled: vendor.vehicleUploadEnabled,
       valetEnabled: vendor.valetEnabled,
+      valetCharge: vendor.valetCharge,
+      customerPaymentEnabled: vendor.customerPaymentEnabled,
     });
   } catch (error) {
     console.error("Error updating toggle states:", error);

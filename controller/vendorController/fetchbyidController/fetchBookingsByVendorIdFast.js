@@ -14,6 +14,7 @@ const fetchBookingsByVendorIdFast = async (req, res) => {
       personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
       subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
       approvedDate: 1, approvedTime: 1, paymentMode: 1,
+      valetDriverName: 1, valetDriverId: 1,
     };
 
     if (dashboardStats === 'true') {

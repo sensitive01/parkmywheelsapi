@@ -19,6 +19,7 @@ const bankApprovalSchema = require("../../../models/bankdetailsSchema");
 const Gstfee = require("../../../models/gstfeeschema"); // Adjust path as per your project
 const BookingTransaction = require("../../../models/bookingtransactionSechma");
 const { uploadImage } = require("../../../config/cloudinary");
+const ValetDriver = require("../../../models/valetDriverSchema");
 
 // 📌 Parse "DD-MM-YYYY" string safely
 function parseDDMMYYYY(dateStr) {
@@ -449,7 +450,7 @@ exports.createBooking = async (req, res) => {
             startDate.setHours(hours, minutes, 0, 0);
           }
         }
-        
+
         const sl = (sts || "").toLowerCase();
         const addHours = parseInt(sl); // "12hr" -> 12
         if (!isNaN(addHours)) {
@@ -953,6 +954,9 @@ exports.machinecreatebooking = async (req, res) => {
       parkedDate = null,
       parkedTime = null,
       bookType,
+      isValet = false,
+      valetCharge = "0",
+      valetDriverId,
     } = req.body;
 
     // (debug log removed)
@@ -1062,7 +1066,7 @@ exports.machinecreatebooking = async (req, res) => {
             startDate.setHours(hours, minutes, 0, 0);
           }
         }
-        
+
         const sl = (sts || "").toLowerCase();
         const addHours = parseInt(sl);
         if (!isNaN(addHours)) {
@@ -1071,14 +1075,14 @@ exports.machinecreatebooking = async (req, res) => {
         }
       }
     } else if (isSubscriptionSts(sts) && parkingDate && !calculatedSubscriptionEndDate) {
-        // Fallback for daily subscriptions if end date is missing
-        const date = parseDDMMYYYY(parkingDate);
-        if (date && !isNaN(date.getTime())) {
-          const sl = (sts || "").toLowerCase();
-          const addDays = sl === "weekly" ? 7 : sl === "15day" ? 15 : 30;
-          date.setDate(date.getDate() + addDays);
-          calculatedSubscriptionEndDate = date.toISOString().split("T")[0];
-        }
+      // Fallback for daily subscriptions if end date is missing
+      const date = parseDDMMYYYY(parkingDate);
+      if (date && !isNaN(date.getTime())) {
+        const sl = (sts || "").toLowerCase();
+        const addDays = sl === "weekly" ? 7 : sl === "15day" ? 15 : 30;
+        date.setDate(date.getDate() + addDays);
+        calculatedSubscriptionEndDate = date.toISOString().split("T")[0];
+      }
     }
 
     // Fetch charges based on vendorId at booking time
@@ -1205,6 +1209,19 @@ exports.machinecreatebooking = async (req, res) => {
       }
     }
 
+    let valetDriverName = "";
+    if (valetDriverId) {
+      try {
+        const ValetDriver = require("../../../models/valetDriverSchema");
+        const driver = await ValetDriver.findById(valetDriverId);
+        if (driver) {
+          valetDriverName = [driver.firstName, driver.lastName].filter(Boolean).join(" ");
+        }
+      } catch (err) {
+        console.error("Error fetching valet driver:", err);
+      }
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -1243,6 +1260,10 @@ exports.machinecreatebooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      isValet: (vehicleType === "Car" || vehicleType === "car") ? isValet : false,
+      valetCharge: (vehicleType === "Car" || vehicleType === "car") && isValet ? valetCharge : "0",
+      valetDriverId,
+      valetDriverName,
       vehicleImages: vehicleImageUrls,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -1794,6 +1815,9 @@ exports.vendorcreateBooking = async (req, res) => {
       parkedDate = null,
       parkedTime = null,
       bookType,
+      isValet = false,
+      valetCharge = "0",
+      valetDriverId = "",
     } = req.body;
 
     // (debug log removed)
@@ -2010,6 +2034,18 @@ exports.vendorcreateBooking = async (req, res) => {
       }
     }
 
+    let valetDriverName = "";
+    if (valetDriverId) {
+      try {
+        const driver = await ValetDriver.findById(valetDriverId);
+        if (driver) {
+          valetDriverName = [driver.firstName, driver.lastName].filter(Boolean).join(" ");
+        }
+      } catch (err) {
+        console.error("Error fetching valet driver:", err);
+      }
+    }
+
     const newBooking = new Booking({
       userid,
       vendorId,
@@ -2048,6 +2084,10 @@ exports.vendorcreateBooking = async (req, res) => {
       exitvehicledate,
       exitvehicletime,
       bookType,
+      isValet: (vehicleType === "Car" || vehicleType === "car") ? isValet : false,
+      valetCharge: (vehicleType === "Car" || vehicleType === "car") && isValet ? valetCharge : "0",
+      valetDriverId,
+      valetDriverName,
       vehicleImages: vehicleImageUrls,
       allCharges: allChargesArray, // Store full charges array
       charges: chargesData,
@@ -2061,7 +2101,7 @@ exports.vendorcreateBooking = async (req, res) => {
     await logActivity({
       req,
       actor: { vendorId: vendorId },
-      actorType: "VENDOR", 
+      actorType: "VENDOR",
       action: "CREATE_BOOKING",
       resourceType: "BOOKING",
       resourceId: newBooking._id,
@@ -4619,7 +4659,8 @@ exports.calculateExitCharges = async (req, res) => {
       Booking.findById(id, {
         vendorId: 1, userid: 1, vehicleType: 1, sts: 1, bookType: 1,
         parkedDate: 1, parkedTime: 1, parkingDate: 1, parkingTime: 1,
-        amount: 1, allCharges: 1, invoiceid: 1, status: 1
+        amount: 1, allCharges: 1, invoiceid: 1, status: 1,
+        isValet: 1, valetCharge: 1
       }).lean(),
       Gstfee.findOne({}, { gst: 1, handlingfee: 1 }).lean()
     ]);
@@ -4657,6 +4698,8 @@ exports.calculateExitCharges = async (req, res) => {
       handlingFee: handlingFeeAmt,
       platformFeePercentage: pfPct,
       vehicleCharges,
+      isValet: booking.isValet || false,
+      valetCharge: booking.valetCharge || "0",
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -4672,16 +4715,19 @@ exports.fastSummaryBookings = async (req, res) => {
     const filter = { vendorId: id, status: { $ne: 'CANCELLED' } };
 
     if (startDate || endDate) {
-      const createdAtFilter = {};
+      const dateFilter = {};
       if (startDate) {
         const [d, m, y] = startDate.split('-');
-        createdAtFilter.$gte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0);
+        dateFilter.$gte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0);
       }
       if (endDate) {
         const [d, m, y] = endDate.split('-');
-        createdAtFilter.$lte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 23, 59, 59, 999);
+        dateFilter.$lte = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 23, 59, 59, 999);
       }
-      filter.createdAt = createdAtFilter;
+      filter.$or = [
+        { createdAt: dateFilter },
+        { updatedAt: dateFilter }
+      ];
     }
 
     const bookings = await Booking.find(filter, {
@@ -4692,7 +4738,7 @@ exports.fastSummaryBookings = async (req, res) => {
       vehicleType: 1, vehicleNumber: 1, paymentMode: 1,
       personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
       subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
-      approvedDate: 1, approvedTime: 1,
+      approvedDate: 1, approvedTime: 1, isValet: 1, valetCharge: 1,
     }).lean();
 
     res.status(200).json({ bookings: bookings || [] });
@@ -4862,6 +4908,7 @@ exports.fastExitData = async (req, res) => {
         vendorId: 1, userid: 1, vehicleType: 1, sts: 1, bookType: 1,
         parkedDate: 1, parkedTime: 1, parkingDate: 1, parkingTime: 1,
         amount: 1, allCharges: 1, invoiceid: 1, status: 1,
+        isValet: 1, valetCharge: 1,
       }).lean(),
       Gstfee.findOne({}, { gst: 1, handlingfee: 1 }).lean(),
     ]);
@@ -4901,6 +4948,8 @@ exports.fastExitData = async (req, res) => {
       vehicleCharges,
       vendorName: vendor?.vendorName || '',
       upiId: vendor?.upiId || '',
+      isValet: booking.isValet || false,
+      valetCharge: booking.valetCharge || "0",
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -5035,12 +5084,12 @@ exports.fetchbookingforsummary = async (req, res) => {
       if (!d) return new Date(0);
       const parts = d.split("-");
       if (parts.length !== 3) return new Date(0);
-      
+
       // Ensure day and month are two digits for ISO compatibility
       const dd = parts[0].padStart(2, '0');
       const mm = parts[1].padStart(2, '0');
       const yyyy = parts[2];
-      
+
       const time24 = convertTo24Hour(timeStr);
       const iso = `${yyyy}-${mm}-${dd}T${time24}:00`;
       const dt = new Date(iso);
@@ -5684,7 +5733,7 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Format time as "HH:MM AM/PM" (remove seconds if present)
     const timeParts = timePart.split(" ");
     const ampm = timeParts[timeParts.length - 1]; // Get AM/PM
-    const timeOnly = timeParts.slice(0, -1).join(" "); 
+    const timeOnly = timeParts.slice(0, -1).join(" ");
     const [h, min] = timeOnly.split(":");
     const hours = h.padStart(2, '0');
     const minutes = min.padStart(2, '0');
@@ -6045,25 +6094,25 @@ exports.exitvendorsub = async (req, res) => {
     const [d, m, y] = datePart.split("/");
     const day = d.padStart(2, '0');
     const month = m.padStart(2, '0');
-    const exitvehicledate = `${day}-${month}-${year}`;
+    const exitvehicledate = `${day}-${month}-${y}`;
 
     // Format time as "HH:MM AM/PM" (remove seconds if present)
     const parts = timePart.split(" ");
     const ampm = parts[parts.length - 1].toUpperCase(); // Ensure uppercase AM/PM
-    const timeOnly = parts.slice(0, -1).join(" "); 
+    const timeOnly = parts.slice(0, -1).join(" ");
     const timeComponents = timeOnly.split(":");
     const hours = timeComponents[0].padStart(2, '0');
     const minutes = timeComponents[1].padStart(2, '0');
-    const exitvehicletime = `${hours}:${minutes} ${ampm}`; 
+    const exitvehicletime = `${hours}:${minutes} ${ampm}`;
 
     // ✅ Only update status + exit date/time
     booking.status = "COMPLETED";
     booking.exitvehicledate = exitvehicledate;
     booking.exitvehicletime = exitvehicletime;
-    
+
     // Auto-set payment mode for subscriptions if not set
     if (!booking.paymentMode) {
-       booking.paymentMode = booking.userid ? "Online" : "Cash";
+      booking.paymentMode = booking.userid ? "Online" : "Cash";
     }
 
     const updatedBooking = await booking.save();
@@ -6073,7 +6122,7 @@ exports.exitvendorsub = async (req, res) => {
     await logActivity({
       req,
       actor: { vendorId: updatedBooking.vendorId },
-      actorType: "VENDOR", 
+      actorType: "VENDOR",
       action: "EXITING",
       resourceType: "BOOKING",
       resourceId: updatedBooking._id,
@@ -6644,8 +6693,8 @@ exports.getDashboardSlots = async (req, res) => {
 
     // Available = total - parked (min 0)
     const available = {
-      Cars:   Math.max(total.Cars   - parked.Cars,   0),
-      Bikes:  Math.max(total.Bikes  - parked.Bikes,  0),
+      Cars: Math.max(total.Cars - parked.Cars, 0),
+      Bikes: Math.max(total.Bikes - parked.Bikes, 0),
       Others: Math.max(total.Others - parked.Others, 0),
     };
 
@@ -7590,6 +7639,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
           duration: { $arrayElemAt: ["$bookingDetails.hour", 0] },
           status: 1,
           bookingStatus: { $arrayElemAt: ["$bookingDetails.status", 0] },
+          valetDriverName: { $arrayElemAt: ["$bookingDetails.valetDriverName", 0] },
           subscriptionType: 1,
           vendorName: 1,
           vendorId: 1,
@@ -7627,6 +7677,7 @@ exports.getReceivableAmountByUser = async (req, res) => {
       return {
         invoice: null,
         username: transaction.personName || null,
+        valetDriverName: transaction.valetDriverName || null,
         _id: transaction._id,
         bookingId: transaction.bookingId || null,
         invoiceid: transaction.invoiceId || null,

@@ -1694,7 +1694,7 @@ const UpdateVendorDataByAdmin = async (req, res) => {
   try {
     console.log(req.body);
     const { vendorId } = req.params;
-    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries, platformfee, vehicleReturnTime } = req.body;
+    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries, platformfee, vehicleReturnTime, customerPaymentEnabled } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -1718,6 +1718,10 @@ const UpdateVendorDataByAdmin = async (req, res) => {
       platformfee: platformfee || existingVendor.platformfee,
       vehicleReturnTime: vehicleReturnTime || existingVendor.vehicleReturnTime,
     };
+
+    if (customerPaymentEnabled !== undefined) {
+      updateData.customerPaymentEnabled = customerPaymentEnabled === 'true' || customerPaymentEnabled === true;
+    }
 
     let uploadedImageUrl;
     if (req.file) {
@@ -2263,7 +2267,7 @@ const getVendorSpaceSummaryV2 = async (req, res) => {
 const getKycSummaryV2 = async (req, res) => {
   try {
     const count = await KycDetails.countDocuments();
-    
+
     if (count === 0) {
       return res.status(404).json({ message: 'No KYC details found' });
     }
