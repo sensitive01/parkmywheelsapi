@@ -1,11 +1,10 @@
 const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema(
+const employeeSchema = new mongoose.Schema(
   {
     uuid: {
       type: String,
     },
-
     userName: {
       type: String,
       required: true,
@@ -13,7 +12,6 @@ const userSchema = new mongoose.Schema(
     },
     userEmail: {
       type: String,
-
     },
     userMobile: {
       type: String,
@@ -23,45 +21,57 @@ const userSchema = new mongoose.Schema(
     },
     userPassword: {
       type: String,
+      required: true,
     },
     image: {
       type: String,
       default: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ_4p5Rgu7HT7jtL6eMhar_c47tv4YEJAgKw&s"
     },
-    vehicleNo: {
+    employeeId: {
       type: String,
-      default: ""
+      default: "",
     },
-
-    role: {
+    designation: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      default: "",
     },
-
+    dob: {
+      type: String,
+      default: "",
+    },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other", ""],
+      default: "",
+    },
+    joiningDate: {
+      type: String,
+      default: "",
+    },
+    salary: {
+      type: Number,
+      default: 0,
+    },
+    attendance: {
+      type: Number,
+      default: 0,
+    },
+    leaves: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       default: "Active",
-    },
-    walletamount: {
-      type: String,
-      default: "0",
-    },
-    otp: { type: String },
-    otpExpiresAt: { type: Date },
-    userfcmTokens: { type: [String], default: [] },
-    walletstatus: {
-      type: String,
-      default: "Active",
-    },
+    }
   },
   {
     timestamps: true,
   }
 );
 
-userSchema.index({ uuid: 1 });
+employeeSchema.index({ uuid: 1 });
 
-const User = mongoose.model("User", userSchema);
+const Employee = mongoose.model("Employee", employeeSchema);
 
-module.exports = User;
+module.exports = Employee;

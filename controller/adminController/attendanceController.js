@@ -1,4 +1,5 @@
 const Attendance = require("../../models/attendanceSchema");
+const { uploadImage } = require("../../config/cloudinary");
 
 // Create Attendance Record
 exports.createAttendance = async (req, res) => {
@@ -9,11 +10,40 @@ exports.createAttendance = async (req, res) => {
       return res.status(400).json({ success: false, message: "Employee, Date, and Status are required" });
     }
 
+    let photoUrl = "";
+    
+    // Check if attendance already exists for today
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingAttendance = await Attendance.findOne({
+      employeeId,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (existingAttendance) {
+      return res.status(400).json({ success: false, message: "Attendance already marked for today" });
+    }
+
+    if (req.file) {
+      try {
+        photoUrl = await uploadImage(req.file.buffer, "attendance");
+      } catch (imageError) {
+        console.error("Image upload failed:", imageError);
+        return res.status(500).json({ success: false, message: "Image upload failed" });
+      }
+    }
+
     const newAttendance = new Attendance({
       employeeId,
       date: new Date(date),
       status,
-      remarks: remarks || ""
+      remarks: remarks || "",
+      photoUrl,
+      loginTime: new Date()
     });
 
     await newAttendance.save();
@@ -27,8 +57,39 @@ exports.createAttendance = async (req, res) => {
 // Get All Attendance Records
 exports.getAttendance = async (req, res) => {
   try {
-    const attendanceRecords = await Attendance.find()
-      .populate("employeeId", "userName userEmail userMobile designation")
+    const { employeeId, startDate, endDate, search } = req.query;
+    let filter = {};
+    if (employeeId) filter.employeeId = employeeId;
+
+    if (startDate && endDate) {
+      filter.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    if (search) {
+      const Employee = require("../../models/employeeModel");
+      const users = await Employee.find({
+        $or: [
+          { userName: { $regex: search, $options: "i" } },
+          { userMobile: { $regex: search, $options: "i" } }
+        ]
+      });
+      let userIds = users.map(u => u._id);
+      
+      // If employeeId is already set (e.g. employee requesting their own), intersect the results
+      if (employeeId) {
+        // Only allow searching if the matched user is themselves
+        userIds = userIds.filter(id => id.toString() === employeeId.toString());
+        filter.employeeId = userIds.length > 0 ? employeeId : null; // If no match, force empty result
+      } else {
+        filter.employeeId = { $in: userIds };
+      }
+    }
+
+    const attendanceRecords = await Attendance.find(filter)
+      .populate("employeeId", "userName userEmail userMobile designation employeeId")
       .sort({ date: -1 });
 
     res.status(200).json({ success: true, count: attendanceRecords.length, data: attendanceRecords });
@@ -42,11 +103,16 @@ exports.getAttendance = async (req, res) => {
 exports.updateAttendance = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, remarks } = req.body;
+    const { status, remarks, setLogout } = req.body;
+
+    let updatePayload = {};
+    if (status) updatePayload.status = status;
+    if (remarks !== undefined) updatePayload.remarks = remarks;
+    if (setLogout) updatePayload.logoutTime = new Date();
 
     const updatedAttendance = await Attendance.findByIdAndUpdate(
       id,
-      { status, remarks },
+      { $set: updatePayload },
       { new: true, runValidators: true }
     );
 

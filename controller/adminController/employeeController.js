@@ -1,34 +1,38 @@
-const User = require("../../models/userModel");
+const Employee = require("../../models/employeeModel");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
 // Create Employee
 exports.createEmployee = async (req, res) => {
   try {
-    const { userName, userMobile, userEmail, userPassword, designation, attendance, leaves, status, dob, gender, joiningDate, salary } = req.body;
+    const { userName, userMobile, userEmail, userPassword, employeeId, designation, attendance, leaves, status, dob, gender, joiningDate, salary } = req.body;
 
     if (!userName || !userMobile || !userPassword) {
       return res.status(400).json({ success: false, message: "Name, Mobile, and Password are required" });
     }
 
-    const existingUser = await User.findOne({ userMobile });
+    const existingUser = await Employee.findOne({ userMobile });
     if (existingUser) {
       return res.status(400).json({ success: false, message: "Mobile number already exists" });
     }
 
-    // In a production app, we would hash the password here if not handled in model pre-save hook
-    // const salt = await bcrypt.genSalt(10);
-    // const hashedPassword = await bcrypt.hash(userPassword, salt);
-    // For this boilerplate, assuming we store it as provided or hash it simply:
-    const hashedPassword = userPassword; 
+    if (employeeId) {
+      const existingEmpId = await Employee.findOne({ employeeId });
+      if (existingEmpId) {
+        return res.status(400).json({ success: false, message: "Employee ID already exists" });
+      }
+    }
 
-    const newEmployee = new User({
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(userPassword, salt); 
+
+    const newEmployee = new Employee({
       uuid: crypto.randomUUID(),
       userName,
       userMobile,
       userEmail,
       userPassword: hashedPassword,
-      role: "employee",
+      employeeId: employeeId || "",
       designation: designation || "",
       dob: dob || "",
       gender: gender || "",
@@ -51,10 +55,25 @@ exports.createEmployee = async (req, res) => {
 // Get all Employees
 exports.getEmployees = async (req, res) => {
   try {
-    const employees = await User.find({ role: "employee" }).sort({ createdAt: -1 });
+    const employees = await Employee.find({}).sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: employees.length, data: employees });
   } catch (error) {
     console.error("Error fetching employees:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Get single Employee by ID
+exports.getEmployeeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const employee = await Employee.findOne({ _id: id });
+    if (!employee) {
+      return res.status(404).json({ success: false, message: "Employee not found" });
+    }
+    res.status(200).json(employee);
+  } catch (error) {
+    console.error("Error fetching employee:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
@@ -63,25 +82,39 @@ exports.getEmployees = async (req, res) => {
 exports.updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userName, userMobile, userEmail, userPassword, designation, attendance, leaves, status, dob, gender, joiningDate, salary } = req.body;
+    const { userName, userMobile, userEmail, userPassword, employeeId, designation, attendance, leaves, status, dob, gender, joiningDate, salary } = req.body;
 
-    const employee = await User.findOne({ _id: id, role: "employee" });
+    const employee = await Employee.findOne({ _id: id });
     if (!employee) {
       return res.status(404).json({ success: false, message: "Employee not found" });
     }
 
     // Check mobile conflict if changed
     if (userMobile && userMobile !== employee.userMobile) {
-      const existingUser = await User.findOne({ userMobile });
+      const existingUser = await Employee.findOne({ userMobile });
       if (existingUser) {
         return res.status(400).json({ success: false, message: "Mobile number already in use" });
       }
       employee.userMobile = userMobile;
     }
 
+    // Check employeeId conflict if changed
+    if (employeeId && employeeId !== employee.employeeId) {
+      const existingEmpId = await Employee.findOne({ employeeId });
+      if (existingEmpId) {
+        return res.status(400).json({ success: false, message: "Employee ID already in use" });
+      }
+      employee.employeeId = employeeId;
+    } else if (employeeId === "") {
+      employee.employeeId = "";
+    }
+
     if (userName) employee.userName = userName;
     if (userEmail) employee.userEmail = userEmail;
-    if (userPassword && userPassword.trim() !== '') employee.userPassword = userPassword; // Handle hash if needed
+    if (userPassword && userPassword.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      employee.userPassword = await bcrypt.hash(userPassword, salt);
+    }
     if (designation !== undefined) employee.designation = designation;
     if (dob !== undefined) employee.dob = dob;
     if (gender !== undefined) employee.gender = gender;
@@ -105,7 +138,7 @@ exports.deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const employee = await User.findOneAndDelete({ _id: id, role: "employee" });
+    const employee = await Employee.findOneAndDelete({ _id: id });
     
     if (!employee) {
       return res.status(404).json({ success: false, message: "Employee not found" });

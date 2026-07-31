@@ -42,7 +42,10 @@ exports.createLeave = async (req, res) => {
 // Get All Leave Records
 exports.getLeaves = async (req, res) => {
   try {
-    const leaves = await Leave.find()
+    const { employeeId } = req.query;
+    const filter = employeeId ? { employeeId } : {};
+    
+    const leaves = await Leave.find(filter)
       .populate("employeeId", "userName userEmail userMobile designation")
       .sort({ createdAt: -1 });
 

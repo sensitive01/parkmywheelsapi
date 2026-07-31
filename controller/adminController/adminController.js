@@ -3,6 +3,7 @@ const adminModel = require("../../models/adminSchema");
 const { createAuthLog } = require("../../utils/authLogger");
 const vendorModel = require("../../models/venderSchema");
 const userModel = require("../../models/userModel");
+const Employee = require("../../models/employeeModel");
 const KycDetails = require('../../models/kycSchema');
 const Booking = require("../../models/bookingSchema");
 const VendorHelpSupport = require("../../models/userhelp");
@@ -402,15 +403,53 @@ const vendorLogin = async (req, res) => {
 
     const vendor = await adminModel.findOne({ 'contacts.mobile': mobile });
     if (!vendor) {
+      // Check if it's an employee
+      const employee = await Employee.findOne({ userMobile: mobile });
+      if (employee) {
+        const isPasswordValid = await bcrypt.compare(password, employee.userPassword);
+        const userType = employee.designation === 'Marketing' ? "MARKETING" : "EMPLOYEE";
+
+        if (!isPasswordValid) {
+          await createAuthLog({
+            req,
+            user: { _id: employee._id, name: employee.userName, email: mobile },
+            userType: userType,
+            action: "LOGIN_FAILED",
+            status: "FAILED",
+            reason: "Incorrect password",
+          });
+          return res.status(401).json({ message: "Incorrect password" });
+        }
+
+        await createAuthLog({
+          req,
+          user: { _id: employee._id, name: employee.userName, email: mobile },
+          userType: userType,
+          action: "LOGIN",
+          status: "SUCCESS",
+        });
+
+        return res.status(200).json({
+          message: "Login successful",
+          adminId: employee._id, // Map _id to adminId to match expected response
+          adminName: employee.userName,
+          contacts: [{ mobile: employee.userMobile }],
+          role: employee.designation === 'Marketing' ? 'Marketing' : 'Employee',
+          latitude: "",
+          longitude: "",
+          address: "",
+        });
+      }
+
       await createAuthLog({
         req,
-        user: { name: "Unknown Admin", email: mobile },
-        userType: "ADMIN",
+        user: { name: "Unknown User", email: mobile },
+        userType: "UNKNOWN",
         action: "LOGIN_FAILED",
         status: "FAILED",
-        reason: "Admin not found",
+        reason: "User not found",
       });
-      return res.status(404).json({ message: "Admin not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, vendor.password);
@@ -442,6 +481,7 @@ const vendorLogin = async (req, res) => {
       latitude: vendor.latitude,
       longitude: vendor.longitude,
       address: vendor.address,
+      role: "Admin",
     });
   } catch (err) {
     console.error("Error in vendor login", err);
@@ -457,10 +497,22 @@ const adminLogout = async (req, res) => {
       return res.status(400).json({ message: "Admin ID is required" });
     }
 
-    const admin = await adminModel.findById(adminId);
+    let userType = "ADMIN";
+    let admin = await adminModel.findById(adminId);
 
     if (!admin) {
-      return res.status(404).json({ message: "Admin not found" });
+      // Check if it's an employee logging out
+      const employee = await Employee.findById(adminId);
+      if (employee) {
+        admin = {
+          _id: employee._id,
+          adminName: employee.userName,
+          email: employee.userMobile
+        };
+        userType = employee.designation === 'Marketing' ? "MARKETING" : "EMPLOYEE";
+      } else {
+        return res.status(404).json({ message: "User not found" });
+      }
     }
 
     await createAuthLog({
@@ -468,9 +520,9 @@ const adminLogout = async (req, res) => {
       user: {
         _id: admin._id,
         name: admin.adminName,
-        email: admin.email
+        email: admin.email || admin.userMobile || (admin.contacts && admin.contacts.length > 0 ? admin.contacts[0].mobile : null)
       },
-      userType: "ADMIN",
+      userType: userType,
       action: "LOGOUT",
       status: "SUCCESS",
     });

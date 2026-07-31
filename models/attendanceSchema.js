@@ -4,7 +4,7 @@ const attendanceSchema = new mongoose.Schema(
   {
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Employee",
       required: true,
     },
     date: {
@@ -19,6 +19,16 @@ const attendanceSchema = new mongoose.Schema(
     remarks: {
       type: String,
       default: "",
+    },
+    photoUrl: {
+      type: String,
+      default: "",
+    },
+    loginTime: {
+      type: Date,
+    },
+    logoutTime: {
+      type: Date,
     },
   },
   { timestamps: true }

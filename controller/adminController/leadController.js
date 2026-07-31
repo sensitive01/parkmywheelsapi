@@ -1,27 +1,27 @@
-const User = require("../../models/userModel");
+const Lead = require("../../models/leadModel");
 const crypto = require("crypto");
 
 // Create Lead
 exports.createLead = async (req, res) => {
   try {
-    const { userName, userMobile, userEmail, userPassword, leadStatus, status } = req.body;
+    const { userName, userMobile, userEmail, leadStatus, status, leadDate, address } = req.body;
 
-    if (!userName || !userMobile || !userPassword) {
-      return res.status(400).json({ success: false, message: "Name, Mobile, and Password are required" });
+    if (!userName || !userMobile) {
+      return res.status(400).json({ success: false, message: "Name and Mobile are required" });
     }
 
-    const existingUser = await User.findOne({ userMobile });
+    const existingUser = await Lead.findOne({ userMobile });
     if (existingUser) {
       return res.status(400).json({ success: false, message: "Mobile number already exists" });
     }
 
-    const newLead = new User({
+    const newLead = new Lead({
       uuid: crypto.randomUUID(),
       userName,
       userMobile,
       userEmail,
-      userPassword,
-      role: "lead",
+      leadDate,
+      address,
       leadStatus: leadStatus || "New",
       followUps: [],
       status: status || "Active"
@@ -39,7 +39,7 @@ exports.createLead = async (req, res) => {
 // Get all Leads
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await User.find({ role: "lead" }).sort({ createdAt: -1 });
+    const leads = await Lead.find({}).sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: leads.length, data: leads });
   } catch (error) {
     console.error("Error fetching leads:", error);
@@ -51,16 +51,16 @@ exports.getLeads = async (req, res) => {
 exports.updateLead = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userName, userMobile, userEmail, userPassword, leadStatus, status, newFollowUp } = req.body;
+    const { userName, userMobile, userEmail, leadStatus, status, leadDate, address, newFollowUp } = req.body;
 
-    const lead = await User.findOne({ _id: id, role: "lead" });
+    const lead = await Lead.findOne({ _id: id });
     if (!lead) {
       return res.status(404).json({ success: false, message: "Lead not found" });
     }
 
     // Check mobile conflict if changed
     if (userMobile && userMobile !== lead.userMobile) {
-      const existingUser = await User.findOne({ userMobile });
+      const existingUser = await Lead.findOne({ userMobile });
       if (existingUser) {
         return res.status(400).json({ success: false, message: "Mobile number already in use" });
       }
@@ -69,15 +69,18 @@ exports.updateLead = async (req, res) => {
 
     if (userName) lead.userName = userName;
     if (userEmail) lead.userEmail = userEmail;
-    if (userPassword && userPassword.trim() !== '') lead.userPassword = userPassword;
     if (leadStatus) lead.leadStatus = leadStatus;
     if (status) lead.status = status;
+    if (leadDate !== undefined) lead.leadDate = leadDate;
+    if (address !== undefined) lead.address = address;
 
     // Add new follow up if provided
-    if (newFollowUp && newFollowUp.notes) {
+    if (newFollowUp && (newFollowUp.notes || newFollowUp.status)) {
       lead.followUps.push({
         date: newFollowUp.date ? new Date(newFollowUp.date) : new Date(),
-        notes: newFollowUp.notes
+        status: newFollowUp.status || "",
+        notes: newFollowUp.notes || "",
+        doneBy: newFollowUp.doneBy || ""
       });
     }
 
@@ -95,7 +98,7 @@ exports.deleteLead = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const lead = await User.findOneAndDelete({ _id: id, role: "lead" });
+    const lead = await Lead.findOneAndDelete({ _id: id });
     
     if (!lead) {
       return res.status(404).json({ success: false, message: "Lead not found" });

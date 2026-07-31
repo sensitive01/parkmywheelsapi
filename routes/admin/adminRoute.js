@@ -169,6 +169,7 @@ adminRoute.put("/update-admin-notification/:id", notificationController.updateNo
 // --- Employee Routes ---
 adminRoute.post("/employee", employeeController.createEmployee);
 adminRoute.get("/employees", employeeController.getEmployees);
+adminRoute.get("/employee/:id", employeeController.getEmployeeById);
 adminRoute.put("/employee/:id", employeeController.updateEmployee);
 adminRoute.delete("/employee/:id", employeeController.deleteEmployee);
 
@@ -179,7 +180,7 @@ adminRoute.get("/leads", leadController.getLeads);
 adminRoute.put("/lead/:id", leadController.updateLead);
 adminRoute.delete("/lead/:id", leadController.deleteLead);
 // --- Attendance Routes ---
-adminRoute.post("/attendance", attendanceController.createAttendance);
+adminRoute.post("/attendance", upload.single("image"), attendanceController.createAttendance);
 adminRoute.get("/attendance", attendanceController.getAttendance);
 adminRoute.put("/attendance/:id", attendanceController.updateAttendance);
 adminRoute.delete("/attendance/:id", attendanceController.deleteAttendance);

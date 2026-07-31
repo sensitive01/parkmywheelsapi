@@ -15,7 +15,7 @@ const authLogSchema = new mongoose.Schema(
     },
     userType: {
       type: String,
-      enum: ["ADMIN", "VENDOR", "USER", "ACCOUNTANT", "UNKNOWN"],
+      enum: ["ADMIN", "VENDOR", "USER", "ACCOUNTANT", "EMPLOYEE", "MARKETING", "UNKNOWN"],
       required: true,
       index: true,
     },
