@@ -37,7 +37,8 @@ const leadSchema = new mongoose.Schema(
         date: { type: Date, default: Date.now },
         status: { type: String, default: "" },
         notes: { type: String, default: "" },
-        doneBy: { type: String, default: "" }
+        doneBy: { type: String, default: "" },
+        followUpDateTime: { type: Date }
       }
     ],
     status: {

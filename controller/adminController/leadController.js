@@ -80,7 +80,8 @@ exports.updateLead = async (req, res) => {
         date: newFollowUp.date ? new Date(newFollowUp.date) : new Date(),
         status: newFollowUp.status || "",
         notes: newFollowUp.notes || "",
-        doneBy: newFollowUp.doneBy || ""
+        doneBy: newFollowUp.doneBy || "",
+        ...(newFollowUp.followUpDateTime && { followUpDateTime: new Date(newFollowUp.followUpDateTime) })
       });
     }
 
