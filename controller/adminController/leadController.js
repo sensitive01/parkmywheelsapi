@@ -4,7 +4,7 @@ const crypto = require("crypto");
 // Create Lead
 exports.createLead = async (req, res) => {
   try {
-    const { userName, userMobile, userEmail, leadStatus, status, leadDate, address } = req.body;
+    const { userName, userMobile, userEmail, leadStatus, status, leadDate, address, createdBy } = req.body;
 
     if (!userName || !userMobile) {
       return res.status(400).json({ success: false, message: "Name and Mobile are required" });
@@ -24,7 +24,8 @@ exports.createLead = async (req, res) => {
       address,
       leadStatus: leadStatus || "New",
       followUps: [],
-      status: status || "Active"
+      status: status || "Active",
+      createdBy: createdBy || ""
     });
 
     await newLead.save();
@@ -39,7 +40,12 @@ exports.createLead = async (req, res) => {
 // Get all Leads
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find({}).sort({ createdAt: -1 });
+    const { employeeId, role } = req.query;
+    let filter = {};
+    if (role === 'Marketing' && employeeId) {
+      filter.createdBy = employeeId;
+    }
+    const leads = await Lead.find(filter).sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: leads.length, data: leads });
   } catch (error) {
     console.error("Error fetching leads:", error);

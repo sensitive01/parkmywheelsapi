@@ -5538,13 +5538,91 @@ exports.getBookingById = async (req, res) => {
 
 exports.getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find();
+    const { 
+      page = 1, 
+      limit = 10, 
+      vendorId, 
+      vehicleType, 
+      sts, 
+      status, 
+      bookingDate, 
+      bookingSource, 
+      search 
+    } = req.query;
 
-    if (bookings.length === 0) {
-      return res.status(404).json({ message: "No bookings found" });
+    const finalQuery = { $and: [] };
+    const baseConditions = {};
+
+    if (vendorId) baseConditions.vendorId = vendorId;
+    if (vehicleType) baseConditions.vehicleType = vehicleType;
+    if (sts) baseConditions.sts = sts;
+    if (status) baseConditions.status = { $regex: new RegExp(`^${status}$`, 'i') }; 
+
+    if (bookingDate) {
+      let formattedDate = bookingDate;
+      // If frontend sends YYYY-MM-DD, convert to DD-MM-YYYY for DB match
+      if (bookingDate.includes('-') && bookingDate.split('-')[0].length === 4) {
+        const [year, month, day] = bookingDate.split('-');
+        formattedDate = `${day}-${month}-${year}`;
+      }
+      baseConditions.bookingDate = formattedDate;
     }
 
-    res.status(200).json({ bookings });
+    if (Object.keys(baseConditions).length > 0) {
+      finalQuery.$and.push(baseConditions);
+    }
+
+    if (bookingSource === 'user') {
+      finalQuery.$and.push({ userId: { $exists: true, $ne: null, $ne: "" } });
+    } else if (bookingSource === 'vendor') {
+      finalQuery.$and.push({ $or: [{ userId: { $exists: false } }, { userId: null }, { userId: "" }] });
+    }
+
+    if (search) {
+      finalQuery.$and.push({
+        $or: [
+          { personName: { $regex: search, $options: 'i' } },
+          { vehicleNumber: { $regex: search, $options: 'i' } },
+          { vendorName: { $regex: search, $options: 'i' } }
+        ]
+      });
+    }
+
+
+    const queryToExecute = finalQuery.$and.length > 0 ? finalQuery : {};
+
+    const pageInt = parseInt(page);
+    const limitInt = parseInt(limit);
+    const skip = (pageInt - 1) * limitInt;
+
+    const totalCount = await Booking.countDocuments(queryToExecute);
+    
+    const bookings = await Booking.find(queryToExecute)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitInt);
+
+    res.status(200).json({ 
+      bookings, 
+      totalCount, 
+      totalPages: Math.ceil(totalCount / limitInt) 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getBookingFilterOptions = async (req, res) => {
+  try {
+    const vehicleTypes = await Booking.distinct('vehicleType');
+    const stsTypes = await Booking.distinct('sts');
+    const statusTypes = await Booking.distinct('status');
+
+    res.status(200).json({
+      vehicleTypes: vehicleTypes.filter(Boolean),
+      stsTypes: stsTypes.filter(Boolean),
+      statusTypes: statusTypes.filter(Boolean)
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

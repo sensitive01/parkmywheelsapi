@@ -44,6 +44,10 @@ const leadSchema = new mongoose.Schema(
     status: {
       type: String,
       default: "Active",
+    },
+    createdBy: {
+      type: String,
+      default: "",
     }
   },
   {

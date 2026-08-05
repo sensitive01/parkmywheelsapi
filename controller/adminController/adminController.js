@@ -882,15 +882,41 @@ const fetchsinglespacedata = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await userModel.find({}, '-userPassword');
+    const { page = 1, limit = 15, search } = req.query;
+    const finalQuery = {};
 
-    if (users.length === 0) {
+    if (search) {
+      finalQuery.$or = [
+        { userName: { $regex: search, $options: 'i' } },
+        { userEmail: { $regex: search, $options: 'i' } },
+        { userMobile: { $regex: search, $options: 'i' } },
+        { role: { $regex: search, $options: 'i' } },
+        { status: { $regex: search, $options: 'i' } },
+        { walletstatus: { $regex: search, $options: 'i' } },
+        { vehicleNo: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const pageInt = parseInt(page);
+    const limitInt = parseInt(limit);
+    const skip = (pageInt - 1) * limitInt;
+
+    const totalCount = await userModel.countDocuments(finalQuery);
+    
+    const users = await userModel.find(finalQuery, '-userPassword')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitInt);
+
+    if (users.length === 0 && pageInt === 1) {
       return res.status(404).json({ message: "No users found." });
     }
 
     res.status(200).json({
       message: "Users fetched successfully",
       users,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limitInt)
     });
   } catch (err) {
     console.error("Error fetching users:", err);

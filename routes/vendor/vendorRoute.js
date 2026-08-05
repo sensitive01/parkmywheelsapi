@@ -107,6 +107,7 @@ vendorRoute.get("/fetchmonthlybook/:id", bookingController.fetchmonthlysubuser);
 
 vendorRoute.get("/getbooking/:id", bookingController.getBookingById);
 vendorRoute.get("/bookings", bookingController.getAllBookings);
+vendorRoute.get("/booking-filters", bookingController.getBookingFilterOptions);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
 vendorRoute.post("/deletebookings/bulk", bookingController.deleteBookingsBulk);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
