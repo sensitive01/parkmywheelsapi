@@ -284,6 +284,30 @@ const bookParkingSlot = async (req, res) => {
       return res.status(400).json({ message: "Invalid date format for bookingDate" });
     }
 
+    if (vendorId) {
+      const vendor = await venderSchema.findById(vendorId);
+      if (vendor) {
+        let isSubscriptionActive =
+          (vendor.subscription === "true" || vendor.subscription === true) &&
+          parseInt(vendor.subscriptionleft || 0, 10) > 0;
+
+        // Allow booking if vendor is in valid trial period
+        if (!isSubscriptionActive && vendor.trialstartdate && vendor.trial === "false") {
+          const trialStart = new Date(vendor.trialstartdate);
+          const diffDays = Math.floor((new Date() - trialStart) / (1000 * 60 * 60 * 24));
+          if (diffDays < 30) {
+            isSubscriptionActive = true;
+          }
+        }
+
+        if (!isSubscriptionActive) {
+          return res.status(400).json({
+            message: "Vendor subscription has expired. Bookings cannot be made at this time.",
+          });
+        }
+      }
+    }
+
     const newBooking = new ParkingBooking({
       place,
       vehicleNumber,

@@ -29,6 +29,7 @@ const scannerController = require("../../controller/userController/scanner/scann
 const reportController = require("../../controller/vendorController/reportController/reportController")
 const accountantController = require("../../controller/vendorController/addaccountant/VendorAddNewAccountant")
 const valetDriverController = require("../../controller/vendorController/valetDriverController");
+const bulkExitController = require("../../controller/vendorController/bookingController/bulkExitController");
 
 // Valet Drivers
 vendorRoute.post("/valet-driver", upload.single("proof"), valetDriverController.createValetDriver);
@@ -110,6 +111,7 @@ vendorRoute.get("/bookings", bookingController.getAllBookings);
 vendorRoute.get("/booking-filters", bookingController.getBookingFilterOptions);
 vendorRoute.delete("/deletebooking/:id", bookingController.deleteBooking);
 vendorRoute.post("/deletebookings/bulk", bookingController.deleteBookingsBulk);
+vendorRoute.post("/bookings/bulk-exit", bulkExitController.bulkExitBookings);
 vendorRoute.put("/update/:id", bookingController.updateBooking);
 vendorRoute.put("/exitvehicle/:id", bookingController.updateBookingAmountAndHour);
 vendorRoute.put("/renewmonthl/:id", bookingController.renewSubscription);

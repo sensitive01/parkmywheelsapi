@@ -44,6 +44,7 @@ const vendorSchema = new mongoose.Schema(
     visibility: { type: Boolean, default: false },
 
     subscriptionleft: { type: Number, default: 0 },
+    previoussubscriptionleft: { type: Number, default: 0 },
 
     platformfee: { type: String, },//vendor
     customerplatformfee: { type: String, },//user platform fee

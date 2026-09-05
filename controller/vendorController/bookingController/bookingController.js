@@ -340,11 +340,31 @@ exports.createBooking = async (req, res) => {
     // Check available slots
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, spaceid: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, spaceid: 1, subscription: 1, subscriptionleft: 1, trial: 1, trialstartdate: 1 }
     );
 
     if (!vendorData) {
       return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Subscription check: block booking if vendor subscription is expired or stopped
+    let isSubscriptionActive =
+      (vendorData.subscription === "true" || vendorData.subscription === true) &&
+      parseInt(vendorData.subscriptionleft || 0, 10) > 0;
+
+    // Allow booking if vendor is in valid trial period
+    if (!isSubscriptionActive && vendorData.trialstartdate && vendorData.trial === "false") {
+      const trialStart = new Date(vendorData.trialstartdate);
+      const diffDays = Math.floor((new Date() - trialStart) / (1000 * 60 * 60 * 24));
+      if (diffDays < 30) {
+        isSubscriptionActive = true;
+      }
+    }
+
+    if (!isSubscriptionActive) {
+      return res.status(400).json({
+        message: "Vendor subscription has expired. Bookings cannot be made at this time.",
+      });
     }
 
     // Check if subscription booking with spaceid - skip notifications if true
@@ -5546,6 +5566,10 @@ exports.getAllBookings = async (req, res) => {
       sts, 
       status, 
       bookingDate, 
+      bookingFromDate,
+      bookingToDate,
+      fromDate,
+      toDate,
       bookingSource, 
       search 
     } = req.query;
@@ -5558,14 +5582,100 @@ exports.getAllBookings = async (req, res) => {
     if (sts) baseConditions.sts = sts;
     if (status) baseConditions.status = { $regex: new RegExp(`^${status}$`, 'i') }; 
 
-    if (bookingDate) {
+    const startStr = bookingFromDate || fromDate;
+    const endStr = bookingToDate || toDate;
+
+    const parseDateInput = (str) => {
+      if (!str || typeof str !== 'string') return null;
+      if (str.includes('-')) {
+        const parts = str.split('-');
+        if (parts[0].length === 4) {
+          return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        } else if (parts[2].length === 4) {
+          return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+      } else if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts[2]?.length === 4) {
+          return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+      }
+      const parsed = new Date(str);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    if (startStr || endStr) {
+      const fromD = parseDateInput(startStr);
+      const toD = parseDateInput(endStr);
+
+      if (fromD) fromD.setHours(0, 0, 0, 0);
+      if (toD) toD.setHours(23, 59, 59, 999);
+
+      const dateConditions = [];
+
+      if (fromD && toD) {
+        const dateStrings = [];
+        const curr = new Date(fromD);
+        while (curr <= toD && dateStrings.length < 1000) {
+          const d = String(curr.getDate()).padStart(2, '0');
+          const m = String(curr.getMonth() + 1).padStart(2, '0');
+          const y = curr.getFullYear();
+          dateStrings.push(`${d}-${m}-${y}`);
+          dateStrings.push(`${d}/${m}/${y}`);
+          dateStrings.push(`${y}-${m}-${d}`);
+          curr.setDate(curr.getDate() + 1);
+        }
+
+        if (dateStrings.length > 0) {
+          dateConditions.push({ bookingDate: { $in: dateStrings } });
+        }
+        dateConditions.push({ createdAt: { $gte: fromD, $lte: toD } });
+      } else if (fromD) {
+        dateConditions.push({ createdAt: { $gte: fromD } });
+        const dateStrings = [];
+        const curr = new Date(fromD);
+        const maxDate = new Date(fromD);
+        maxDate.setMonth(maxDate.getMonth() + 3);
+        while (curr <= maxDate && dateStrings.length < 100) {
+          const d = String(curr.getDate()).padStart(2, '0');
+          const m = String(curr.getMonth() + 1).padStart(2, '0');
+          const y = curr.getFullYear();
+          dateStrings.push(`${d}-${m}-${y}`);
+          dateStrings.push(`${d}/${m}/${y}`);
+          dateStrings.push(`${y}-${m}-${d}`);
+          curr.setDate(curr.getDate() + 1);
+        }
+        if (dateStrings.length > 0) {
+          dateConditions.push({ bookingDate: { $in: dateStrings } });
+        }
+      } else if (toD) {
+        dateConditions.push({ createdAt: { $lte: toD } });
+      }
+
+      if (dateConditions.length === 1) {
+        finalQuery.$and.push(dateConditions[0]);
+      } else if (dateConditions.length > 1) {
+        finalQuery.$and.push({ $or: dateConditions });
+      }
+    } else if (bookingDate) {
       let formattedDate = bookingDate;
-      // If frontend sends YYYY-MM-DD, convert to DD-MM-YYYY for DB match
       if (bookingDate.includes('-') && bookingDate.split('-')[0].length === 4) {
         const [year, month, day] = bookingDate.split('-');
         formattedDate = `${day}-${month}-${year}`;
       }
-      baseConditions.bookingDate = formattedDate;
+      const singleDateObj = parseDateInput(bookingDate);
+      if (singleDateObj) {
+        const startOfSingleDay = new Date(singleDateObj.getFullYear(), singleDateObj.getMonth(), singleDateObj.getDate(), 0, 0, 0, 0);
+        const endOfSingleDay = new Date(singleDateObj.getFullYear(), singleDateObj.getMonth(), singleDateObj.getDate(), 23, 59, 59, 999);
+        finalQuery.$and.push({
+          $or: [
+            { bookingDate: formattedDate },
+            { createdAt: { $gte: startOfSingleDay, $lte: endOfSingleDay } }
+          ]
+        });
+      } else {
+        baseConditions.bookingDate = formattedDate;
+      }
     }
 
     if (Object.keys(baseConditions).length > 0) {
