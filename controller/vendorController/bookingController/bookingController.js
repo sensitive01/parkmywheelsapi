@@ -5570,6 +5570,10 @@ exports.getAllBookings = async (req, res) => {
       bookingToDate,
       fromDate,
       toDate,
+      bookingFromTime,
+      bookingToTime,
+      fromTime,
+      toTime,
       bookingSource, 
       search 
     } = req.query;
@@ -5582,8 +5586,86 @@ exports.getAllBookings = async (req, res) => {
     if (sts) baseConditions.sts = sts;
     if (status) baseConditions.status = { $regex: new RegExp(`^${status}$`, 'i') }; 
 
+    const parseTimeToMinutes = (timeStr) => {
+      if (!timeStr || typeof timeStr !== 'string') return null;
+      const trimmed = timeStr.trim();
+      const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+      if (!match) return null;
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const modifier = match[3]?.toUpperCase();
+      if (modifier === 'PM' && hours !== 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    };
+
+    const getDateFormats = (dateObj) => {
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const y = dateObj.getFullYear();
+      return [`${d}-${m}-${y}`, `${d}/${m}/${y}`, `${y}-${m}-${d}`];
+    };
+
+    const buildBookingTimeExpr = () => ({
+      $let: {
+        vars: {
+          cleanTime: { $trim: { input: { $ifNull: ['$bookingTime', { $ifNull: ['$parkingTime', ''] }] } } }
+        },
+        in: {
+          $let: {
+            vars: {
+              parts: { $split: ['$$cleanTime', ' '] }
+            },
+            in: {
+              $let: {
+                vars: {
+                  timeParts: { $split: [{ $arrayElemAt: ['$$parts', 0] }, ':'] },
+                  ampm: { $toUpper: { $ifNull: [{ $arrayElemAt: ['$$parts', 1] }, ''] } }
+                },
+                in: {
+                  $let: {
+                    vars: {
+                      rawHour: { $convert: { input: { $arrayElemAt: ['$$timeParts', 0] }, to: 'int', onError: 0, onNull: 0 } },
+                      rawMin: { $convert: { input: { $arrayElemAt: ['$$timeParts', 1] }, to: 'int', onError: 0, onNull: 0 } }
+                    },
+                    in: {
+                      $add: [
+                        {
+                          $multiply: [
+                            {
+                              $switch: {
+                                branches: [
+                                  {
+                                    case: { $and: [{ $eq: ['$$ampm', 'PM'] }, { $ne: ['$$rawHour', 12] }] },
+                                    then: { $add: ['$$rawHour', 12] }
+                                  },
+                                  {
+                                    case: { $and: [{ $eq: ['$$ampm', 'AM'] }, { $eq: ['$$rawHour', 12] }] },
+                                    then: 0
+                                  }
+                                ],
+                                default: '$$rawHour'
+                              }
+                            },
+                            60
+                          ]
+                        },
+                        '$$rawMin'
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
     const startStr = bookingFromDate || fromDate;
     const endStr = bookingToDate || toDate;
+    const startTime = bookingFromTime || fromTime;
+    const endTime = bookingToTime || toTime;
 
     const parseDateInput = (str) => {
       if (!str || typeof str !== 'string') return null;
@@ -5604,77 +5686,156 @@ exports.getAllBookings = async (req, res) => {
       return isNaN(parsed.getTime()) ? null : parsed;
     };
 
-    if (startStr || endStr) {
-      const fromD = parseDateInput(startStr);
-      const toD = parseDateInput(endStr);
+    const fromD = parseDateInput(startStr || bookingDate);
+    const toD = parseDateInput(endStr || bookingDate);
+    const fromMin = parseTimeToMinutes(startTime);
+    const toMin = parseTimeToMinutes(endTime);
+    const timeExpr = buildBookingTimeExpr();
 
-      if (fromD) fromD.setHours(0, 0, 0, 0);
-      if (toD) toD.setHours(23, 59, 59, 999);
+    if (fromD && toD) {
+      const isSameDay = (
+        fromD.getFullYear() === toD.getFullYear() &&
+        fromD.getMonth() === toD.getMonth() &&
+        fromD.getDate() === toD.getDate()
+      );
 
-      const dateConditions = [];
-
-      if (fromD && toD) {
-        const dateStrings = [];
-        const curr = new Date(fromD);
-        while (curr <= toD && dateStrings.length < 1000) {
-          const d = String(curr.getDate()).padStart(2, '0');
-          const m = String(curr.getMonth() + 1).padStart(2, '0');
-          const y = curr.getFullYear();
-          dateStrings.push(`${d}-${m}-${y}`);
-          dateStrings.push(`${d}/${m}/${y}`);
-          dateStrings.push(`${y}-${m}-${d}`);
-          curr.setDate(curr.getDate() + 1);
-        }
-
-        if (dateStrings.length > 0) {
-          dateConditions.push({ bookingDate: { $in: dateStrings } });
-        }
-        dateConditions.push({ createdAt: { $gte: fromD, $lte: toD } });
-      } else if (fromD) {
-        dateConditions.push({ createdAt: { $gte: fromD } });
-        const dateStrings = [];
-        const curr = new Date(fromD);
-        const maxDate = new Date(fromD);
-        maxDate.setMonth(maxDate.getMonth() + 3);
-        while (curr <= maxDate && dateStrings.length < 100) {
-          const d = String(curr.getDate()).padStart(2, '0');
-          const m = String(curr.getMonth() + 1).padStart(2, '0');
-          const y = curr.getFullYear();
-          dateStrings.push(`${d}-${m}-${y}`);
-          dateStrings.push(`${d}/${m}/${y}`);
-          dateStrings.push(`${y}-${m}-${d}`);
-          curr.setDate(curr.getDate() + 1);
-        }
-        if (dateStrings.length > 0) {
-          dateConditions.push({ bookingDate: { $in: dateStrings } });
-        }
-      } else if (toD) {
-        dateConditions.push({ createdAt: { $lte: toD } });
-      }
-
-      if (dateConditions.length === 1) {
-        finalQuery.$and.push(dateConditions[0]);
-      } else if (dateConditions.length > 1) {
-        finalQuery.$and.push({ $or: dateConditions });
-      }
-    } else if (bookingDate) {
-      let formattedDate = bookingDate;
-      if (bookingDate.includes('-') && bookingDate.split('-')[0].length === 4) {
-        const [year, month, day] = bookingDate.split('-');
-        formattedDate = `${day}-${month}-${year}`;
-      }
-      const singleDateObj = parseDateInput(bookingDate);
-      if (singleDateObj) {
-        const startOfSingleDay = new Date(singleDateObj.getFullYear(), singleDateObj.getMonth(), singleDateObj.getDate(), 0, 0, 0, 0);
-        const endOfSingleDay = new Date(singleDateObj.getFullYear(), singleDateObj.getMonth(), singleDateObj.getDate(), 23, 59, 59, 999);
+      if (isSameDay) {
+        const dayFormats = getDateFormats(fromD);
         finalQuery.$and.push({
           $or: [
-            { bookingDate: formattedDate },
-            { createdAt: { $gte: startOfSingleDay, $lte: endOfSingleDay } }
+            { bookingDate: { $in: dayFormats } },
+            { parkingDate: { $in: dayFormats } }
+          ]
+        });
+        if (fromMin !== null) {
+          finalQuery.$and.push({ $expr: { $gte: [timeExpr, fromMin] } });
+        }
+        if (toMin !== null) {
+          finalQuery.$and.push({ $expr: { $lte: [timeExpr, toMin] } });
+        }
+      } else {
+        const startFormats = getDateFormats(fromD);
+        const endFormats = getDateFormats(toD);
+
+        const middleFormats = [];
+        const curr = new Date(fromD);
+        curr.setDate(curr.getDate() + 1);
+        while (curr < toD && middleFormats.length < 1000) {
+          middleFormats.push(...getDateFormats(curr));
+          curr.setDate(curr.getDate() + 1);
+        }
+
+        if (fromMin !== null || toMin !== null) {
+          const multiDayOr = [];
+
+          const startDayConds = [
+            { $or: [{ bookingDate: { $in: startFormats } }, { parkingDate: { $in: startFormats } }] }
+          ];
+          if (fromMin !== null) {
+            startDayConds.push({ $expr: { $gte: [timeExpr, fromMin] } });
+          }
+          multiDayOr.push({ $and: startDayConds });
+
+          if (middleFormats.length > 0) {
+            multiDayOr.push({
+              $or: [{ bookingDate: { $in: middleFormats } }, { parkingDate: { $in: middleFormats } }]
+            });
+          }
+
+          const endDayConds = [
+            { $or: [{ bookingDate: { $in: endFormats } }, { parkingDate: { $in: endFormats } }] }
+          ];
+          if (toMin !== null) {
+            endDayConds.push({ $expr: { $lte: [timeExpr, toMin] } });
+          }
+          multiDayOr.push({ $and: endDayConds });
+
+          finalQuery.$and.push({ $or: multiDayOr });
+        } else {
+          const allDates = [...startFormats, ...middleFormats, ...endFormats];
+          finalQuery.$and.push({
+            $or: [
+              { bookingDate: { $in: allDates } },
+              { parkingDate: { $in: allDates } },
+              { createdAt: { $gte: new Date(new Date(fromD).setHours(0, 0, 0, 0)), $lte: new Date(new Date(toD).setHours(23, 59, 59, 999)) } }
+            ]
+          });
+        }
+      }
+    } else if (fromD) {
+      const startFormats = getDateFormats(fromD);
+      const curr = new Date(fromD);
+      curr.setDate(curr.getDate() + 1);
+      const maxDate = new Date(fromD);
+      maxDate.setMonth(maxDate.getMonth() + 3);
+      const futureFormats = [];
+      while (curr <= maxDate && futureFormats.length < 1000) {
+        futureFormats.push(...getDateFormats(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+
+      if (fromMin !== null) {
+        finalQuery.$and.push({
+          $or: [
+            {
+              $and: [
+                { $or: [{ bookingDate: { $in: startFormats } }, { parkingDate: { $in: startFormats } }] },
+                { $expr: { $gte: [timeExpr, fromMin] } }
+              ]
+            },
+            { $or: [{ bookingDate: { $in: futureFormats } }, { parkingDate: { $in: futureFormats } }] }
           ]
         });
       } else {
-        baseConditions.bookingDate = formattedDate;
+        const allDates = [...startFormats, ...futureFormats];
+        finalQuery.$and.push({
+          $or: [
+            { bookingDate: { $in: allDates } },
+            { parkingDate: { $in: allDates } },
+            { createdAt: { $gte: new Date(new Date(fromD).setHours(0, 0, 0, 0)) } }
+          ]
+        });
+      }
+    } else if (toD) {
+      const endFormats = getDateFormats(toD);
+      const curr = new Date(toD);
+      curr.setDate(curr.getDate() - 1);
+      const minDate = new Date(toD);
+      minDate.setMonth(minDate.getMonth() - 3);
+      const pastFormats = [];
+      while (curr >= minDate && pastFormats.length < 1000) {
+        pastFormats.push(...getDateFormats(curr));
+        curr.setDate(curr.getDate() - 1);
+      }
+
+      if (toMin !== null) {
+        finalQuery.$and.push({
+          $or: [
+            {
+              $and: [
+                { $or: [{ bookingDate: { $in: endFormats } }, { parkingDate: { $in: endFormats } }] },
+                { $expr: { $lte: [timeExpr, toMin] } }
+              ]
+            },
+            { $or: [{ bookingDate: { $in: pastFormats } }, { parkingDate: { $in: pastFormats } }] }
+          ]
+        });
+      } else {
+        const allDates = [...endFormats, ...pastFormats];
+        finalQuery.$and.push({
+          $or: [
+            { bookingDate: { $in: allDates } },
+            { parkingDate: { $in: allDates } },
+            { createdAt: { $lte: new Date(new Date(toD).setHours(23, 59, 59, 999)) } }
+          ]
+        });
+      }
+    } else if (fromMin !== null || toMin !== null) {
+      if (fromMin !== null) {
+        finalQuery.$and.push({ $expr: { $gte: [timeExpr, fromMin] } });
+      }
+      if (toMin !== null) {
+        finalQuery.$and.push({ $expr: { $lte: [timeExpr, toMin] } });
       }
     }
 
