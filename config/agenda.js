@@ -1435,25 +1435,26 @@ cron.schedule("59 23 * * *", async () => {
   try {
     // First, send 7-day renewal reminders before decrementing
     await sendVendorSubscriptionRenewalReminders();
+    
+    // const vendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: 0 } });
+    // console.log(`Found ${vendors.length} vendors with active subscriptions.`);
 
-    const vendors = await Vendor.find({ subscription: "true", subscriptionleft: { $gt: 0 } });
-    console.log(`Found ${vendors.length} vendors with active subscriptions.`);
+    // for (const vendor of vendors) {
+    //   console.log(`[${new Date().toISOString()}] Processing vendor: ${vendor._id} | Subscription left: ${vendor.subscriptionleft}`);
 
-    for (const vendor of vendors) {
-      console.log(`[${new Date().toISOString()}] Processing vendor: ${vendor._id} | Subscription left: ${vendor.subscriptionleft}`);
+    //   vendor.subscriptionleft -= 1;
 
-      vendor.subscriptionleft -= 1;
+    //   if (vendor.subscriptionleft === 0) {
+    //     vendor.subscription = "false";
+    //     console.log(`[${new Date().toISOString()}] Vendor ${vendor._id} subscription expired. Subscription set to false.`);
+    //   }
 
-      if (vendor.subscriptionleft === 0) {
-        vendor.subscription = "false";
-        console.log(`[${new Date().toISOString()}] Vendor ${vendor._id} subscription expired. Subscription set to false.`);
-      }
+    //   await vendor.save();
+    //   console.log(`[${new Date().toISOString()}] Vendor ${vendor._id} | Updated Days left: ${vendor.subscriptionleft} | Subscription: ${vendor.subscription}`);
+    // }
 
-      await vendor.save();
-      console.log(`[${new Date().toISOString()}] Vendor ${vendor._id} | Updated Days left: ${vendor.subscriptionleft} | Subscription: ${vendor.subscription}`);
-    }
-
-    console.log("All subscription days updated successfully.");
+    // console.log("All subscription days updated successfully.");
+    console.log("Sent subscription renewal reminders successfully.");
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Error updating subscription days:`, error);
   }
