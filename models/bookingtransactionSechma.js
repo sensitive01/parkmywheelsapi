@@ -121,7 +121,8 @@ const bookingTransactionSchema = new mongoose.Schema({
   // Completion details
   completedAt: {
     type: Date
-  }
+  },
+  vehicleImages: [{ type: String }]
 }, { timestamps: true });
 
 // Indexes for efficient queries

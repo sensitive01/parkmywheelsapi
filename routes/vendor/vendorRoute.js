@@ -78,6 +78,7 @@ vendorRoute.post("/createbooking", bookingController.createBooking);
 vendorRoute.post("/vendorcreatebooking", bookingController.vendorcreateBooking);
 vendorRoute.post("/livebooking", bookingController.livecreateBooking);
 vendorRoute.post("/machinecreatebooking", (req, res, next) => {
+
   const contentType = (req.headers["content-type"] || "").toLowerCase();
   if (contentType.includes("multipart/form-data")) {
     return upload.fields([{ name: "vehicleImages", maxCount: 10 }])(req, res, (err) => {

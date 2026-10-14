@@ -10,7 +10,7 @@ const uploadImage = async (imageBuffer, folder) => {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
       {
-        folder: folder, 
+        folder: folder,
         resource_type: "auto",
       },
       (error, result) => {
@@ -19,7 +19,7 @@ const uploadImage = async (imageBuffer, folder) => {
         }
         resolve(result.secure_url);
       }
-    ).end(imageBuffer); 
+    ).end(imageBuffer);
   });
 };
 

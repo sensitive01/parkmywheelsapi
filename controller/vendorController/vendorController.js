@@ -2125,6 +2125,7 @@ const getToggleStates = async (req, res) => {
       printEnabled: vendor.printEnabled ?? false,
       exitEnabled: vendor.exitEnabled ?? false,
       vehicleUploadEnabled: vendor.vehicleUploadEnabled ?? false,
+      bookAndShowEnabled: vendor.bookAndShowEnabled ?? true,
       valetEnabled: vendor.valetEnabled ?? false,
       valetCharge: vendor.valetCharge ?? "0",
       customerPaymentEnabled: vendor.customerPaymentEnabled ?? true,
@@ -2139,7 +2140,7 @@ const getToggleStates = async (req, res) => {
 const updateToggleStates = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled, valetEnabled, valetCharge, customerPaymentEnabled } = req.body;
+    const { bookEnabled, printEnabled, exitEnabled, vehicleUploadEnabled, bookAndShowEnabled, valetEnabled, valetCharge, customerPaymentEnabled } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -2163,6 +2164,9 @@ const updateToggleStates = async (req, res) => {
     if (vehicleUploadEnabled !== undefined) {
       vendor.vehicleUploadEnabled = vehicleUploadEnabled;
     }
+    if (bookAndShowEnabled !== undefined) {
+      vendor.bookAndShowEnabled = bookAndShowEnabled;
+    }
 
     if (valetEnabled !== undefined) {
       vendor.valetEnabled = valetEnabled;
@@ -2182,6 +2186,7 @@ const updateToggleStates = async (req, res) => {
       printEnabled: vendor.printEnabled,
       exitEnabled: vendor.exitEnabled,
       vehicleUploadEnabled: vendor.vehicleUploadEnabled,
+      bookAndShowEnabled: vendor.bookAndShowEnabled,
       valetEnabled: vendor.valetEnabled,
       valetCharge: vendor.valetCharge,
       customerPaymentEnabled: vendor.customerPaymentEnabled,

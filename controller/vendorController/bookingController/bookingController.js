@@ -1306,6 +1306,7 @@ exports.machinecreatebooking = async (req, res) => {
         vehicleType: newBooking.vehicleType,
         personName: newBooking.personName,
         mobileNumber: newBooking.mobileNumber,
+        
         paymentMode: newBooking.paymentMode,
         // Transaction details
         bookingAmount: newBooking.amount,
@@ -1336,7 +1337,8 @@ exports.machinecreatebooking = async (req, res) => {
         status: 'active',
         invoiceId: newBooking.invoiceid,
         completedAt: null, // Not completed yet at booking creation
-        settlemtstatus: 'pending'
+        settlemtstatus: 'pending',
+        vehicleImages: newBooking.vehicleImages || []
       });
 
       await bookingTransaction.save();
@@ -1794,6 +1796,7 @@ exports.machinecreatebooking = async (req, res) => {
         recievableamount: newBooking.recievableamount,
         payableamout: newBooking.payableamout,
         subscriptionenddate: newBooking.subsctiptionenddate,
+        vehicleImages: newBooking.vehicleImages || [],
       },
       otp,
       bookType,
@@ -5005,6 +5008,7 @@ exports.fastManageBookings = async (req, res) => {
       personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
       subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
       approvedDate: 1, approvedTime: 1, paymentMode: 1,
+      vehicleImages: 1,
     };
 
     const bookings = await Booking.find(filter, fields).sort({ createdAt: -1 }).lean();
@@ -5038,6 +5042,7 @@ exports.fastRequestBookings = async (req, res) => {
       personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
       subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
       approvedDate: 1, approvedTime: 1, paymentMode: 1,
+      vehicleImages: 1,
     };
     const bookings = await Booking.find(
       { vendorId, status: { $in: ['PENDING', 'Approved', 'Cancelled'] } },
@@ -5203,8 +5208,16 @@ exports.getSearchScreenBookings = async (req, res) => {
     const bookings = await Booking.find({
       vendorId: vendorId,
       $or: [
-        // On-Parking tab: active statuses
-        { status: { $in: ['PARKED', 'parked', 'BOOKED', 'Approved', 'PENDING'] } },
+        // On-Parking tab: active statuses (must not have an exit date)
+        {
+          status: { $in: ['PARKED', 'parked', 'BOOKED', 'Approved', 'PENDING'] },
+          $or: [
+            { exitvehicledate: { $exists: false } },
+            { exitvehicledate: null },
+            { exitvehicledate: '' },
+            { exitvehicledate: 'null' },
+          ],
+        },
         // On-Parking tab: COMPLETED subscription passes that haven't been exited yet
         {
           status: { $in: ['COMPLETED', 'completed'] },
@@ -5558,14 +5571,14 @@ exports.getBookingById = async (req, res) => {
 
 exports.getAllBookings = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      vendorId, 
-      vehicleType, 
-      sts, 
-      status, 
-      bookingDate, 
+    const {
+      page = 1,
+      limit = 10,
+      vendorId,
+      vehicleType,
+      sts,
+      status,
+      bookingDate,
       bookingFromDate,
       bookingToDate,
       fromDate,
@@ -5574,8 +5587,8 @@ exports.getAllBookings = async (req, res) => {
       bookingToTime,
       fromTime,
       toTime,
-      bookingSource, 
-      search 
+      bookingSource,
+      search
     } = req.query;
 
     const finalQuery = { $and: [] };
@@ -5584,7 +5597,7 @@ exports.getAllBookings = async (req, res) => {
     if (vendorId) baseConditions.vendorId = vendorId;
     if (vehicleType) baseConditions.vehicleType = vehicleType;
     if (sts) baseConditions.sts = sts;
-    if (status) baseConditions.status = { $regex: new RegExp(`^${status}$`, 'i') }; 
+    if (status) baseConditions.status = { $regex: new RegExp(`^${status}$`, 'i') };
 
     const parseTimeToMinutes = (timeStr) => {
       if (!timeStr || typeof timeStr !== 'string') return null;
@@ -5867,16 +5880,16 @@ exports.getAllBookings = async (req, res) => {
     const skip = (pageInt - 1) * limitInt;
 
     const totalCount = await Booking.countDocuments(queryToExecute);
-    
+
     const bookings = await Booking.find(queryToExecute)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitInt);
 
-    res.status(200).json({ 
-      bookings, 
-      totalCount, 
-      totalPages: Math.ceil(totalCount / limitInt) 
+    res.status(200).json({
+      bookings,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limitInt)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

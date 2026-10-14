@@ -81,6 +81,7 @@ const vendorSchema = new mongoose.Schema(
     printEnabled: { type: Boolean, default: false },
     exitEnabled: { type: Boolean, default: false },
     vehicleUploadEnabled: { type: Boolean, default: false },
+    bookAndShowEnabled: { type: Boolean, default: true },
     valetEnabled: { type: Boolean, default: false },
     valetCharge: { type: String, default: "0" },
     customerPaymentEnabled: { type: Boolean, default: true },
