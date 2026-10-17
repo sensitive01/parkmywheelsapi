@@ -1209,25 +1209,11 @@ exports.machinecreatebooking = async (req, res) => {
       // Continue with booking creation even if charges fetch fails
     }
 
-    // Upload vehicle images to Cloudinary (from multipart)
-    // Normalize: multer may return single file as object or array depending on version
+    // Extract vehicle images from multipart (Cloudinary upload is deferred to background for instant ~0.30s print)
     let vehicleImageUrls = [];
     const vehicleImageFiles = req.files?.vehicleImages
       ? (Array.isArray(req.files.vehicleImages) ? req.files.vehicleImages : [req.files.vehicleImages])
       : [];
-    if (vehicleImageFiles.length > 0) {
-      try {
-        for (const file of vehicleImageFiles) {
-          if (file && file.buffer) {
-            const url = await uploadImage(file.buffer, "bookings/vehicle-images");
-            vehicleImageUrls.push(url);
-          }
-        }
-      } catch (uploadErr) {
-        console.error("Error uploading vehicle images:", uploadErr);
-        // Continue with booking - images are optional, don't fail the whole request
-      }
-    }
 
     let valetDriverName = "";
     if (valetDriverId) {
@@ -1802,6 +1788,33 @@ exports.machinecreatebooking = async (req, res) => {
       bookType,
       sts,
     });
+
+    // Fast Cloudinary upload in background so booking response & thermal paper print are INSTANT (~0.30s)
+    if (vehicleImageFiles.length > 0) {
+      setImmediate(async () => {
+        try {
+          const uploadedUrls = [];
+          for (const file of vehicleImageFiles) {
+            if (file && file.buffer) {
+              const url = await uploadImage(file.buffer, "bookings/vehicle-images");
+              if (url) uploadedUrls.push(url);
+            }
+          }
+          if (uploadedUrls.length > 0) {
+            await Booking.updateOne(
+              { _id: newBooking._id },
+              { $set: { vehicleImages: uploadedUrls } }
+            );
+            await BookingTransaction.updateOne(
+              { bookingId: newBooking._id },
+              { $set: { vehicleImages: uploadedUrls } }
+            );
+          }
+        } catch (uploadErr) {
+          console.error("Background vehicle images upload error:", uploadErr);
+        }
+      });
+    }
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ error: error.message });
@@ -2037,25 +2050,11 @@ exports.vendorcreateBooking = async (req, res) => {
       // Continue with booking creation even if charges fetch fails
     }
 
-    // Upload vehicle images to Cloudinary (from multipart)
-    // Normalize: multer may return single file as object or array depending on version
+    // Extract vehicle images from multipart (Cloudinary upload is deferred to background for instant ~0.30s print)
     let vehicleImageUrls = [];
     const vehicleImageFiles = req.files?.vehicleImages
       ? (Array.isArray(req.files.vehicleImages) ? req.files.vehicleImages : [req.files.vehicleImages])
       : [];
-    if (vehicleImageFiles.length > 0) {
-      try {
-        for (const file of vehicleImageFiles) {
-          if (file && file.buffer) {
-            const url = await uploadImage(file.buffer, "bookings/vehicle-images");
-            vehicleImageUrls.push(url);
-          }
-        }
-      } catch (uploadErr) {
-        console.error("Error uploading vehicle images:", uploadErr);
-        // Continue with booking - images are optional, don't fail the whole request
-      }
-    }
 
     let valetDriverName = "";
     if (valetDriverId) {
@@ -2625,6 +2624,33 @@ exports.vendorcreateBooking = async (req, res) => {
       bookType,
       sts,
     });
+
+    // Fast Cloudinary upload in background so booking response & thermal paper print are INSTANT (~0.30s)
+    if (vehicleImageFiles.length > 0) {
+      setImmediate(async () => {
+        try {
+          const uploadedUrls = [];
+          for (const file of vehicleImageFiles) {
+            if (file && file.buffer) {
+              const url = await uploadImage(file.buffer, "bookings/vehicle-images");
+              if (url) uploadedUrls.push(url);
+            }
+          }
+          if (uploadedUrls.length > 0) {
+            await Booking.updateOne(
+              { _id: newBooking._id },
+              { $set: { vehicleImages: uploadedUrls } }
+            );
+            await BookingTransaction.updateOne(
+              { bookingId: newBooking._id },
+              { $set: { vehicleImages: uploadedUrls } }
+            );
+          }
+        } catch (uploadErr) {
+          console.error("Background vehicle images upload error:", uploadErr);
+        }
+      });
+    }
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ error: error.message });
