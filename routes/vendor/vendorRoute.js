@@ -77,6 +77,7 @@ vendorRoute.get("/checkduplicatebooking", bookingController.checkDuplicateBookin
 vendorRoute.post("/createbooking", bookingController.createBooking);
 vendorRoute.post("/vendorcreatebooking", bookingController.vendorcreateBooking);
 vendorRoute.post("/livebooking", bookingController.livecreateBooking);
+vendorRoute.post("/upload-vehicle-image/:bookingId", upload.fields([{ name: "vehicleImages", maxCount: 10 }]), bookingController.uploadVehicleImage);
 vendorRoute.post("/machinecreatebooking", (req, res, next) => {
 
   const contentType = (req.headers["content-type"] || "").toLowerCase();

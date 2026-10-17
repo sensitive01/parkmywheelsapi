@@ -8596,3 +8596,43 @@ exports.vendorfetch = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
+exports.uploadVehicleImage = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const vehicleImageFiles = req.files?.vehicleImages
+      ? (Array.isArray(req.files.vehicleImages) ? req.files.vehicleImages : [req.files.vehicleImages])
+      : [];
+
+    if (vehicleImageFiles.length === 0) {
+      return res.status(400).json({ message: "No vehicle images provided" });
+    }
+
+    const uploadedUrls = [];
+    for (const file of vehicleImageFiles) {
+      if (file && file.buffer) {
+        const url = await uploadImage(file.buffer, "bookings/vehicle-images");
+        if (url) uploadedUrls.push(url);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      await Booking.updateOne(
+        { _id: bookingId },
+        { $push: { vehicleImages: { $each: uploadedUrls } } }
+      );
+      await BookingTransaction.updateOne(
+        { bookingId: bookingId },
+        { $push: { vehicleImages: { $each: uploadedUrls } } }
+      );
+    }
+
+    return res.status(200).json({
+      message: "Images uploaded successfully",
+      vehicleImages: uploadedUrls,
+    });
+  } catch (error) {
+    console.error("uploadVehicleImage error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
