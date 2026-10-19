@@ -164,6 +164,25 @@ const isHourlySts = (sts) => {
   return ["12hr", "24hr", "48hr", "72hr"].includes(s);
 };
 
+// 📌 Apply maximum parking fee cap based on vehicle type and vendor settings
+const applyMaxCap = (amount, vehicleType, vendor) => {
+  if (!vendor) return amount;
+  const numAmount = parseFloat(amount) || 0;
+  const vType = (vehicleType || '').toLowerCase();
+  let maxCap = 0;
+  if (vType.includes('bike')) {
+    maxCap = parseFloat(vendor.maxBikeAmount) || 0;
+  } else if (vType.includes('car')) {
+    maxCap = parseFloat(vendor.maxCarAmount) || 0;
+  } else {
+    maxCap = parseFloat(vendor.maxOthersAmount) || 0;
+  }
+  if (maxCap > 0 && numAmount > maxCap) {
+    return maxCap;
+  }
+  return numAmount;
+};
+
 // Check for existing bookings with same vehicle number and date (across all vendors)
 const checkExistingBooking = async (vehicleNumber, parkingDate, vendorId, currentSts) => {
   try {
@@ -340,7 +359,7 @@ exports.createBooking = async (req, res) => {
     // Check available slots
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, spaceid: 1, subscription: 1, subscriptionleft: 1, trial: 1, trialstartdate: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, spaceid: 1, subscription: 1, subscriptionleft: 1, trial: 1, trialstartdate: 1, maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }
     );
 
     if (!vendorData) {
@@ -425,7 +444,8 @@ exports.createBooking = async (req, res) => {
     }
 
     // Financial calculations
-    const bookingAmount = parseFloat(amount) || 0;
+    const rawBookingAmount = parseFloat(amount) || 0;
+    const bookingAmount = applyMaxCap(rawBookingAmount, vehicleType, vendorData);
     const gstPercentage = parseFloat(gstFeeData.gst) || 0;
     const gstAmount = (bookingAmount * gstPercentage) / 100;
     const handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
@@ -984,7 +1004,7 @@ exports.machinecreatebooking = async (req, res) => {
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }
     );
 
     if (!vendorData) {
@@ -1041,7 +1061,8 @@ exports.machinecreatebooking = async (req, res) => {
     let payableAmount = 0;
 
     // ✅ Calculate amounts
-    const roundedAmount = Math.ceil(parseFloat(amount) || 0);
+    const cappedRaw = applyMaxCap(parseFloat(amount) || 0, vehicleType, vendorData);
+    const roundedAmount = Math.ceil(cappedRaw);
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
@@ -1861,7 +1882,7 @@ exports.vendorcreateBooking = async (req, res) => {
     // ✅ Check available slots before creating a booking
     const vendorData = await vendorModel.findOne(
       { _id: vendorId },
-      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1 }
+      { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }
     );
 
     if (!vendorData) {
@@ -1918,7 +1939,8 @@ exports.vendorcreateBooking = async (req, res) => {
     let payableAmount = 0;
 
     // ✅ Calculate amounts
-    const roundedAmount = Math.ceil(parseFloat(amount) || 0);
+    const cappedRaw = applyMaxCap(parseFloat(amount) || 0, vehicleType, vendorData);
+    const roundedAmount = Math.ceil(cappedRaw);
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
 
@@ -2726,7 +2748,7 @@ exports.livecreateBooking = async (req, res) => {
     // (debug log removed)
 
     // Step 1: Check vendor and available slots
-    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1 });
+    const vendorData = await vendorModel.findOne({ _id: vendorId }, { parkingEntries: 1, fcmTokens: 1, platformfee: 1, customerplatformfee: 1, maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 });
     if (!vendorData) return res.status(404).json({ message: "Vendor not found" });
 
     const parkingEntries = vendorData.parkingEntries.reduce((acc, entry) => {
@@ -2922,13 +2944,16 @@ exports.livecreateBooking = async (req, res) => {
     let gstAmount = 0;
     let handlingFee = 0;
 
+    const rawBookingAmount = parseFloat(amount) || 0;
+    const cappedBookingAmount = applyMaxCap(rawBookingAmount, vehicleType, vendorData);
+
     if (gstFeeData) {
       const gstPercentage = parseFloat(gstFeeData.gst) || 0;
-      gstAmount = (parseFloat(amount) * gstPercentage) / 100;
+      gstAmount = (cappedBookingAmount * gstPercentage) / 100;
       handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
     }
 
-    const totalAmount = (parseFloat(amount) + gstAmount + handlingFee).toFixed(2);
+    const totalAmount = (cappedBookingAmount + gstAmount + handlingFee).toFixed(2);
 
     // Platform fee calculation: use platformfee if userid exists, otherwise use customerplatformfee
     let platformFeePercentage = 0;
@@ -2945,7 +2970,7 @@ exports.livecreateBooking = async (req, res) => {
     const newBooking = new Booking({
       userid,
       vendorId,
-      amount: parseFloat(amount).toFixed(2),
+      amount: cappedBookingAmount.toFixed(2),
       totalamout: totalAmount,
       gstamout: gstAmount.toFixed(2),
       handlingfee: handlingFee.toFixed(2),
@@ -4719,7 +4744,7 @@ exports.calculateExitCharges = async (req, res) => {
     }
 
     const vendor = await vendorModel.findById(booking.vendorId, {
-      platformfee: 1, customerplatformfee: 1
+      platformfee: 1, customerplatformfee: 1, maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1
     }).lean();
 
     const vehicleType = booking.vehicleType || '';
@@ -4732,6 +4757,12 @@ exports.calculateExitCharges = async (req, res) => {
       parseFloat(isCustomer ? (vendor?.customerplatformfee || '0') : (vendor?.platformfee || '0')) || 0
     );
 
+    const vType = (vehicleType || '').toLowerCase();
+    let maxCap = 0;
+    if (vType.includes('bike')) maxCap = parseFloat(vendor?.maxBikeAmount) || 0;
+    else if (vType.includes('car')) maxCap = parseFloat(vendor?.maxCarAmount) || 0;
+    else maxCap = parseFloat(vendor?.maxOthersAmount) || 0;
+
     res.status(200).json({
       success: true,
       parkedDate: booking.parkedDate || booking.parkingDate || '',
@@ -4741,6 +4772,10 @@ exports.calculateExitCharges = async (req, res) => {
       bookType: booking.bookType || '',
       vehicleType,
       amount: booking.amount || '0',
+      maxCap,
+      maxBikeAmount: vendor?.maxBikeAmount || '0',
+      maxCarAmount: vendor?.maxCarAmount || '0',
+      maxOthersAmount: vendor?.maxOthersAmount || '0',
       status: booking.status || '',
       isCustomer,
       gstPercentage: gstPct,
@@ -6092,16 +6127,34 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
-    // Round up amounts to the next whole number
-    const roundedAmount = Math.ceil(parseFloat(amount) || 0);
-    const roundedGstAmount =
-      gstamout !== undefined
-        ? Math.ceil(parseFloat(gstamout) || 0)
-        : undefined;
-    const roundedTotalAmount =
-      totalamout !== undefined
-        ? Math.ceil(parseFloat(totalamout) || 0)
-        : roundedAmount;
+    // Apply maximum amount cap based on vehicle type and vendor
+    const rawAmount = parseFloat(amount) || 0;
+    const cappedAmount = applyMaxCap(rawAmount, booking.vehicleType, vendor);
+    const roundedAmount = Math.ceil(cappedAmount);
+
+    let roundedTotalAmount;
+    let roundedGstAmount;
+
+    if (rawAmount > cappedAmount && rawAmount > 0) {
+      // Amount was capped! Recompute taxes/total based on capped amount
+      if (gstamout !== undefined && parseFloat(gstamout) > 0) {
+        const effectiveGstPct = parseFloat(gstamout) / rawAmount;
+        roundedGstAmount = Math.ceil(cappedAmount * effectiveGstPct);
+        const hFee = handlingfee !== undefined ? (parseFloat(handlingfee) || 0) : 0;
+        roundedTotalAmount = Math.ceil(cappedAmount + roundedGstAmount + hFee);
+      } else {
+        roundedTotalAmount = roundedAmount;
+      }
+    } else {
+      roundedGstAmount =
+        gstamout !== undefined
+          ? Math.ceil(parseFloat(gstamout) || 0)
+          : undefined;
+      roundedTotalAmount =
+        totalamout !== undefined
+          ? Math.ceil(parseFloat(totalamout) || 0)
+          : roundedAmount;
+    }
 
     // Calculate platform fee and receivable amount using rounded total amount
     const platformfee = (roundedTotalAmount * platformFeePercentage) / 100;

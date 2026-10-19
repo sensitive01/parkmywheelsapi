@@ -614,7 +614,23 @@ const vendorLogin = async (req, res) => {
       }
     }
 
-    // Check status
+    // login lock for vendor
+    // if (vendor.status !== "approved") {
+    //   console.log("❌ Vendor account is not approved yet:", vendor._id);
+    //   await createAuthLog({
+    //     req,
+    //     user: isAccountant ? accountant : vendor,
+    //     userType: accessType ? accessType : (isAccountant ? "ACCOUNTANT" : "VENDOR"),
+    //     action: "LOGIN_FAILED",
+    //     status: "FAILED",
+    //     reason: "Vendor account not approved",
+    //   });
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Your account is under review and has not been approved yet. Please wait for admin approval.",
+    //   });
+    // }
+
     if (isAccountant) {
       if (accountant.status === "inactive") {
         console.log("❌ Accountant account is inactive:", accountant._id);

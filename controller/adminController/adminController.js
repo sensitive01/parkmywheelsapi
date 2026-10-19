@@ -1720,7 +1720,25 @@ const UpdateVendorDataByAdmin = async (req, res) => {
   try {
     console.log(req.body);
     const { vendorId } = req.params;
-    const { vendorName, contacts, latitude, longitude, address, landmark, parkingEntries, platformfee, vehicleReturnTime, customerPaymentEnabled } = req.body;
+    const {
+      vendorName,
+      contacts,
+      latitude,
+      longitude,
+      address,
+      landmark,
+      parkingEntries,
+      platformfee,
+      vehicleReturnTime,
+      customerPaymentEnabled,
+      maxBikeAmount,
+      maxCarAmount,
+      maxOthersAmount,
+      maxCarBaseAmount,
+      maxCarValetOption,
+      valetCharge,
+      valetEnabled
+    } = req.body;
 
     if (!vendorId) {
       return res.status(400).json({ message: "Vendor ID is required" });
@@ -1744,6 +1762,29 @@ const UpdateVendorDataByAdmin = async (req, res) => {
       platformfee: platformfee || existingVendor.platformfee,
       vehicleReturnTime: vehicleReturnTime || existingVendor.vehicleReturnTime,
     };
+
+    if (maxBikeAmount !== undefined) {
+      updateData.maxBikeAmount = String(maxBikeAmount);
+    }
+    if (maxCarAmount !== undefined) {
+      updateData.maxCarAmount = String(maxCarAmount);
+    }
+    if (maxOthersAmount !== undefined) {
+      updateData.maxOthersAmount = String(maxOthersAmount);
+    }
+    if (maxCarBaseAmount !== undefined) {
+      updateData.maxCarBaseAmount = String(maxCarBaseAmount);
+    }
+    if (maxCarValetOption !== undefined) {
+      updateData.maxCarValetOption = String(maxCarValetOption);
+    }
+
+    if (valetCharge !== undefined) {
+      updateData.valetCharge = String(valetCharge);
+    }
+    if (valetEnabled !== undefined) {
+      updateData.valetEnabled = valetEnabled === 'true' || valetEnabled === true;
+    }
 
     if (customerPaymentEnabled !== undefined) {
       updateData.customerPaymentEnabled = customerPaymentEnabled === 'true' || customerPaymentEnabled === true;

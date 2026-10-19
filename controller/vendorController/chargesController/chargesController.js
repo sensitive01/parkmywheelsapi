@@ -4,6 +4,27 @@ const Booking = require("../../../models/bookingSchema");
 const Parkingcharges = require("../../../models/chargesSchema");
 const { DateTime } = require('luxon');
 
+// Central helper to enforce maximum parking fee caps per vehicle type
+const applyMaxCap = (amount, vehicleType, vendor) => {
+  if (!vendor || amount === undefined || amount === null) return amount;
+  const numAmount = parseFloat(amount);
+  if (isNaN(numAmount)) return amount;
+
+  const vType = (vehicleType || '').toLowerCase();
+  let maxCap = 0;
+  if (vType === 'bike') {
+    maxCap = parseFloat(vendor.maxBikeAmount) || 0;
+  } else if (vType === 'car') {
+    maxCap = parseFloat(vendor.maxCarAmount) || 0;
+  } else {
+    maxCap = parseFloat(vendor.maxOthersAmount) || 0;
+  }
+
+  if (maxCap > 0 && numAmount > maxCap) {
+    return maxCap;
+  }
+  return numAmount;
+};
 
 // Corrected path for vendorModel
 const parkingCharges = async (req, res) => {
@@ -959,8 +980,8 @@ const tested = async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    // Step 3: Ensure vehicle is in PARKED state
-    if (booking.status !== 'PARKED') {
+    // Step 3: Ensure vehicle is in PARKED or active state
+    if (booking.status !== 'PARKED' && booking.status !== 'active') {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
@@ -969,11 +990,17 @@ const tested = async (req, res) => {
       return res.status(400).json({ error: 'No charges found in booking. Charges may not have been saved at booking time.' });
     }
 
+    const vendor = await vendorModel.findOne({
+      $or: [{ _id: booking.vendorId }, { vendorId: booking.vendorId }]
+    });
+
     // Step 5: Calculate parking duration
-    const parkedDateTime = parseDateTime(booking.parkedDate, booking.parkedTime);
+    const pDate = booking.parkedDate || booking.parkingDate;
+    const pTime = booking.parkedTime || booking.parkingTime;
+    const parkedDateTime = parseDateTime(pDate, pTime);
     const exitDateTime = new Date();
     const durationMs = exitDateTime - parkedDateTime;
-    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
+    const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
     console.log(`Parked Duration: ${durationHours} hours`);
 
@@ -987,18 +1014,20 @@ const tested = async (req, res) => {
 
     // Step 7: Calculate amount based on booking type
     let amount = 0;
-    if (booking.bookType.toLowerCase() === 'hourly') {
+    if ((booking.bookType || '').toLowerCase() === 'hourly') {
       amount = calculateHourlyFromBooking(chargesData, durationHours, booking.vehicleType);
     } else {
       const fullDayType = getFullDayTypeFromBooking(booking, booking.vehicleType);
       amount = calculateFullDayFromBooking(chargesData, parkedDateTime, exitDateTime, fullDayType, booking.vehicleType);
     }
 
+    const cappedAmount = applyMaxCap(amount, booking.vehicleType, vendor);
+
     // Step 8: Update booking
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       {
-        amount: amount.toFixed(2),
+        amount: cappedAmount.toFixed(2),
       },
       { new: true }
     );
@@ -1007,7 +1036,7 @@ const tested = async (req, res) => {
     return res.json({
       success: true,
       booking: updatedBooking,
-      payableAmount: amount.toFixed(2),
+      payableAmount: cappedAmount.toFixed(2),
       durationHours
     });
 
@@ -1233,12 +1262,14 @@ const fetchtestAmount = async (req, res) => {
     console.log('📌 Book Type:', booking.bookType);
     console.log('📌 Status:', booking.status);
 
-    if (booking.status !== 'PARKED') {
+    if (booking.status !== 'PARKED' && booking.status !== 'active') {
       return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
     // Vendor lookup (spaceid) — used for all responses
-    const vendor = await vendorModel.findOne({ vendorId: booking.vendorId });
+    const vendor = await vendorModel.findOne({
+      $or: [{ _id: booking.vendorId }, { vendorId: booking.vendorId }]
+    });
     let spaceid = null;
     let spacearea = null;
     if (vendor && vendor.spaceid) {
@@ -1251,33 +1282,35 @@ const fetchtestAmount = async (req, res) => {
       }
     }
 
+    const pDate = booking.parkedDate || booking.parkingDate;
+    const pTime = booking.parkedTime || booking.parkingTime;
+
     const parkedDateTimeLuxon = DateTime.fromFormat(
-      `${booking.parkedDate} ${booking.parkedTime}`,
+      `${pDate} ${pTime}`,
       'dd-MM-yyyy hh:mm a',
       { zone: 'Asia/Kolkata' }
     );
 
-    if (!parkedDateTimeLuxon.isValid) {
-      return res.status(400).json({ error: 'Invalid parked date/time format' });
-    }
-
-    const parkedDateTime = parkedDateTimeLuxon.toJSDate();
+    let durationHours = 1;
+    let parkedDateTime = new Date();
     const exitDateTime = DateTime.now().setZone('Asia/Kolkata').toJSDate();
 
-    if (exitDateTime < parkedDateTime) {
-      return res.status(400).json({ error: 'Exit time cannot be before parked time' });
+    if (parkedDateTimeLuxon.isValid) {
+      parkedDateTime = parkedDateTimeLuxon.toJSDate();
+      if (exitDateTime >= parkedDateTime) {
+        const durationMs = exitDateTime - parkedDateTime;
+        durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
+      }
     }
-
-    const durationMs = exitDateTime - parkedDateTime;
-    const durationHours = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60)));
 
     console.log('🧮 Duration (hours):', durationHours);
 
     // Fixed-duration pass (sts e.g. 12hr, 24hr): same base parking fee as at booking — no increase after window
     const stsTrim = (booking.sts || '').toString().trim();
     if (/^\d+hr$/i.test(stsTrim)) {
-      const fixedAmt = parseFloat(booking.amount) || 0;
-      console.log(`📌 Fixed pass ${stsTrim}: payableAmount = booking.amount (${fixedAmt})`);
+      const rawAmt = parseFloat(booking.amount) || 0;
+      const fixedAmt = applyMaxCap(rawAmt, booking.vehicleType, vendor);
+      console.log(`📌 Fixed pass ${stsTrim}: payableAmount = ${fixedAmt}`);
       return res.json({
         success: true,
         payableAmount: fixedAmt.toFixed(2),
@@ -1302,7 +1335,7 @@ const fetchtestAmount = async (req, res) => {
 
     // Step 7: Calculate amount
     let amount = 0;
-    const bookTypeLower = booking.bookType.toLowerCase();
+    const bookTypeLower = (booking.bookType || '').toLowerCase();
     
     if (bookTypeLower === 'hourly') {
       amount = calculateHourlyFromBooking(chargesData, durationHours, booking.vehicleType);
@@ -1314,10 +1347,13 @@ const fetchtestAmount = async (req, res) => {
       amount = calculateFullDayFromBooking(chargesData, parkedDateTime, exitDateTime, fullDayType, booking.vehicleType);
     }
 
+    // Apply vendor max cap ceiling
+    const cappedAmount = applyMaxCap(amount, booking.vehicleType, vendor);
+
     // Step 8: Return response with spaceid and spacearea
     return res.json({
       success: true,
-      payableAmount: amount?.toFixed(2) ?? '0.00',
+      payableAmount: cappedAmount?.toFixed(2) ?? '0.00',
       durationHours,
       spaceid: spaceid || null,
       spacearea: spacearea || null

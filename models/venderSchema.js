@@ -87,7 +87,12 @@ const vendorSchema = new mongoose.Schema(
     customerPaymentEnabled: { type: Boolean, default: true },
     vehicleReturnTime: { type: String, default: "20" },
     accountant: { type: [String], default: [] },
-    subUnits: { type: [String], default: [] }
+    subUnits: { type: [String], default: [] },
+    maxBikeAmount: { type: String, default: "0" },
+    maxCarAmount: { type: String, default: "0" },
+    maxOthersAmount: { type: String, default: "0" },
+    maxCarBaseAmount: { type: String, default: "0" },
+    maxCarValetOption: { type: String, default: "without_valet" }
   },
   { timestamps: true }
 );
