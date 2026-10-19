@@ -4693,12 +4693,32 @@ exports.getBookingsByVehicleType = async (req, res) => {
   try {
     const { id, vehicleType } = req.params;
 
-    const bookings = await Booking.find({ vendorId: id, vehicleType });
+    const [bookings, vendor] = await Promise.all([
+      Booking.find({ vendorId: id, vehicleType }).lean(),
+      vendorModel.findById(id, { maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }).lean()
+    ]);
 
     if (!bookings || bookings.length === 0) {
       return res.status(400).json({ message: "No bookings found" });
     }
-    res.status(200).json({ bookings });
+
+    const sanitized = (bookings || []).map(b => {
+      if (!isPassOrSubscriptionBooking(b) && vendor) {
+        const rawAmt = parseFloat(b.amount) || 0;
+        const capped = applyMaxCap(rawAmt, b.vehicleType, vendor);
+        if (rawAmt > capped && capped > 0) {
+          const rawTotal = parseFloat(b.totalamout) || 0;
+          return {
+            ...b,
+            amount: capped.toFixed(2),
+            totalamout: rawTotal > 0 ? (rawTotal - (rawAmt - capped)).toFixed(2) : capped.toFixed(2)
+          };
+        }
+      }
+      return b;
+    });
+
+    res.status(200).json({ bookings: sanitized });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -4707,15 +4727,35 @@ exports.getBookingsByVehicleType = async (req, res) => {
 exports.getOnParkingBookingsByVehicleType = async (req, res) => {
   try {
     const { id, vehicleType } = req.params;
-    const bookings = await Booking.find({
-      vendorId: id,
-      vehicleType,
-      status: { $in: ['PARKED', 'Parked', 'Booked', 'BOOKED'] }
-    });
+    const [bookings, vendor] = await Promise.all([
+      Booking.find({
+        vendorId: id,
+        vehicleType,
+        status: { $in: ['PARKED', 'Parked', 'Booked', 'BOOKED'] }
+      }).lean(),
+      vendorModel.findById(id, { maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }).lean()
+    ]);
     if (!bookings || bookings.length === 0) {
       return res.status(400).json({ message: "No bookings found" });
     }
-    res.status(200).json({ bookings });
+
+    const sanitized = (bookings || []).map(b => {
+      if (!isPassOrSubscriptionBooking(b) && vendor) {
+        const rawAmt = parseFloat(b.amount) || 0;
+        const capped = applyMaxCap(rawAmt, b.vehicleType, vendor);
+        if (rawAmt > capped && capped > 0) {
+          const rawTotal = parseFloat(b.totalamout) || 0;
+          return {
+            ...b,
+            amount: capped.toFixed(2),
+            totalamout: rawTotal > 0 ? (rawTotal - (rawAmt - capped)).toFixed(2) : capped.toFixed(2)
+          };
+        }
+      }
+      return b;
+    });
+
+    res.status(200).json({ bookings: sanitized });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -4729,16 +4769,34 @@ exports.getCompletedBookingsByVehicleType = async (req, res) => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = now.getFullYear();
     const todayStr = `${day}-${month}-${year}`;
-    const bookings = await Booking.find({
-      vendorId: id,
-      vehicleType,
-      status: { $regex: /^COMPLETED$/i },
-      exitvehicledate: todayStr
-    });
+    const [bookings, vendor] = await Promise.all([
+      Booking.find({
+        vendorId: id,
+        vehicleType,
+        status: { $regex: /^COMPLETED$/i },
+        exitvehicledate: todayStr
+      }).lean(),
+      vendorModel.findById(id, { maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }).lean()
+    ]);
     if (!bookings || bookings.length === 0) {
       return res.status(400).json({ message: "No bookings found" });
     }
-    res.status(200).json({ bookings });
+    const sanitized = (bookings || []).map(b => {
+      if (!isPassOrSubscriptionBooking(b) && vendor) {
+        const rawAmt = parseFloat(b.amount) || 0;
+        const capped = applyMaxCap(rawAmt, b.vehicleType, vendor);
+        if (rawAmt > capped && capped > 0) {
+          const rawTotal = parseFloat(b.totalamout) || 0;
+          return {
+            ...b,
+            amount: capped.toFixed(2),
+            totalamout: rawTotal > 0 ? (rawTotal - (rawAmt - capped)).toFixed(2) : capped.toFixed(2)
+          };
+        }
+      }
+      return b;
+    });
+    res.status(200).json({ bookings: sanitized });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -4779,9 +4837,11 @@ exports.calculateExitCharges = async (req, res) => {
 
     const vType = (vehicleType || '').toLowerCase();
     let maxCap = 0;
-    if (vType.includes('bike')) maxCap = parseFloat(vendor?.maxBikeAmount) || 0;
-    else if (vType.includes('car')) maxCap = parseFloat(vendor?.maxCarAmount) || 0;
-    else maxCap = parseFloat(vendor?.maxOthersAmount) || 0;
+    if (!isPassOrSubscriptionBooking(booking)) {
+      if (vType.includes('bike')) maxCap = parseFloat(vendor?.maxBikeAmount) || 0;
+      else if (vType.includes('car')) maxCap = parseFloat(vendor?.maxCarAmount) || 0;
+      else maxCap = parseFloat(vendor?.maxOthersAmount) || 0;
+    }
 
     res.status(200).json({
       success: true,
@@ -4834,18 +4894,42 @@ exports.fastSummaryBookings = async (req, res) => {
       ];
     }
 
-    const bookings = await Booking.find(filter, {
-      vendorId: 1, userid: 1, vendorName: 1, bookType: 1, sts: 1,
-      bookingDate: 1, bookingTime: 1, parkingDate: 1, parkingTime: 1,
-      exitvehicledate: 1, exitvehicletime: 1, parkedDate: 1, parkedTime: 1,
-      amount: 1, totalamout: 1, payableamout: 1, status: 1,
-      vehicleType: 1, vehicleNumber: 1, paymentMode: 1,
-      personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
-      subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
-      approvedDate: 1, approvedTime: 1, isValet: 1, valetCharge: 1,
-    }).lean();
+    const [bookings, vendor] = await Promise.all([
+      Booking.find(filter, {
+        vendorId: 1, userid: 1, vendorName: 1, bookType: 1, sts: 1,
+        bookingDate: 1, bookingTime: 1, parkingDate: 1, parkingTime: 1,
+        exitvehicledate: 1, exitvehicletime: 1, parkedDate: 1, parkedTime: 1,
+        amount: 1, totalamout: 1, payableamout: 1, status: 1,
+        vehicleType: 1, vehicleNumber: 1, paymentMode: 1,
+        personName: 1, mobileNumber: 1, invoiceid: 1, otp: 1,
+        subsctiptiontype: 1, subsctiptionenddate: 1, invoice: 1,
+        approvedDate: 1, approvedTime: 1, isValet: 1, valetCharge: 1,
+      }).lean(),
+      vendorModel.findById(id, { maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }).lean()
+    ]);
 
-    res.status(200).json({ bookings: bookings || [] });
+    const sanitizedBookings = (bookings || []).map(b => {
+      if (!isPassOrSubscriptionBooking(b) && vendor) {
+        const rawAmt = parseFloat(b.amount) || 0;
+        const capped = applyMaxCap(rawAmt, b.vehicleType, vendor);
+        if (rawAmt > capped && capped > 0) {
+          const rawTotal = parseFloat(b.totalamout) || 0;
+          return {
+            ...b,
+            amount: capped.toFixed(2),
+            totalamout: rawTotal > 0 ? (rawTotal - (rawAmt - capped)).toFixed(2) : capped.toFixed(2)
+          };
+        }
+      }
+      return b;
+    });
+
+    res.status(200).json({
+      bookings: sanitizedBookings,
+      maxBikeAmount: vendor?.maxBikeAmount || '0',
+      maxCarAmount: vendor?.maxCarAmount || '0',
+      maxOthersAmount: vendor?.maxOthersAmount || '0'
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -5023,6 +5107,7 @@ exports.fastExitData = async (req, res) => {
 
     const vendor = await vendorModel.findById(booking.vendorId, {
       platformfee: 1, customerplatformfee: 1, vendorName: 1, upiId: 1,
+      maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1,
     }).lean();
 
     const vehicleType = booking.vehicleType || '';
@@ -5035,6 +5120,14 @@ exports.fastExitData = async (req, res) => {
       parseFloat(isCustomer ? (vendor?.customerplatformfee || '0') : (vendor?.platformfee || '0')) || 0
     );
 
+    const vType = (vehicleType || '').toLowerCase();
+    let maxCap = 0;
+    if (!isPassOrSubscriptionBooking(booking)) {
+      if (vType.includes('bike')) maxCap = parseFloat(vendor?.maxBikeAmount) || 0;
+      else if (vType.includes('car')) maxCap = parseFloat(vendor?.maxCarAmount) || 0;
+      else maxCap = parseFloat(vendor?.maxOthersAmount) || 0;
+    }
+
     res.status(200).json({
       success: true,
       parkedDate: booking.parkedDate || booking.parkingDate || '',
@@ -5044,6 +5137,10 @@ exports.fastExitData = async (req, res) => {
       bookType: booking.bookType || '',
       vehicleType,
       amount: booking.amount || '0',
+      maxCap,
+      maxBikeAmount: vendor?.maxBikeAmount || '0',
+      maxCarAmount: vendor?.maxCarAmount || '0',
+      maxOthersAmount: vendor?.maxOthersAmount || '0',
       status: booking.status || '',
       isCustomer,
       gstPercentage: gstPct,
@@ -5149,10 +5246,13 @@ exports.fetchbookingforsummary = async (req, res) => {
     // Fetch bookings for the vendor that are NOT cancelled.
     // NOTE: Summary report wants Instant bookings only after exit,
     // so we transform the response (without updating DB).
-    const bookings = await Booking.find({
-      vendorId: id,
-      status: { $ne: "CANCELLED" },
-    }).lean();
+    const [bookings, vendor] = await Promise.all([
+      Booking.find({
+        vendorId: id,
+        status: { $ne: "CANCELLED" },
+      }).lean(),
+      vendorModel.findById(id, { maxBikeAmount: 1, maxCarAmount: 1, maxOthersAmount: 1 }).lean()
+    ]);
 
     if (!bookings || bookings.length === 0) {
       return res.status(200).json({ bookings: [] });
@@ -5217,8 +5317,21 @@ exports.fetchbookingforsummary = async (req, res) => {
         if (!exitDate) return null; // exclude instant bookings without exit
 
         const exitTime = (b.exitvehicletime ?? "").toString().trim();
+        let finalAmt = b.amount;
+        let finalTotal = b.totalamout;
+        if (vendor) {
+          const rawAmt = parseFloat(b.amount) || 0;
+          const capped = applyMaxCap(rawAmt, b.vehicleType, vendor);
+          if (rawAmt > capped && capped > 0) {
+            finalAmt = capped.toFixed(2);
+            const rawTotal = parseFloat(b.totalamout) || 0;
+            finalTotal = rawTotal > 0 ? (rawTotal - (rawAmt - capped)).toFixed(2) : capped.toFixed(2);
+          }
+        }
         return {
           ...b,
+          amount: finalAmt,
+          totalamout: finalTotal,
           bookingDate: exitDate,
           bookingTime: exitTime || b.bookingTime || "",
         };

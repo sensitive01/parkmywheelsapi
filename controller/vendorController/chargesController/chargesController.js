@@ -2,6 +2,7 @@ const Parking = require('../../../models/chargesSchema');
 const vendorModel = require('../../../models/venderSchema');
 const Booking = require("../../../models/bookingSchema");
 const Parkingcharges = require("../../../models/chargesSchema");
+const mongoose = require('mongoose');
 const { DateTime } = require('luxon');
 
 // Central helper to check if booking is a pass or subscription (caps should strictly apply to Instant Parking only)
@@ -28,9 +29,9 @@ const applyMaxCap = (amount, vehicleType, vendor) => {
 
   const vType = (vehicleType || '').toLowerCase();
   let maxCap = 0;
-  if (vType === 'bike') {
+  if (vType.includes('bike')) {
     maxCap = parseFloat(vendor.maxBikeAmount) || 0;
-  } else if (vType === 'car') {
+  } else if (vType.includes('car')) {
     maxCap = parseFloat(vendor.maxCarAmount) || 0;
   } else {
     maxCap = parseFloat(vendor.maxOthersAmount) || 0;
@@ -1281,14 +1282,18 @@ const fetchtestAmount = async (req, res) => {
     console.log('📌 Book Type:', booking.bookType);
     console.log('📌 Status:', booking.status);
 
-    if (booking.status !== 'PARKED' && booking.status !== 'active') {
-      return res.status(400).json({ error: 'Vehicle not in parked state' });
+    // Vendor lookup (spaceid & fee caps)
+    let vendor = null;
+    if (booking.vendorId) {
+      if (mongoose.Types.ObjectId.isValid(booking.vendorId)) {
+        vendor = await vendorModel.findById(booking.vendorId);
+      }
+      if (!vendor) {
+        vendor = await vendorModel.findOne({
+          $or: [{ _id: booking.vendorId }, { vendorId: booking.vendorId }]
+        });
+      }
     }
-
-    // Vendor lookup (spaceid) — used for all responses
-    const vendor = await vendorModel.findOne({
-      $or: [{ _id: booking.vendorId }, { vendorId: booking.vendorId }]
-    });
     let spaceid = null;
     let spacearea = null;
     if (vendor && vendor.spaceid) {
@@ -1299,6 +1304,25 @@ const fetchtestAmount = async (req, res) => {
         spacearea = vendorBySpaceId.address || vendorBySpaceId.landMark || null;
         console.log('📍 Spacearea found:', spacearea);
       }
+    }
+
+    const bStatus = (booking.status || '').toUpperCase();
+    if (bStatus === 'COMPLETED' || bStatus === 'EXITED') {
+      let finalAmt = parseFloat(booking.totalamout) || parseFloat(booking.amount) || 0;
+      if (!isPassOrSubscription(booking) && vendor) {
+        finalAmt = applyMaxCap(finalAmt, booking.vehicleType, vendor);
+      }
+      return res.json({
+        success: true,
+        payableAmount: finalAmt.toFixed(2),
+        durationHours: 0,
+        spaceid: spaceid || null,
+        spacearea: spacearea || null,
+      });
+    }
+
+    if (bStatus !== 'PARKED' && bStatus !== 'ACTIVE' && bStatus !== 'BOOKED') {
+      return res.status(400).json({ error: 'Vehicle not in parked state' });
     }
 
     const pDate = booking.parkedDate || booking.parkingDate;
@@ -1340,18 +1364,42 @@ const fetchtestAmount = async (req, res) => {
       });
     }
 
-    if (!booking.allCharges || !Array.isArray(booking.allCharges) || booking.allCharges.length === 0) {
-      return res.status(400).json({ error: 'No charges found in booking. Charges may not have been saved at booking time.' });
+    let chargesData = null;
+    if (booking.allCharges && Array.isArray(booking.allCharges) && booking.allCharges.length > 0) {
+      chargesData = {
+        charges: booking.allCharges,
+        vendorCharges: booking.vendorCharges || {}
+      };
+    } else {
+      // Fallback for old bookings without allCharges:
+      const pCharges = await Parkingcharges.findOne({
+        $or: [
+          { vendorid: vendor?.vendorId },
+          { vendorid: booking.vendorId },
+          { vendorid: vendor?._id }
+        ]
+      });
+      if (pCharges && pCharges.charges && pCharges.charges.length > 0) {
+        chargesData = {
+          charges: pCharges.charges,
+          vendorCharges: pCharges
+        };
+      } else {
+        const rawAmt = parseFloat(booking.amount) || 0;
+        const cappedAmt = !isPassOrSubscription(booking)
+          ? applyMaxCap(rawAmt, booking.vehicleType, vendor)
+          : rawAmt;
+        return res.json({
+          success: true,
+          payableAmount: cappedAmt.toFixed(2),
+          durationHours,
+          spaceid: spaceid || null,
+          spacearea: spacearea || null,
+        });
+      }
     }
 
-    console.log('✅ Charges from booking.allCharges:', JSON.stringify(booking.allCharges, null, 2));
-
-    // Step 6: Use charges from booking.allCharges instead of fetching from database
-    // Create a charges object structure similar to what was fetched before
-    const chargesData = {
-      charges: booking.allCharges,
-      vendorCharges: booking.vendorCharges || {}
-    };
+    console.log('✅ Charges data prepared');
 
     // Step 7: Calculate amount
     let amount = 0;
