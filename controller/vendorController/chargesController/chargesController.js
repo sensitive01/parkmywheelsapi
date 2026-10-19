@@ -4,6 +4,22 @@ const Booking = require("../../../models/bookingSchema");
 const Parkingcharges = require("../../../models/chargesSchema");
 const { DateTime } = require('luxon');
 
+// Central helper to check if booking is a pass or subscription (caps should strictly apply to Instant Parking only)
+const isPassOrSubscription = (booking) => {
+  if (!booking) return false;
+  const sts = (booking.sts || "").toString().toLowerCase().trim();
+  const bookType = (booking.bookType || "").toString().toLowerCase().trim();
+  const subType = (booking.subsctiptiontype || "").toString().trim();
+
+  if (subType !== "") return true;
+  if (["subscription", "weekly", "15day", "monthly"].includes(sts)) return true;
+  if (/^\d+hr$/i.test(sts)) return true;
+  if (["weekly", "monthly", "subscription", "12 hours", "24 hours", "48 hours", "72 hours", "fullday", "full day", "pass"].includes(bookType)) {
+    return true;
+  }
+  return false;
+};
+
 // Central helper to enforce maximum parking fee caps per vehicle type
 const applyMaxCap = (amount, vehicleType, vendor) => {
   if (!vendor || amount === undefined || amount === null) return amount;
@@ -1021,7 +1037,10 @@ const tested = async (req, res) => {
       amount = calculateFullDayFromBooking(chargesData, parkedDateTime, exitDateTime, fullDayType, booking.vehicleType);
     }
 
-    const cappedAmount = applyMaxCap(amount, booking.vehicleType, vendor);
+    // Maximum cap ceiling is applicable ONLY for Instant Parking (passes and subscriptions are not capped)
+    const cappedAmount = !isPassOrSubscription(booking)
+      ? applyMaxCap(amount, booking.vehicleType, vendor)
+      : amount;
 
     // Step 8: Update booking
     const updatedBooking = await Booking.findByIdAndUpdate(
@@ -1309,7 +1328,8 @@ const fetchtestAmount = async (req, res) => {
     const stsTrim = (booking.sts || '').toString().trim();
     if (/^\d+hr$/i.test(stsTrim)) {
       const rawAmt = parseFloat(booking.amount) || 0;
-      const fixedAmt = applyMaxCap(rawAmt, booking.vehicleType, vendor);
+      // Fixed pass amounts must never be capped by instant parking limits
+      const fixedAmt = rawAmt;
       console.log(`📌 Fixed pass ${stsTrim}: payableAmount = ${fixedAmt}`);
       return res.json({
         success: true,
@@ -1347,8 +1367,10 @@ const fetchtestAmount = async (req, res) => {
       amount = calculateFullDayFromBooking(chargesData, parkedDateTime, exitDateTime, fullDayType, booking.vehicleType);
     }
 
-    // Apply vendor max cap ceiling
-    const cappedAmount = applyMaxCap(amount, booking.vehicleType, vendor);
+    // Apply vendor max cap ceiling ONLY for Instant Parking (passes and subscriptions are not capped)
+    const cappedAmount = !isPassOrSubscription(booking)
+      ? applyMaxCap(amount, booking.vehicleType, vendor)
+      : amount;
 
     // Step 8: Return response with spaceid and spacearea
     return res.json({

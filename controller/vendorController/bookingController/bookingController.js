@@ -164,6 +164,22 @@ const isHourlySts = (sts) => {
   return ["12hr", "24hr", "48hr", "72hr"].includes(s);
 };
 
+/** True when booking is a pass or subscription (caps should strictly apply to Instant Parking only) */
+const isPassOrSubscriptionBooking = (data) => {
+  if (!data) return false;
+  const sts = (data.sts || "").toString().toLowerCase().trim();
+  const bookType = (data.bookType || "").toString().toLowerCase().trim();
+  const subType = (data.subsctiptiontype || "").toString().trim();
+
+  if (subType !== "") return true;
+  if (["subscription", "weekly", "15day", "monthly"].includes(sts)) return true;
+  if (/^\d+hr$/i.test(sts)) return true;
+  if (["weekly", "monthly", "subscription", "12 hours", "24 hours", "48 hours", "72 hours", "fullday", "full day", "pass"].includes(bookType)) {
+    return true;
+  }
+  return false;
+};
+
 // 📌 Apply maximum parking fee cap based on vehicle type and vendor settings
 const applyMaxCap = (amount, vehicleType, vendor) => {
   if (!vendor) return amount;
@@ -443,9 +459,10 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: "GST and handling fee data not found" });
     }
 
-    // Financial calculations
+    // Financial calculations (Max cap strictly applicable to instant parking only)
     const rawBookingAmount = parseFloat(amount) || 0;
-    const bookingAmount = applyMaxCap(rawBookingAmount, vehicleType, vendorData);
+    const isPass = isPassOrSubscriptionBooking({ sts, bookType, subsctiptiontype });
+    const bookingAmount = !isPass ? applyMaxCap(rawBookingAmount, vehicleType, vendorData) : rawBookingAmount;
     const gstPercentage = parseFloat(gstFeeData.gst) || 0;
     const gstAmount = (bookingAmount * gstPercentage) / 100;
     const handlingFee = parseFloat(gstFeeData.handlingfee) || 0;
@@ -1060,8 +1077,9 @@ exports.machinecreatebooking = async (req, res) => {
     let receivableAmount = 0;
     let payableAmount = 0;
 
-    // ✅ Calculate amounts
-    const cappedRaw = applyMaxCap(parseFloat(amount) || 0, vehicleType, vendorData);
+    // ✅ Calculate amounts (Max cap strictly applicable to instant parking only)
+    const isPass = isPassOrSubscriptionBooking({ sts, bookType, subsctiptiontype });
+    const cappedRaw = !isPass ? applyMaxCap(parseFloat(amount) || 0, vehicleType, vendorData) : (parseFloat(amount) || 0);
     const roundedAmount = Math.ceil(cappedRaw);
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
@@ -1938,8 +1956,9 @@ exports.vendorcreateBooking = async (req, res) => {
     let receivableAmount = 0;
     let payableAmount = 0;
 
-    // ✅ Calculate amounts
-    const cappedRaw = applyMaxCap(parseFloat(amount) || 0, vehicleType, vendorData);
+    // ✅ Calculate amounts (Max cap strictly applicable to instant parking only)
+    const isPass = isPassOrSubscriptionBooking({ sts, bookType, subsctiptiontype });
+    const cappedRaw = !isPass ? applyMaxCap(parseFloat(amount) || 0, vehicleType, vendorData) : (parseFloat(amount) || 0);
     const roundedAmount = Math.ceil(cappedRaw);
     bookingAmount = roundedAmount.toFixed(2);
     totalAmount = bookingAmount;
@@ -2945,7 +2964,8 @@ exports.livecreateBooking = async (req, res) => {
     let handlingFee = 0;
 
     const rawBookingAmount = parseFloat(amount) || 0;
-    const cappedBookingAmount = applyMaxCap(rawBookingAmount, vehicleType, vendorData);
+    const isPass = isPassOrSubscriptionBooking({ sts, bookType, subsctiptiontype });
+    const cappedBookingAmount = !isPass ? applyMaxCap(rawBookingAmount, vehicleType, vendorData) : rawBookingAmount;
 
     if (gstFeeData) {
       const gstPercentage = parseFloat(gstFeeData.gst) || 0;
@@ -6127,9 +6147,10 @@ exports.updateBookingAmountAndHour = async (req, res) => {
     // Always round UP the platform fee percentage (e.g., 1.05 → 2, 2.4 → 3, 2.6 → 3)
     platformFeePercentage = Math.ceil(platformFeePercentage);
 
-    // Apply maximum amount cap based on vehicle type and vendor
+    // Apply maximum amount cap strictly for Instant Parking (passes and subscriptions are not capped)
     const rawAmount = parseFloat(amount) || 0;
-    const cappedAmount = applyMaxCap(rawAmount, booking.vehicleType, vendor);
+    const isPass = isPassOrSubscriptionBooking(booking);
+    const cappedAmount = !isPass ? applyMaxCap(rawAmount, booking.vehicleType, vendor) : rawAmount;
     const roundedAmount = Math.ceil(cappedAmount);
 
     let roundedTotalAmount;
