@@ -1359,11 +1359,44 @@ const fetchVendorSubscription = async (req, res) => {
       return res.status(400).json({ message: "Vendor ID is required." });
     }
 
-    // Find vendor by vendorId
-    const vendor = await vendorModel.findOne({ vendorId });
+    // Find vendor by vendorId or _id
+    let vendor = await vendorModel.findOne({ vendorId });
+    if (!vendor && mongoose.Types.ObjectId.isValid(vendorId)) {
+      vendor = await vendorModel.findById(vendorId);
+    }
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found." });
+    }
+
+    let isSubscriptionActive =
+      (vendor.subscription === "true" || vendor.subscription === true) &&
+      parseInt(vendor.subscriptionleft || 0, 10) > 0;
+
+    if (isSubscriptionActive && vendor.subscriptionenddate) {
+      const endDate = new Date(vendor.subscriptionenddate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      if (!isNaN(endDate.getTime()) && endDate < today) {
+        isSubscriptionActive = false;
+      }
+    }
+
+    // Also check trial if not subscribed
+    if (!isSubscriptionActive && vendor.trialstartdate && vendor.trial === "false") {
+      const trialStart = new Date(vendor.trialstartdate);
+      const diffDays = Math.floor((new Date() - trialStart) / (1000 * 60 * 60 * 24));
+      if (diffDays < 30) {
+        isSubscriptionActive = true;
+      }
+    }
+
+    // Auto-heal: If subscription was "true" in DB but actually expired, sync DB record to "false"
+    if ((vendor.subscription === "true" || vendor.subscription === true) && !isSubscriptionActive) {
+      vendor.subscription = "false";
+      vendor.subscriptionleft = 0;
+      await vendor.save();
     }
 
     // Respond with vendor details and subscription status
@@ -1372,7 +1405,9 @@ const fetchVendorSubscription = async (req, res) => {
       vendor: {
         vendorId: vendor.vendorId,
         vendorName: vendor.vendorName,
-        subscription: vendor.subscription, // Subscription status (true or false)
+        subscription: isSubscriptionActive ? "true" : "false",
+        subscriptionleft: isSubscriptionActive ? (vendor.subscriptionleft || 0) : 0,
+        subscriptionenddate: vendor.subscriptionenddate,
       },
     });
   } catch (err) {
@@ -1389,15 +1424,34 @@ const fetchVendorSubscriptionLeft = async (req, res) => {
       return res.status(400).json({ message: "Vendor ID is required." });
     }
 
-
-    const vendor = await vendorModel.findOne({ vendorId });
+    let vendor = await vendorModel.findOne({ vendorId });
+    if (!vendor && mongoose.Types.ObjectId.isValid(vendorId)) {
+      vendor = await vendorModel.findById(vendorId);
+    }
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found." });
     }
 
+    let isSubscriptionActive =
+      (vendor.subscription === "true" || vendor.subscription === true) &&
+      parseInt(vendor.subscriptionleft || 0, 10) > 0;
+
+    if (isSubscriptionActive && vendor.subscriptionenddate) {
+      const endDate = new Date(vendor.subscriptionenddate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      if (!isNaN(endDate.getTime()) && endDate < today) {
+        isSubscriptionActive = false;
+      }
+    }
+
+    const daysLeft = isSubscriptionActive ? parseInt(vendor.subscriptionleft || 0, 10) : 0;
+
     return res.status(200).json({
-      subscriptionleft: vendor.subscriptionleft,
+      subscriptionleft: daysLeft,
+      subscription: isSubscriptionActive ? "true" : "false",
     });
   } catch (err) {
     console.error("Error in fetching vendor subscriptionleft", err);
@@ -1958,6 +2012,80 @@ const updateValidity = async (req, res) => {
   }
 };
 
+const updateSubscriptionStatus = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    const { status } = req.body;
+
+    console.log(`UpdateSubscriptionStatus Request - Vendor: ${vendorId}, Status: ${status}`);
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Vendor ID is required" });
+    }
+
+    const vendor = await vendorModel.findById(vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const isActive = status === "active" || status === "true" || status === true;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const dayStr = String(today.getDate()).padStart(2, "0");
+    const todayFormatted = `${year}-${month}-${dayStr}`;
+
+    if (isActive) {
+      vendor.subscription = "true";
+      // If validity is 0 or less, restore previous validity or default to 30 days
+      const currentDays = parseInt(vendor.subscriptionleft || 0, 10);
+      let restoreDays = currentDays > 0 ? currentDays : (vendor.previoussubscriptionleft > 0 ? vendor.previoussubscriptionleft : 30);
+      vendor.subscriptionleft = restoreDays;
+      vendor.previoussubscriptionleft = 0;
+
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + restoreDays);
+      const endYear = endDate.getFullYear();
+      const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
+      const endDayStr = String(endDate.getDate()).padStart(2, "0");
+      vendor.subscriptionenddate = `${endYear}-${endMonth}-${endDayStr}`;
+    } else {
+      // Inactive
+      if (vendor.subscriptionleft > 0) {
+        vendor.previoussubscriptionleft = vendor.subscriptionleft;
+      }
+      vendor.subscription = "false";
+      vendor.subscriptionleft = 0;
+      vendor.subscriptionenddate = todayFormatted;
+    }
+
+    await vendor.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Vendor subscription status updated to ${isActive ? "Active" : "Inactive"} successfully`,
+      vendor: {
+        id: vendor._id,
+        vendorId: vendor.vendorId,
+        vendorName: vendor.vendorName,
+        subscription: vendor.subscription,
+        subscriptionleft: vendor.subscriptionleft,
+        previoussubscriptionleft: vendor.previoussubscriptionleft || 0,
+        subscriptionenddate: vendor.subscriptionenddate,
+      },
+    });
+  } catch (err) {
+    console.error("Error updating subscription status:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+
 
 
 const vendoridlogin = async (req, res) => {
@@ -2234,6 +2362,7 @@ const getReturnMinutes = async (req, res) => {
 module.exports = {
   getReturnMinutes,
   updateValidity,
+  updateSubscriptionStatus,
   vendoridlogin,
   updateVendorPlatformFee,
   updateVendorPlatformFeeForVendor,

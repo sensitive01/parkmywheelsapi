@@ -191,6 +191,29 @@ cron.schedule("59 23 * * *", async () => {
       await vendor.save();
     }
 
+    // 3. EXPIRED CLEANUP: Vendors marked subscription: "true" whose subscriptionleft <= 0 or end date passed
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    const todayFormatted = `${year}-${month}-${day}`;
+
+    const expiredVendors = await Vendor.find({
+      subscription: "true",
+      $or: [
+        { subscriptionleft: { $lte: 0 } },
+        { subscriptionleft: "0" },
+        { subscriptionleft: null },
+        { subscriptionenddate: { $exists: true, $ne: "", $lt: todayFormatted } }
+      ]
+    });
+
+    for (const vendor of expiredVendors) {
+      vendor.subscription = "false";
+      vendor.subscriptionleft = 0;
+      await vendor.save();
+      console.log(`🧹 Cleaned up expired subscription for: ${vendor.vendorName}`);
+    }
+
     console.log("✅ Daily vendor subscription & trial check completed.");
   } catch (error) {
     console.error("❌ Error in cron job:", error);

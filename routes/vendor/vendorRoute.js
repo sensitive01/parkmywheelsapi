@@ -258,6 +258,7 @@ vendorRoute.put('/verifykyc/:vendorId', kycController.verifyKycStatus);
 vendorRoute.put('/updateplatformfee/:id', vendorController.updateVendorPlatformFee);
 vendorRoute.put('/updatecustomerplatformfee/:id', vendorController.updateVendorPlatformFeeForVendor);
 vendorRoute.put('/updatevaliditydays/:id', vendorController.updateValidity);
+vendorRoute.put('/updatesubscriptionstatus/:id', vendorController.updateSubscriptionStatus);
 
 
 vendorRoute.post("/createhelpvendor", helpfeedbackController.createVendorHelpSupportRequest);
