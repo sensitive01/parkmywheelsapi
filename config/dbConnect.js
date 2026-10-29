@@ -31,28 +31,54 @@
 
 const mongoose = require("mongoose");
 require("dotenv").config();
-const { MONGO_USERNAME, MONGO_PASSWORD, MONGO_DATABASE_NAME } = require("./variables");
+const {
+  MONGO_USERNAME,
+  MONGO_PASSWORD,
+  MONGO_DATABASE_NAME,
+  MONGO_URI,
+  MONGO_AUTH_SOURCE,
+} = require("./variables");
+
+// Listeners for MongoDB connection lifecycle
+mongoose.connection.on("connected", () => {
+  console.log("✅ Mongoose connected successfully to MongoDB");
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error("❌ Mongoose connection error:", err);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.warn("⚠️ Mongoose disconnected from MongoDB");
+});
 
 const dbConnect = () => {
-  console.log("Connecting to local MongoDB...");
+  let mongoURI = MONGO_URI;
 
-  // URL-encode special characters in credentials
-  const username = encodeURIComponent(MONGO_USERNAME);
-  const password = encodeURIComponent(MONGO_PASSWORD);
+  if (!mongoURI) {
+    const dbName = MONGO_DATABASE_NAME || "Park_My_Wheels";
 
-  // Local MongoDB connection URI with authSource
-  const mongoURI = `mongodb://${username}:${password}@127.0.0.1:27017/${MONGO_DATABASE_NAME}?authSource=${MONGO_DATABASE_NAME}`;
+    if (MONGO_USERNAME && MONGO_PASSWORD) {
+      const username = encodeURIComponent(MONGO_USERNAME);
+      const password = encodeURIComponent(MONGO_PASSWORD);
+      const authSource = MONGO_AUTH_SOURCE || "admin";
+      mongoURI = `mongodb://${username}:${password}@127.0.0.1:27017/${dbName}?authSource=${authSource}`;
+    } else {
+      mongoURI = `mongodb://127.0.0.1:27017/${dbName}`;
+    }
+  }
+
+  // Safe URI for logging (mask password)
+  const maskedURI = mongoURI.replace(/:([^:@]+)@/, ":****@");
+  console.log(`🔌 Connecting to MongoDB at: ${maskedURI}`);
 
   mongoose
     .connect(mongoURI, {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
     })
-    .then(() => {
-      console.log("Connected successfully to local MongoDB");
-    })
     .catch((err) => {
-      console.error("Error connecting to local MongoDB:", err);
+      console.error("❌ Error establishing initial connection to MongoDB:", err.message);
     });
 };
 
